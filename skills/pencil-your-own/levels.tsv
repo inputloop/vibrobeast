@@ -1,0 +1,29 @@
+# levels.tsv --- THE INK LEVELS for pencil-your-own. Yours to edit; that is the point.
+#
+# Borrowed verbatim in vocabulary from c4/h/m0ve-ink.tsv (Corwin's ruling, 2026-08-29), because a
+# second scale for the same idea would be a new fact about the world minted by me -- exactly the
+# thing this skill says not to ink. If m0ve's table moves, move this one to match and say so.
+#
+# THE RULE, one line, and pencil.sh prints it too:
+#     a concern of ink k gates while reality r >= 1 - k.
+# Fully inked (1.0) gates at every reality -- it is a fact about the world, not a choice.
+# An uninked line (0.0) gates only under a full reality check.
+#
+# FILE BY WORDS. A concern row carries the NAME, never the LEVEL. `pencil` is one bare word;
+# `0.5` is a literal whose meaning rides on a typographic point, and the shop's law is that the
+# separator is never typography. pencil.sh REFUSES a numeric literal and tells you which word
+# you meant.
+#
+# WHY THIS IS A FILE AND NOT A REGEX INSIDE THE TOOL: if I picked the scale inside the
+# instrument I would be committing the fault the instrument measures. Strike a row and a level
+# disappears. Add one and it appears. Neither needs my agreement.
+#
+# name: the one bare word a concern row cites.
+# level: the ink, in [0,1]. The gating stop 1-level is derived; do not write it.
+# means: what claiming this level asserts about the concern.
+name	level	means
+inked	1.0	a fact about the world, with a witness that is not me. Gates even in the dream.
+firm	0.75	established here, and I would defend it. Drops only when you are frankly dreaming.
+pencil	0.5	a working assumption I am willing to name as one. Drops at half reality.
+faint	0.25	a guess kept visible on purpose. Drops early; the losers stay in the drawing.
+uninked	0.0	a line I drew and do not stand behind. Gates only under a full reality check.

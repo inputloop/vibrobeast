@@ -1,0 +1,22 @@
+# gauges.tsv --- THE GAUGES. Yours to edit; that is the point.
+#
+# Each row is a PAIR of counted ERE patterns and a ratio numerator/denominator. The tool counts,
+# divides, and stops. It prints no verdict and no threshold, because a threshold picked-not-
+# validated is the very fault these gauges exist to catch -- baking one in would ink my own guess
+# into the instrument that measures guesses.
+#
+# Strike a row and a gauge disappears. Add one and it appears. Neither needs the tool's agreement.
+#
+# A denominator of 0 prints INF and is marked. That is not an error -- it is the loudest signal
+# available: the document affords the reader nothing at all on that axis.
+#
+# Columns are TAB-separated:
+#   name        the gauge's handle
+#   num         ERE counted for the numerator (grep -oE, case-insensitive)
+#   den         ERE counted for the denominator
+#   meaning     what a HIGH ratio means. Never what to do about it.
+name	num	den	meaning
+framework-per-affordance	framework|paradigm|architecture|methodolog(y|ies)|the model|conceptual	Try this|^[[:space:]]*[0-9]+\.|^[[:space:]]*\$ |^```|^[[:space:]]*sh |^[[:space:]]*Run	describing a system to someone who wanted to use one
+claim-per-citation	[a-z]+ (is|are|must|always|never|will) |it follows|clearly|obviously	\(20[0-9][0-9]|https?://|`[^`]+\.(md|sh|tsv|org|py)`|[a-z]+/[a-z-]+\.(md|sh|tsv)	confidence outrunning its sources
+believed-per-observed	BELIEVED|I think|I believe|presumably|should be|probably	OBSERVED|I ran|the output was|receipt:|exit=|verified	judgement entering the record in an observation's clothes
+unwitnessed-claim	†|single-sourced|only source|no second witness|one witness	confirmed by|second source|cross-read|two readers|independently	claims standing on one leg -- mark them or find the witness

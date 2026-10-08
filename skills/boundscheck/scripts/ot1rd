@@ -1,0 +1,638 @@
+#!/bin/sh
+# ot1rd -- OPERATION TEST 1 ROUTINE DOMAIN. Read ONE saved transcript and report every
+#          place the run reached, or read text naming, a path it was told to stay out of.
+#
+# Copyright 2026 Corwin Brust <corwin@bru.st>
+#
+# This file is not part of GNU Emacs.
+# This program is free software: you can redistribute it and/or modify it under the terms of the
+# GNU General Public License as published by the Free Software Foundation, either version 3 of
+# the License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+# without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+# See the GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along with this program.
+# If not, see <https://www.gnu.org/licenses/>.
+#
+# ---------------------------------------------------------------------------------------------
+# THE NAME, declared as my reading because nobody said it. Five characters, run-level pinned in
+# the middle where the string balances, per the AS4CE pattern:
+#
+#   O  OPERATION -- it operates on a file that already exists; it changes nothing in the world
+#   T  TEST      -- what the act is: a test, with a pass and a fail
+#   1  run-level 1 -- reads ONE transcript, writes a report. It never edits the transcript,
+#                     never writes outside its temp dir, and never repairs anything.
+#   R  ROUTINE   -- it is meant to run once per candidate run, not once per crisis
+#   D  DOMAIN    -- the question it answers: "did the routine stay in its domain?"
+#
+# ---------------------------------------------------------------------------------------------
+# WHY THIS EXISTS. The experiment seat can prove most of its fairness rules from files: a scorer
+# lives outside the seat, a kit is pinned by hash, a receipt is present. One rule has no
+# file-side falsifier at all -- "the candidate run did not read the authors' tree". Nothing on
+# disk changes when a run reads a file it should not have. The only witness is the run's own
+# transcript, and until the transcript was reachable the guard could not be built. It is
+# reachable now: a session's transcript is a JSONL file the session owns.
+#
+#   A GUARD WITH NO FALSIFIER IS A WISH. THIS MAKES IT A COMMAND.
+#
+# ---------------------------------------------------------------------------------------------
+# WHY sh + python3 AND NOT ONE OR THE OTHER. The transcript is JSON with paths buried at
+# arbitrary depth (a list of file records, a nested tool input), so the scan wants a real JSON
+# parser: that is python3, stdlib only, no third-party import. But the tally has to be checked
+# by something that is NOT the program that produced it -- a count a program prints about itself
+# is an assertion, not a receipt. So the shell recounts the emitted report with grep and awk and
+# prints AGREE or DISAGREE. Two readers, two languages, one file. The python lives at the foot
+# of this file between #PY8 markers and is extracted to a temp file at run time; because of that,
+# ot1rd must be run AS A FILE (`ot1rd ...`, `sh ot1rd ...`) and not piped into a shell.
+#
+# WHAT IT CANNOT DO, said here and not only in the skill:
+#   * it cannot see a tool the transcript does not log, nor a subagent's own tool calls (they
+#     are not in the parent's transcript -- an Agent result carries a summary, not a call list)
+#   * it cannot see a path the run never spelled: $HOME, a glob, a `cd` then a relative name,
+#     a symlink into the denied tree
+#   * it cannot see anything dropped by a context compaction -- it WARNs when it finds the
+#     boundary, because a clean report over a compacted transcript is a clean report over a
+#     fragment
+#   * it does not read the user's own prompts. A path a person typed is not a path the run read.
+#
+# usage: ot1rd TRANSCRIPT.jsonl --deny PATH [--deny PATH ...] [--allow PATH ...] [--json] [--strict]
+#        ot1rd --prove-red
+#
+# env:   OT1RD_TRANSCRIPT   a real transcript for the --prove-red green control; default: the
+#                           largest of /root/.claude/projects/*/*.jsonl, else NOT ATTEMPTED
+#        OT1RD_BREAK_TALLY  self-test hook, not a feature: corrupts the PRINTED tally so
+#                           --prove-red can show the recount catching it. Never set it in anger.
+#
+# exit 0 clean (or read-back hits only) - 1 a denied CALL, or --strict, or DISAGREE - 2 usage
+set -eu
+LC_ALL=C; export LC_ALL
+
+die() { printf 'ot1rd: %s\n' "$*" >&2; exit 2; }
+
+tmp=$(mktemp -d "${TMPDIR:-/tmp}/ot1rd.XXXXXX") || die "cannot make a temp dir"
+trap 'rm -rf "$tmp"' EXIT
+trap 'rm -rf "$tmp"; exit 2' INT TERM HUP
+
+py=$tmp/ot1rd.py
+sed -n '/^#PY8<---BEGIN$/,/^#PY8<---END$/p' "$0" | sed '1d;$d' > "$py" 2>/dev/null || :
+[ -s "$py" ] || die "cannot read my own source ($0) -- run ot1rd as a file, not from a pipe"
+
+command -v python3 >/dev/null 2>&1 || die "python3 not found; ot1rd needs it to parse the transcript"
+
+# ---------------------------------------------------------------------------------------------
+# run_one: scan (python) -> recount (grep/awk, the second reader) -> finish (python). Prints the
+# report on stdout and returns the verdict. The recount is deliberately dumb: it counts lines of
+# the shape the scanner emitted, knowing nothing about JSON.
+run_one() {
+	rc=0
+	python3 "$py" --scan --workdir "$tmp" "$@" || rc=$?
+	[ "$rc" -eq 0 ] || return "$rc"
+
+	# grep -c prints 0 AND exits 1 when nothing matches -- so neutralise the status with
+	# `|| true` and keep the printed 0. Never `|| echo 0`: that prints a SECOND 0 and the
+	# arithmetic downstream goes strange (landcheck.sh:28, the same lesson, same shop).
+	rc_call=$(grep -c "$(printf '^HIT\tcall\t')" "$tmp/report.txt" || true)
+	rc_back=$(grep -c "$(printf '^HIT\tread-back\t')" "$tmp/report.txt" || true)
+	printf 'call=%s\nread-back=%s\n' "$rc_call" "$rc_back" > "$tmp/recount.txt"
+
+	# awk reads the scanner's own TALLY line back out of the report and compares.
+	awk -F'\t' -v c="$rc_call" -v b="$rc_back" '
+		/^TALLY\t/ {
+			for (i = 2; i <= NF; i++) {
+				split($i, kv, "=")
+				if (kv[1] == "call") sc = kv[2]
+				if (kv[1] == "read-back") sb = kv[2]
+			}
+		}
+		END {
+			if (sc == "" ) { print "agree=no\nwhy=no-TALLY-line"; exit }
+			print (sc + 0 == c + 0 && sb + 0 == b + 0) ? "agree=yes" : "agree=no"
+			print "why=scanner call=" sc " read-back=" sb "; recount call=" c " read-back=" b
+		}' "$tmp/report.txt" >> "$tmp/recount.txt"
+
+	rc=0
+	python3 "$py" --finish --workdir "$tmp" || rc=$?
+	return "$rc"
+}
+
+# ---------------------------------------------------------------------------------------------
+# prove_red: the tool must go RED on a planted out-of-bounds read and GREEN on a real transcript
+# with a path nothing could have touched. Every case asserts an exit code AND a count, because a
+# tool that exits 1 for the wrong reason is not a guard.
+prove_red() {
+	python3 "$py" --make-fixtures --workdir "$tmp" || die "cannot build fixtures"
+	deny=/mnt/user-data/uploads/AS4CE0001
+	pass=0; fail=0
+	case_check() { # case_check LABEL WANT-RC WANT-CALL WANT-BACK -- rest are ot1rd args
+		label=$1; want_rc=$2; want_call=$3; want_back=$4; shift 4
+		# re-enter through `sh "$0"`, not "$0": the outputs mount can drop the exec bit, and
+		# the proof must not fail for a reason that has nothing to do with the check.
+		out=$(sh "$0" "$@" 2>&1) && got_rc=0 || got_rc=$?
+		printf '%s\n' "$out" > "$tmp/last-output.txt"
+		got_call=$(printf '%s\n' "$out" | awk -F'\t' '/^TALLY\t/{for(i=2;i<=NF;i++){split($i,kv,"=");if(kv[1]=="call")print kv[2]}}')
+		got_back=$(printf '%s\n' "$out" | awk -F'\t' '/^TALLY\t/{for(i=2;i<=NF;i++){split($i,kv,"=");if(kv[1]=="read-back")print kv[2]}}')
+		got_agree=$(printf '%s\n' "$out" | awk -F'\t' '/^RECOUNT\t/{print $NF}')
+		[ -n "$got_call" ] || got_call=-
+		[ -n "$got_back" ] || got_back=-
+		[ -n "$got_agree" ] || got_agree=-
+		if [ "$got_rc" = "$want_rc" ] && [ "$got_call" = "$want_call" ] && [ "$got_back" = "$want_back" ] &&
+		   { [ "$want_call" = "-" ] || [ "$got_agree" = "AGREE" ]; }; then
+			printf 'PASS  %-26s rc=%s call=%s read-back=%s %s\n' "$label" "$got_rc" "$got_call" "$got_back" "$got_agree"
+			pass=$((pass + 1))
+		else
+			printf 'FAIL  %-26s rc=%s (want %s) call=%s (want %s) read-back=%s (want %s) %s\n' \
+				"$label" "$got_rc" "$want_rc" "$got_call" "$want_call" "$got_back" "$want_back" "$got_agree"
+			printf '%s\n' "$out" | sed 's/^/      | /'
+			fail=$((fail + 1))
+		fi
+	}
+
+	echo "== ot1rd --prove-red =="
+	echo "-- RED: a planted out-of-bounds call must exit 1 and be counted"
+	case_check "denied call + read-back" 1 1 1 "$tmp/case1.jsonl" --deny "$deny"
+	echo "-- AMBER: a read-back with no call is a warning, not a failure -- unless --strict"
+	case_check "read-back only" 0 0 1 "$tmp/case2.jsonl" --deny "$deny"
+	case_check "read-back only --strict" 1 0 1 "$tmp/case2.jsonl" --deny "$deny" --strict
+	echo "-- extras this build added (attachments, compact boundary, --allow, usage)"
+	case_check "attachment + compaction" 0 0 1 "$tmp/case3.jsonl" --deny "$deny"
+	if grep -q "$(printf '^WARN\tcompact-boundary\t')" "$tmp/last-output.txt" 2>/dev/null; then
+		echo "PASS  compact-boundary WARN     printed on the compacted transcript"; pass=$((pass + 1))
+	else
+		echo "FAIL  compact-boundary WARN     missing on the compacted transcript"; fail=$((fail + 1))
+	fi
+	case_check "--allow suppresses" 0 0 0 "$tmp/case5.jsonl" --deny "$deny" --allow "$deny/pub"
+	case_check "no --deny is usage" 2 - - "$tmp/case1.jsonl"
+	case_check "missing transcript" 2 - - "$tmp/no-such-file.jsonl" --deny "$deny"
+
+	# the second reader must be able to say DISAGREE, or it is decoration
+	out=$(OT1RD_BREAK_TALLY=1 sh "$0" "$tmp/case1.jsonl" --deny "$deny" 2>&1) && rc0=0 || rc0=$?
+	if [ "$rc0" -eq 1 ] && printf '%s\n' "$out" | grep -q DISAGREE; then
+		echo "PASS  recount bites             a corrupted tally is caught: DISAGREE, rc=1"
+		pass=$((pass + 1))
+	else
+		printf 'FAIL  recount bites             rc=%s and no DISAGREE -- the second reader is decoration\n' "$rc0"
+		fail=$((fail + 1))
+	fi
+
+	echo "-- GREEN control: a real transcript, denied a path nothing could have touched"
+	real=${OT1RD_TRANSCRIPT:-}
+	if [ -z "$real" ]; then
+		real=$(ls -S /root/.claude/projects/*/*.jsonl 2>/dev/null | head -1 || true)
+	fi
+	if [ -n "$real" ] && [ -f "$real" ]; then
+		printf 'green control runs against: %s (%s lines)\n' "$real" "$(wc -l < "$real")"
+
+		# Control 1, the literal token. It is scored against an INDEPENDENT reader -- plain
+		# grep over the raw file -- not against a fixed expectation, because the token can be
+		# in the transcript honestly: a session that wrote, pasted or briefed ot1rd has typed
+		# the string. Green means "ot1rd and grep tell the same story", which is the only
+		# thing a control can honestly assert about a file it did not write.
+		raw=$(grep -F -c -- /nonexistent-zzz "$real" || true)
+		out=$(sh "$0" "$real" --deny /nonexistent-zzz 2>&1) && rc0=0 || rc0=$?
+		tot=$(printf '%s\n' "$out" | grep -c '^HIT' || true)
+		if [ "$raw" -eq 0 ] && [ "$tot" -eq 0 ] && [ "$rc0" -eq 0 ]; then
+			echo "PASS  real, /nonexistent-zzz    0 hits; grep agrees the token is absent"
+			pass=$((pass + 1))
+		elif [ "$raw" -gt 0 ] && [ "$tot" -gt 0 ]; then
+			printf 'PASS  real, /nonexistent-zzz    %s hit(s); grep finds the token on %s line(s) -- present, so not a false alarm\n' "$tot" "$raw"
+			echo "      (observer effect: this transcript is one that named ot1rd's own control token)"
+			pass=$((pass + 1))
+		else
+			printf 'FAIL  real, /nonexistent-zzz    ot1rd hits=%s rc=%s but grep lines=%s -- the two readers disagree\n' "$tot" "$rc0" "$raw"
+			fail=$((fail + 1))
+		fi
+
+		# Control 2, a token minted at run time. Nothing can have typed it before this second,
+		# so a hit here is a false alarm and nothing else. This is the strict green.
+		mint=$(od -An -N6 -tx1 /dev/urandom 2>/dev/null | tr -d ' \n' || true)
+		[ -n "$mint" ] || mint=$$-$(date -u +%s)
+		case_check "real, minted token" 0 0 0 "$real" --deny "/nonexistent-$mint"
+	else
+		echo "NOT ATTEMPTED  green control -- no transcript found."
+		echo "               command: OT1RD_TRANSCRIPT=/path/to/session.jsonl sh ot1rd --prove-red"
+	fi
+
+	printf 'TOTAL pass=%d fail=%d\n' "$pass" "$fail"
+	[ "$fail" -eq 0 ] || return 1
+	return 0
+}
+
+case ${1:-} in
+	--prove-red) rc=0; prove_red || rc=$?; exit "$rc" ;;
+	-h|--help|"") sed -n '/^# usage:/,/^# exit/p' "$0" | sed 's/^# \{0,1\}//' >&2; exit 2 ;;
+esac
+
+rc=0
+run_one "$@" || rc=$?
+exit "$rc"
+
+: <<'PY8_SOURCE_BLOCK'
+#PY8<---BEGIN
+#!/usr/bin/env python3
+"""ot1rd scanner -- the JSON-reading half of ot1rd. Stdlib only.
+
+Three modes, all driven by the sh wrapper, none meant to be run by hand:
+  --scan          read the transcript, write report.txt (+ scan.json) into --workdir
+  --finish        read report.txt, scan.json and the shell's recount.txt; print; set the verdict
+  --make-fixtures write the synthetic transcripts --prove-red runs against
+
+Copyright 2026 Corwin Brust <corwin@bru.st>. GPLv3-or-later (see the head of ot1rd).
+"""
+
+import argparse
+import json
+import os
+import re
+import sys
+
+VERSION = "1"
+
+# A character that can continue a path component. A match must not start or end inside one, so
+# --deny /home/claude does not fire on /home/claude2, /home/claude.bak or xyz/home/claude.
+PATHCHAR = set(
+    "abcdefghijklmnopqrstuvwxyz"
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    "0123456789._-~"
+)
+
+DRIVE_RE = re.compile(r"(?:^|(?<=[^A-Za-z0-9]))([A-Za-z]):/")
+
+MAX_DEPTH = 40
+
+
+def normalise(s):
+    """Fold Windows spelling into POSIX spelling, keeping a map back to the raw offsets.
+
+    Returns (norm, idx) with len(norm) == len(idx) and norm[i] taken from s[idx[i]]:
+      * a backslash becomes a slash (C:\\f\\x and /f/x are the same place)
+      * a run of separators collapses to one, except a leading pair (//server/share stays UNC)
+      * a drive letter that introduces a path is lowercased (C:/ and c:/ are the same place)
+    Everything else is left alone, INCLUDING case: only the drive letter is case-folded.
+    """
+    out = []
+    idx = []
+    n = len(s)
+    i = 0
+    while i < n:
+        ch = s[i]
+        if ch in "/\\":
+            j = i
+            while j < n and s[j] in "/\\":
+                j += 1
+            keep = 2 if (i == 0 and j - i >= 2) else 1
+            for _ in range(keep):
+                out.append("/")
+                idx.append(i)
+            i = j
+            continue
+        out.append(ch)
+        idx.append(i)
+        i += 1
+    norm = "".join(out)
+    # length-preserving, so idx stays valid
+    norm = DRIVE_RE.sub(lambda m: m.group(1).lower() + ":/", norm)
+    return norm, idx
+
+
+def norm_needle(p):
+    return normalise(p)[0]
+
+
+def find_all(norm, needle):
+    """Offsets in norm where needle sits at a path boundary on both sides."""
+    hits = []
+    if not needle:
+        return hits
+    start = 0
+    while True:
+        i = norm.find(needle, start)
+        if i < 0:
+            return hits
+        j = i + len(needle)
+        left_ok = i == 0 or norm[i - 1] not in PATHCHAR
+        right_ok = j >= len(norm) or norm[j] not in PATHCHAR
+        if left_ok and right_ok:
+            hits.append(i)
+        start = i + 1
+
+
+def scan_string(s, denies, allows):
+    """Yield (raw_offset, deny_needle, suppressed_by_allow) for every occurrence in s."""
+    if not s:
+        return
+    norm, idx = normalise(s)
+    allow_spans = []
+    for a in allows:
+        for i in find_all(norm, a):
+            allow_spans.append((i, i + len(a)))
+    for d in denies:
+        for i in find_all(norm, d):
+            end = i + len(d)
+            covered = any(a <= i and b >= end and (b - a) > len(d) for a, b in allow_spans)
+            yield (idx[i] if i < len(idx) else i), d, covered
+
+
+def walk(obj, path, out, depth=0):
+    """Collect (field-path, string) for every string anywhere inside obj."""
+    if depth > MAX_DEPTH:
+        return
+    if isinstance(obj, str):
+        out.append((path, obj))
+    elif isinstance(obj, list):
+        for n, v in enumerate(obj):
+            walk(v, "%s[%d]" % (path, n), out, depth + 1)
+    elif isinstance(obj, dict):
+        for k, v in obj.items():
+            walk(v, "%s.%s" % (path, k), out, depth + 1)
+
+
+def esc(s):
+    return s.replace("\\", "\\\\").replace("\t", "\\t").replace("\n", "\\n").replace("\r", "\\r")
+
+
+def do_scan(args, work):
+    denies = [norm_needle(d) for d in args.deny]
+    allows = [norm_needle(a) for a in args.allow]
+    raw_denies = dict(zip(denies, args.deny))
+
+    occ = []      # {kind, line, tool, field, offset, prefix}
+    warns = []    # {kind, line, detail}
+    counts = dict(call=0, read_back=0, allowed=0, lines=0, tool_calls=0,
+                  results=0, attachments=0, parse_errors=0)
+    tool_of = {}  # tool_use_id -> tool name
+
+    def note(kind, line, tool, strings):
+        for field_path, s in strings:
+            for off, d, covered in scan_string(s, denies, allows):
+                if covered:
+                    counts["allowed"] += 1
+                    continue
+                occ.append(dict(kind=kind, line=line, tool=tool, field=field_path,
+                                offset=off, prefix=raw_denies.get(d, d)))
+                counts["call" if kind == "call" else "read_back"] += 1
+
+    try:
+        fh = open(args.transcript, "r", encoding="utf-8", errors="replace")
+    except OSError as e:
+        sys.stderr.write("ot1rd: cannot read %s: %s\n" % (args.transcript, e))
+        return 2
+
+    with fh:
+        for lineno, raw in enumerate(fh, 1):
+            counts["lines"] += 1
+            raw = raw.strip()
+            if not raw:
+                continue
+            try:
+                obj = json.loads(raw)
+            except Exception:
+                counts["parse_errors"] += 1
+                warns.append(dict(kind="unparsed-line", line=lineno,
+                                  detail="not JSON; searched as raw text, kind unknown"))
+                note("read-back", lineno, "?", [("raw-line", raw)])
+                continue
+            if not isinstance(obj, dict):
+                continue
+
+            rtype = obj.get("type")
+
+            if rtype == "system" and obj.get("subtype") == "compact_boundary":
+                md = obj.get("compactMetadata") or {}
+                warns.append(dict(
+                    kind="compact-boundary", line=lineno,
+                    detail="trigger=%s dropped-tokens=%s -- tool calls before this point are "
+                           "NOT in this file" % (md.get("trigger"), md.get("cumulativeDroppedTokens"))))
+
+            msg = obj.get("message")
+            saw_result_block = False
+            if isinstance(msg, dict):
+                content = msg.get("content")
+                if isinstance(content, list):
+                    for block in content:
+                        if not isinstance(block, dict):
+                            continue
+                        btype = block.get("type")
+                        if btype == "tool_use":
+                            counts["tool_calls"] += 1
+                            name = block.get("name") or "?"
+                            if block.get("id"):
+                                tool_of[block["id"]] = name
+                            strings = []
+                            walk(block.get("input"), "input", strings)
+                            note("call", lineno, name, strings)
+                        elif btype == "tool_result":
+                            counts["results"] += 1
+                            saw_result_block = True
+                            name = tool_of.get(block.get("tool_use_id"), "?")
+                            strings = []
+                            walk(block.get("content"), "result.content", strings)
+                            note("read-back", lineno, name, strings)
+
+            # toolUseResult repeats the result on every line that has a tool_result block in this
+            # shape of transcript; scanned ONLY when the block is absent, so nothing is counted
+            # twice and a transcript that carries the result only here is still covered.
+            if not saw_result_block and obj.get("toolUseResult") is not None:
+                strings = []
+                walk(obj.get("toolUseResult"), "toolUseResult", strings)
+                note("read-back", lineno, "?", strings)
+
+            if rtype == "attachment":
+                att = obj.get("attachment")
+                counts["attachments"] += 1
+                base = "attachment"
+                if isinstance(att, dict) and isinstance(att.get("type"), str):
+                    base = "attachment:" + att["type"]
+                strings = []
+                walk(att, base, strings)
+                note("read-back", lineno, "attachment", strings)
+
+            if rtype == "frame-link" and isinstance(obj.get("path"), str):
+                note("read-back", lineno, "frame-link", [("path", obj["path"])])
+
+    if counts["call"]:
+        verdict, reason = 1, "call-hit"
+    elif args.strict and (counts["read_back"] or counts["parse_errors"]):
+        verdict, reason = 1, "strict: read-back hit or unparsed line"
+    elif counts["read_back"]:
+        verdict, reason = 0, "read-back only"
+        warns.append(dict(kind="read-back-only", line=0,
+                          detail="the run never CALLED a denied path; it read text naming one "
+                                 "(%d occurrence(s)). Use --strict to fail on this."
+                                 % counts["read_back"]))
+    else:
+        verdict, reason = 0, "clean"
+
+    lines = []
+    lines.append("# ot1rd %s -- transcript out-of-bounds audit" % VERSION)
+    lines.append("# transcript: %s" % args.transcript)
+    for d in args.deny:
+        lines.append("# deny: %s" % d)
+    for a in args.allow:
+        lines.append("# allow: %s" % a)
+    if not args.allow:
+        lines.append("# allow: (none)")
+    lines.append("# strict: %s" % ("yes" if args.strict else "no"))
+    for w in warns:
+        lines.append("WARN\t%s\tline=%d\t%s" % (w["kind"], w["line"], esc(w["detail"])))
+    for o in occ:
+        lines.append("HIT\t%s\tline=%d\ttool=%s\tfield=%s\toff=%d\tprefix=%s"
+                     % (o["kind"], o["line"], esc(str(o["tool"])), esc(o["field"]),
+                        o["offset"], esc(o["prefix"])))
+    # OT1RD_BREAK_TALLY is a self-test hook, not a feature: it corrupts the printed tally (and
+    # only the printed tally) so --prove-red can show the shell's recount actually bites. A
+    # second reader that has never once disagreed is decoration.
+    shown_call = counts["call"] + (1 if os.environ.get("OT1RD_BREAK_TALLY") else 0)
+    lines.append("TALLY\tcall=%d\tread-back=%d\tallowed=%d\tlines=%d\ttool-calls=%d\t"
+                 "results=%d\tattachments=%d\tparse-errors=%d"
+                 % (shown_call, counts["read_back"], counts["allowed"], counts["lines"],
+                    counts["tool_calls"], counts["results"], counts["attachments"],
+                    counts["parse_errors"]))
+    lines.append("VERDICT\texit=%d\treason=%s" % (verdict, reason))
+
+    with open(os.path.join(work, "report.txt"), "w", encoding="utf-8") as f:
+        f.write("\n".join(lines) + "\n")
+
+    state = dict(tool="ot1rd", version=VERSION, transcript=args.transcript,
+                 deny=args.deny, allow=args.allow, strict=bool(args.strict), json=bool(args.json),
+                 occurrences=occ, warnings=warns,
+                 tally=dict(call=counts["call"], read_back=counts["read_back"],
+                            allowed=counts["allowed"], lines=counts["lines"],
+                            tool_calls=counts["tool_calls"], results=counts["results"],
+                            attachments=counts["attachments"],
+                            parse_errors=counts["parse_errors"]),
+                 exit=verdict, reason=reason)
+    with open(os.path.join(work, "scan.json"), "w", encoding="utf-8") as f:
+        json.dump(state, f, indent=2)
+    return 0
+
+
+def do_finish(work):
+    with open(os.path.join(work, "report.txt"), encoding="utf-8") as f:
+        report = f.read().rstrip("\n")
+    with open(os.path.join(work, "scan.json"), encoding="utf-8") as f:
+        state = json.load(f)
+    rec = dict(call=None, read_back=None, agree=None, why="")
+    try:
+        with open(os.path.join(work, "recount.txt"), encoding="utf-8") as f:
+            for line in f:
+                k, _, v = line.strip().partition("=")
+                if k == "call":
+                    rec["call"] = int(v or 0)
+                elif k == "read-back":
+                    rec["read_back"] = int(v or 0)
+                elif k == "agree":
+                    rec["agree"] = (v == "yes")
+                elif k == "why":
+                    rec["why"] = v
+    except OSError:
+        rec["agree"] = False
+        rec["why"] = "no recount file -- the second reader did not run"
+
+    code = int(state.get("exit", 0))
+    if rec["agree"] is not True:
+        code = 1
+
+    if state.get("json"):
+        state["recount"] = rec
+        state["exit"] = code
+        if rec["agree"] is not True:
+            state["reason"] = "recount disagrees: " + (rec["why"] or "unknown")
+        json.dump(state, sys.stdout, indent=2)
+        sys.stdout.write("\n")
+    else:
+        sys.stdout.write(report + "\n")
+        sys.stdout.write("RECOUNT\tcall=%s\tread-back=%s\t%s\n"
+                         % (rec["call"], rec["read_back"],
+                            "AGREE" if rec["agree"] else "DISAGREE"))
+        if rec["agree"] is not True:
+            sys.stdout.write("# %s\n" % rec["why"])
+    return code
+
+
+def do_make_fixtures(work):
+    """Synthetic transcripts for --prove-red. Small on purpose: every record is there to make
+    exactly one assertion true or false."""
+    deny = "/mnt/user-data/uploads/AS4CE0001"
+    clean = "/home/claude/work/passC"
+
+    def assistant(tid, name, inp):
+        return dict(type="assistant", sessionId="fixture", uuid=tid,
+                    message=dict(role="assistant", content=[
+                        dict(type="tool_use", id=tid, name=name, input=inp)]))
+
+    def result(tid, text):
+        return dict(type="user", sessionId="fixture",
+                    message=dict(role="user", content=[
+                        dict(type="tool_result", tool_use_id=tid,
+                             content=[dict(type="text", text=text)])]))
+
+    def write(name, records):
+        with open(os.path.join(work, name), "w", encoding="utf-8") as f:
+            for r in records:
+                f.write(json.dumps(r) + "\n")
+
+    # case1: one clean call, one denied call, one denied read-back
+    write("case1.jsonl", [
+        assistant("t1", "Bash", dict(command="ls -la %s/bin" % clean, description="clean call")),
+        result("t1", "bin\nCHANGES.md\n"),
+        assistant("t2", "Read", dict(file_path="%s/h/ENHANCE-2026-09-04-queue.md" % deny)),
+        result("t2", "Q7 boundscheck -- see %s/README.md for the fairness rules\n" % deny),
+    ])
+    # case2: the same, with the denied CALL removed -- read-back only
+    write("case2.jsonl", [
+        assistant("t1", "Bash", dict(command="ls -la %s/bin" % clean, description="clean call")),
+        result("t1", "a stray log line naming %s/README.md\n" % deny),
+    ])
+    # case3: a compact boundary plus an attachment that names the denied path
+    write("case3.jsonl", [
+        dict(type="system", subtype="compact_boundary", content="Conversation compacted",
+             compactMetadata=dict(trigger="auto", preTokens=785078, postTokens=14903,
+                                  cumulativeDroppedTokens=770175)),
+        assistant("t1", "Bash", dict(command="echo hello", description="clean call")),
+        result("t1", "hello\n"),
+        dict(type="attachment", sessionId="fixture",
+             attachment=dict(type="compact_file_reference",
+                             filename="%s/PERSONA-CORPUS.md" % deny,
+                             displayPath="uploads/AS4CE0001/PERSONA-CORPUS.md")),
+    ])
+    # case5: a call under an --allow carve-out inside the denied tree
+    write("case5.jsonl", [
+        assistant("t1", "Read", dict(file_path="%s/pub/shareable.md" % deny)),
+        result("t1", "public bytes\n"),
+    ])
+    return 0
+
+
+def main(argv):
+    ap = argparse.ArgumentParser(prog="ot1rd", add_help=False)
+    ap.add_argument("--scan", action="store_true")
+    ap.add_argument("--finish", action="store_true")
+    ap.add_argument("--make-fixtures", action="store_true")
+    ap.add_argument("--workdir", required=True)
+    ap.add_argument("transcript", nargs="?")
+    ap.add_argument("--deny", action="append", default=[])
+    ap.add_argument("--allow", action="append", default=[])
+    ap.add_argument("--json", action="store_true")
+    ap.add_argument("--strict", action="store_true")
+    args = ap.parse_args(argv)
+
+    if args.make_fixtures:
+        return do_make_fixtures(args.workdir)
+    if args.finish:
+        return do_finish(args.workdir)
+    if not args.transcript:
+        sys.stderr.write("ot1rd: no transcript given\n")
+        return 2
+    if not args.deny:
+        sys.stderr.write("ot1rd: at least one --deny PATH is required "
+                         "(there is no default out-of-bounds path)\n")
+        return 2
+    return do_scan(args, args.workdir)
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))
+#PY8<---END
+PY8_SOURCE_BLOCK

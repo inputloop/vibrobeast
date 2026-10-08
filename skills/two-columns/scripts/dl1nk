@@ -1,0 +1,240 @@
+#!/bin/sh
+# dl1nk -- gauge a notes file for the two columns.
+# Copyright (C) 2026 Corwin Brust <corwin@bru.st>.  GPL-3.0-or-later.
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
+# This file is part of vibrobeast.  vibrobeast is free software: you can redistribute it and/or
+# modify it under the terms of the GNU General Public License as published by the Free Software
+# Foundation, either version 3 of the License, or (at your option) any later version.  It is
+# distributed WITHOUT ANY WARRANTY; see <https://www.gnu.org/licenses/>.
+#
+# Prints a verdict per note and a pressure column.  It does NOT print a grade,
+# a threshold, or a pass/fail for the file as a whole, and that refusal is
+# load-bearing: a threshold picked-not-validated is exactly the smell the
+# gauge exists to catch.  The numbers are the finding; the judgement is yours.
+#
+# usage:
+#   sh dl1nk NOTES.md [--cited DIR]   per-note verdict + pressure
+#   sh dl1nk --format                 the format reminder
+#   sh dl1nk --prove-red              prove this harness can fail
+#
+# exit: 0 always for a read (the verdicts are the output, not the status);
+#       1 if --prove-red fails; 2 on usage or a missing file.
+
+set -eu
+
+FORMAT_REMINDER='THING — what it means (comes up when: w, w, w)
+From: me | someone else (named) | a document (named) | a guess
+Would-change: the one thing that would make this wrong
+first-seen: the earliest record you can open
+last-cited: when you last used it, and where
+replaces: the copy this supersedes (only on a revision)'
+
+die() { printf '%s\n' "$*" >&2; exit 2; }
+
+# One note is a block of lines separated by a blank line.  awk does the whole
+# job so the gauge runs anywhere /bin/sh does.
+gauge() {
+  notes=$1
+  cited=${2:-}
+  [ -f "$notes" ] || die "dl1nk: no such file: $notes"
+
+  awk -v cited="$cited" '
+    function flush(   v, press, seam) {
+      if (nlines == 0) return
+      seam = seamname
+      if (seam == "") { reset(); return }
+
+      v = "OK"
+      if (src == "")                       v = "UNSOURCED"
+      else if (fals == "")                 v = "UNFALSIFIABLE"
+      else if (src ~ /^a guess$/)          v = "GUESS"
+      else if (first == "")                v = "NO-FIRST-SEEN"
+      else if (last == "")                 v = "NO-LAST-CITED"
+      else if (bare)                       v = "BARE-PATH"
+
+      press = "-"
+      if (cited != "") {
+        # Read the citation file DIRECTLY. No shell.
+        #
+        # This line used to build a shell command with the seam name spliced
+        # into it -- and the seam name is the first line of whatever notes file
+        # you point this at. A note headed `Pricing$(touch /tmp/PWNED) — ...`
+        # ran that command, silently, while still printing a normal-looking
+        # verdict. A notes file is untrusted input BY DESIGN: the whole point
+        # of this format is that notes travel between people and assistants,
+        # so gauging one must never be able to execute anything.
+        #
+        # The name is also restricted to a safe filename charset before it is
+        # used as a path, so a seam called `../../etc/passwd` reads nothing
+        # outside the citations directory.
+        safe = seam
+        gsub(/[^A-Za-z0-9 ._-]/, "_", safe)
+        gsub(/\.\./, "_", safe)
+        f = cited "/" safe ".txt"
+        press = 0
+        while ((getline line < f) > 0) press++
+        close(f)
+      }
+      printf "%-14s %-16s %s\n", v, press, seam
+      counts[v]++
+      total++
+      reset()
+    }
+    function reset() { seamname=""; src=""; fals=""; first=""; last=""; bare=0; nlines=0 }
+
+    function is_key(l,   i, k) {
+      split("from would-change first-seen last-cited replaces came-from leads-to triggers", K, " ")
+      for (i in K) {
+        k = K[i]
+        if (tolower(l) ~ ("^" k ":")) return 1
+      }
+      return 0
+    }
+
+    BEGIN { reset(); print "VERDICT        PRESSURE         NOTE" }
+
+    /^[[:space:]]*$/ { flush(); next }
+
+    {
+      nlines++
+      line = $0
+      if (seamname == "" && !is_key(line)) {
+        # First non-key line of a block is the note head: "THING — meaning".
+        #
+        # "Is it a key?" is decided against the KNOWN keys, not against the
+        # shape `word:`. The shape test silently dropped any note whose head
+        # read like `Beta: two — meaning` -- no verdict, no count, no warning,
+        # and the summary line confidently said "1 note(s)" about a file
+        # holding two. A gauge that is quietly wrong about how much it measured
+        # is the exact failure this skill is named after.
+        seamname = line
+        sub(/[[:space:]]*(—|--).*$/, "", seamname)
+        gsub(/^[[:space:]]+|[[:space:]]+$/, "", seamname)
+      }
+      if (line ~ /^[Ff]rom:/)        { src  = substr(line, index(line,":")+1) }
+      if (line ~ /^[Ww]ould-change:/){ fals = substr(line, index(line,":")+1) }
+      if (line ~ /^first-seen:/)     { first= substr(line, index(line,":")+1) }
+      if (line ~ /^last-cited:/)     { last = substr(line, index(line,":")+1) }
+      gsub(/^[[:space:]]+|[[:space:]]+$/, "", src)
+      gsub(/^[[:space:]]+|[[:space:]]+$/, "", fals)
+      gsub(/^[[:space:]]+|[[:space:]]+$/, "", first)
+      gsub(/^[[:space:]]+|[[:space:]]+$/, "", last)
+
+      # A bare absolute path: a slash-path not preceded by a scheme word.
+      probe = line
+      while (match(probe, /[A-Za-z0-9_-]*:?\/[A-Za-z0-9_.\/-]+/)) {
+        hit = substr(probe, RSTART, RLENGTH)
+        if (hit ~ /^\//) bare = 1
+        probe = substr(probe, RSTART + RLENGTH)
+      }
+    }
+
+    END {
+      flush()
+      printf "\n%d note(s)\n", total
+      for (k in counts) printf "  %-16s %d\n", k, counts[k]
+      print ""
+      print "No grade is printed on purpose: a threshold nobody validated is"
+      print "the same smell this gauge exists to catch. The numbers are the"
+      print "finding; what they mean is your call."
+    }
+  ' "$notes"
+}
+
+prove_red() {
+  t=$(mktemp -d) || die "mktemp failed"
+  trap 'rm -rf "$t"' EXIT
+  fail=0
+  check() { # check LABEL EXPECTED FILE
+    got=$(gauge "$3" | awk 'NR==2 {print $1}')
+    if [ "$got" = "$2" ]; then printf '  PASS  %s\n' "$1"
+    else printf '  FAIL  %s (wanted %s, got %s)\n' "$1" "$2" "$got"; fail=1; fi
+  }
+
+  printf 'prove-red: each verdict fired by a note built to earn it\n'
+
+  cat > "$t/ok.md" <<'X'
+Pricing — how we set the list price (comes up when: price, quote, discount)
+From: a document (2026-Q3-pricing.md)
+Would-change: finance publishing a new list
+first-seen: notes:/pricing/g0001.md
+last-cited: 2026-09-14 — the vendor email
+X
+  check "OK note" OK "$t/ok.md"
+
+  cat > "$t/unsourced.md" <<'X'
+Pricing — how we set the list price (comes up when: price)
+Would-change: finance publishing a new list
+first-seen: notes:/pricing/g0001.md
+last-cited: 2026-09-14 — here
+X
+  check "missing From:" UNSOURCED "$t/unsourced.md"
+
+  cat > "$t/unfals.md" <<'X'
+Pricing — how we set the list price (comes up when: price)
+From: a document (x.md)
+first-seen: notes:/pricing/g0001.md
+last-cited: 2026-09-14 — here
+X
+  check "missing Would-change:" UNFALSIFIABLE "$t/unfals.md"
+
+  cat > "$t/guess.md" <<'X'
+Pricing — probably cost-plus (comes up when: price)
+From: a guess
+Would-change: anyone who was there saying otherwise
+first-seen: notes:/pricing/g0001.md
+last-cited: 2026-09-14 — here
+X
+  check "labelled guess" GUESS "$t/guess.md"
+
+  cat > "$t/nofirst.md" <<'X'
+Pricing — how we set the list price (comes up when: price)
+From: a document (x.md)
+Would-change: a new list
+last-cited: 2026-09-14 — here
+X
+  check "missing first-seen" NO-FIRST-SEEN "$t/nofirst.md"
+
+  cat > "$t/nolast.md" <<'X'
+Pricing — how we set the list price (comes up when: price)
+From: a document (x.md)
+Would-change: a new list
+first-seen: notes:/pricing/g0001.md
+X
+  check "missing last-cited" NO-LAST-CITED "$t/nolast.md"
+
+  cat > "$t/bare.md" <<'X'
+Pricing — see /Users/me/pricing.md (comes up when: price)
+From: a document (x.md)
+Would-change: a new list
+first-seen: notes:/pricing/g0001.md
+last-cited: 2026-09-14 — here
+X
+  check "bare absolute path" BARE-PATH "$t/bare.md"
+
+  # And the one that would make the whole gauge decoration: a file where every
+  # note is fine must NOT report a fault.
+  if gauge "$t/ok.md" | grep -q 'UNSOURCED\|BARE-PATH'; then
+    printf '  FAIL  clean file reported a fault\n'; fail=1
+  else
+    printf '  PASS  clean file reports no fault\n'
+  fi
+
+  printf '\n'
+  [ "$fail" -eq 0 ] && printf 'prove-red PASS\n' || { printf 'prove-red FAILED\n'; return 1; }
+}
+
+case ${1:-} in
+  --format)    printf '%s\n' "$FORMAT_REMINDER" ;;
+  --prove-red) prove_red ;;
+  -h|--help|'') printf 'usage: sh %s NOTES.md [--cited DIR] | --format | --prove-red\n' "$0"; exit 2 ;;
+  *)
+    notes=$1; shift
+    c=''
+    while [ $# -gt 0 ]; do
+      case $1 in --cited) c=${2:-}; shift 2 ;; *) die "unknown option: $1" ;; esac
+    done
+    gauge "$notes" "$c"
+    ;;
+esac

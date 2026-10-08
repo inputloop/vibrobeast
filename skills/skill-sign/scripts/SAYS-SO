@@ -1,0 +1,7 @@
+No gpg? Run: sh check.sh -- OK/CHANGED per file, plus one 64-hex line
+(sha256 of .skill-manifest) to eyeball or compare elsewhere.
+That's a HASH match, not authorship -- it says these bytes are what the
+manifest recorded, not "Corwin wrote this." For that: .signature.asc +
+gpg, via `skill-sign.sh verify <this dir>`. Doubt it? check.sh --prove-red.
+check.sh and this note were added beside the skill after it was signed; the
+signature does not cover them. skill-sign.sh verify compares them to its own copy.

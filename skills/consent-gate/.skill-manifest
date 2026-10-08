@@ -1,0 +1,4 @@
+2c3eb42e982670ee2a634d902b22e0a6eceb08ac1408fe3cab45d97eb596bba3  ./SKILL.md
+f1646bcc2cbfe98c5d0e27140905cd8ef9bc7a940c6b0ec1e853a98e45cdb194  ./references/CONSENT-RECORD-TEMPLATE.md
+18977aa20d879e856911abde7ccafb6a03fed15bfde9444822091b01b132277e  ./references/VERIFY-CONSENT.md
+f8285f203edd3076a8dc61d56aa9b90b1f254229f629f4d1e75b6b8a8b1ae7a7  ./scripts/verify_consent.sh

@@ -1,0 +1,166 @@
+---
+name: session-rotate
+description: >-
+  Corwin's own per-project rotation for a project that carries a model.md — archive the last
+  prompt/response, snapshot model.md, bump z, and (optionally) bake in a new primary directive. Use it
+  only on his own words — "rotate", "reseat", "snapshot the model", "roll over the continuity files",
+  "hand off" — or when he asks to bump/snapshot a project's model.md or to preserve the current
+  prompt/response before overwriting them. Never on your own read that a session is "winding down" or
+  "cooling": there is no closing a session in C4 — a session is the assistant's bookkeeping, not the
+  user's — and closing is never proposed, it is pended to him. Not a git tag, a CI release, or a
+  generic changelog.
+---
+
+# Session Rotate — the close-out ritual
+
+Some projects carry a **`model.md`**: a token-mindful "how to resume this project
+cold" model with a small rotation header that holds a version (`v2`, `v3`, …).
+Alongside it live two continuity files — **`.last-prompt.md`** and
+**`last-response.md`** — the last thing asked and the last thing done, so the
+next session opens where this one closed.
+
+Left to entropy, these drift: the model goes stale, the continuity files get
+silently overwritten and the prior context is lost, and the version stops meaning
+anything. This ritual is the fix. Run it as a session winds down so every close
+leaves a clean, versioned, resumable snapshot — and so a session cut short still
+has a coherent last-known-good to rebuild against. Lineage: born dogfooded on
+`skzb/pm`, used to carry `polygram`/AS4CE forward and to bake C4's archivist
+directive into its model at v4.
+
+This skill **rotates and snapshots**; it does not save memory ([[mentat-skill]])
+or decide whether something is skill-shaped ([[skilltank]]). Because it writes to
+mounted folders, it follows the [[sandboxer]] discipline: verify each write
+actually landed, never trust the success message alone.
+
+## When this applies
+
+- On a `model.md`-bearing project, the user says, in their own words, any of:
+  "call it a session", "let's wrap", "good session", "rotate", "close this out",
+  "snapshot the model", "session's cooling".
+- A **new** session opens on such a project and the prior `.last-prompt.md` /
+  `last-response.md` must be rolled over before they're overwritten.
+- The user asks to **bump** or **snapshot** the model, or to **bake a directive**
+  into it.
+
+If the project has no `model.md`, this ritual doesn't apply — offer to create one
+(or just do the plain memory/PMO close-out) instead.
+
+## The five steps
+
+Run in this order; each depends on the one before.
+
+1. **Snapshot** the current `model.md` → `.models/model-<YYYY-MM-DD>.md`
+   (timestamp-suffixed if that name already exists — never clobber a snapshot).
+2. **Bump** the version in the model's rotation header — his rule (2026-09-23, door part
+   `his-versioning`): *numbers read x.y.z, after GNU Emacs … z counts the atomic changes folded in
+   since the save point … name the change, never "the session".* A header still on the old `vN`
+   form is bumped as before, with the change named beside it; moving it to x.y.z is his call.
+3. **Archive** the prior `.last-prompt.md` and `last-response.md` into
+   `.sessions/<YYYY-MM-DD>/` (dated, so nothing is lost).
+4. **Write fresh** `.last-prompt.md` and `last-response.md` for this session — the
+   real prompt and a faithful summary of what was done, so the next open resumes
+   cleanly. (If you don't have them yet, leave the templates the script writes and
+   fill them before you finish.)
+5. **Optionally bake a directive**: if the session established a standing
+   directive for the project, fold it into `model.md` before the bump so the new
+   version carries it (this is how `polygram`/C4 reached v4).
+
+## Using the script
+
+`scripts/rotate_session.sh` does steps 1–4 mechanically. It **defaults to a
+dry-run** that prints the exact plan and touches nothing — matching the ritual of
+"show the plan first, then apply". Only `--apply` writes, and every write is
+read-back-verified on the real disk.
+
+```sh
+# Show the plan (writes nothing). The --project path is an example from the author's machine:
+scripts/rotate_session.sh --project /f/claude/projects/skzb/pm
+
+# Actually rotate:
+scripts/rotate_session.sh --project /f/claude/projects/skzb/pm --apply
+
+# Force a version if the header can't be auto-detected:
+scripts/rotate_session.sh --project <dir> --set-version 5 --apply
+```
+
+Flags: `--project DIR` (dir containing `model.md`; required) · `--model FILE`
+(override the model filename, default `model.md`) · `--set-version N` (skip
+auto-detect) · `--apply` (write; default is dry-run) · `--no-fresh` (archive the
+old continuity files but don't drop fresh templates).
+
+**Version header convention.** The bump looks for a `v<N>` on a header line
+containing `version` or `rotate` (case-insensitive) in the first ~20 lines — e.g.
+`version: v3` or `<!-- rotate: v3 (2026-06-27) -->`. If your `model.md` has no
+such line, add one, or pass `--set-version`.
+
+## After the script
+
+The mechanical moves are only half the ritual. Once the files are rotated:
+
+- Make sure `.last-prompt.md` / `last-response.md` actually reflect this session
+  (the script only leaves templates if there was nothing to carry).
+- If durable facts surfaced, that's a [[mentat-skill]] memory note, not a model
+  edit — keep the model a *resume aid*, not a memory store.
+- Log the rotation wherever the project's status lives ([[pmo]] if it's a pmo
+  project) so the version bump is traceable.
+- Confirm the snapshot and bump to the user in one line — what version it is now
+  and where the snapshot went.
+
+## Pins at the close — what every declared close must carry
+
+The rotation preserves files; these pins preserve *state*. They apply to any
+declared close, model.md project or not.
+
+**1. The gate pin.** Any gate, hold, or keeper-binding condition still open
+at close gets written into the dated seal — its name, its state (ARMED /
+HELD / PASSED), and who holds the key. Keeper-binding gates live as SIGNED
+data on the keeper's surface; a gate that exists only in conversation does
+not survive the session boundary (proven by the demonstration-gate saga,
+2026-07-04→07).
+
+**2. The dropped-turn rule.** If a close-critical answer may have landed in
+a dead or errored turn, resend it or audit the transcript — never retype it
+from memory. A retyped answer has no provenance; the transcript is the
+event table.
+
+**3. The reframe count-check.** At close, count the session's work-order
+prompts against its reframe files (scope pin: work-orders = a file,
+continuations = an appended line). A mismatch is a lapse — note it in the
+seal, don't paper it.
+
+**4. Honest names for broken closes.** A seal written while close is HELD
+says so in its body. A close whose tail breaks (interrupted, dead turn,
+unsealed edits) gets the fact IN THE FILENAME when repaired — rename, then
+re-sign (the -BROKEN-TAIL-MEMJOY precedent, 2026-07-07). The name is the
+first thing the next session reads; let it tell the truth.
+
+
+
+## How this skill can fail (falsifiers)
+
+- **The dry run wrote.** fails if a run without `--apply` changes any file; check: `touch /tmp/stamp; sh scripts/rotate_session.sh --project DIR; find DIR -newer /tmp/stamp -type f` lists nothing.
+- **A snapshot was clobbered.** fails if a second `--apply` on one day overwrites `.models/model-<date>.md`; check: its sha256 is unchanged after the second run, and a suffixed snapshot appears beside it.
+- **Continuity lost.** fails if the prior `.last-prompt.md` or `last-response.md` is missing from `.sessions/<date>/` after `--apply`; check: `cmp` each archived copy against a copy taken before the run.
+- **It fired on a guess.** fails if a rotation ran with no keeper word for it ("rotate", "reseat", "snapshot the model", "hand off") in the prompt that started it; check: quote that prompt line in the hand-back.
+
+---
+Copyright (C) 2026 Corwin Brust <corwin@bru.st>
+Authored by Mentat (for Corwin).
+SPDX-License-Identifier: GPL-3.0-or-later
+This file is part of vibrobeast.  vibrobeast is free software: you can redistribute it and/or
+modify it under the terms of the GNU General Public License as published by the Free Software
+Foundation, either version 3 of the License, or (at your option) any later version.  It is
+distributed WITHOUT ANY WARRANTY; see <https://www.gnu.org/licenses/>.
+
+## Credits
+
+Bryant Frankford: the static model a project carries (model.md), in Corwin's words of 2026-10-05:
+"Tell Claude to create a static model of the problem before starting the task, written to make it
+easy for you to resume the the work later if you are interupted." (The attribution ladder, rung 2:
+credit.)
+
+<!-- footer: minted by bin/ft1mt from conventions/house.env and conventions/FOOTERS.org; edit those, not this -->
+*Version 1.0.1: edition revised from 1.0.0 on 2026-10-05; spine: 2026-06-27.*
+
+Copyright 2026 Corwin Brust <corwin@bru.st> and Contributors; CC-BY-SA4: https://creativecommons.org/licenses/by-sa/4.0/ (scripts GPL-3.0-or-later); Mentat (for Corwin; claude-opus-5-5)
+<!-- /footer -->

@@ -1,0 +1,21 @@
+{
+  "name": "vibrobeast",
+  "version": "1.0.4",
+  "description": "A memory seat that follows you and a garden you can trust: archive-only notes with provenance, persona sheets, and the skills to work them. Windows build: its servers start through cmd.exe, so on macOS or GNU/Linux use the other build, dist/posix/vibrobeast.plugin (make dist mints both).",
+  "author": {
+    "name": "Corwin Brust",
+    "email": "corwin@bru.st"
+  },
+  "license": "GPL-3.0-or-later",
+  "homepage": "https://vibrobeast.bru.st",
+  "keywords": [
+    "memory",
+    "persona",
+    "provenance",
+    "skills",
+    "archive",
+    "free-software"
+  ],
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json"
+}

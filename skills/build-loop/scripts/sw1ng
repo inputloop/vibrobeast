@@ -1,0 +1,466 @@
+#!/bin/sh
+# sw1ng -- the build loop, held in a file so nobody has to remember it.   v3, 2026-09-22
+#
+# Copyright 2026 Corwin Brust <corwin@bru.st>
+# This program is free software: you can redistribute it and/or modify it under the terms of the
+# GNU General Public License as published by the Free Software Foundation, either version 3 of
+# the License, or (at your option) any later version.  See <https://www.gnu.org/licenses/>.
+#
+# ---------------------------------------------------------------------------------------------
+# WHAT IT IS, in the words the wider field uses: Plan-Do-Check-Act (the Deming cycle), with a
+# counted budget of QA passes and a last try that can be backed out.  "Swing" is the house word
+# for one QA pass; the FINAL SWING is the move the loop is known by.
+#
+# THE LOOP, Corwin 2026-09-17 and 2026-09-22 (both verbatim in h/DESIGN-2026-09-22-build-loop-v2.md;
+# his ruling the same evening: the 09-17 design-opportunity increment and the extra round after a
+# correction "were best as was"; refusing to close with warnings left is "correct").  Nothing in it
+# is optional once a build task has chosen it:
+#   1. Design first, then a QA plan.  Before the build starts, the QA counter is set to 0 and the
+#      redesign indicator to NO.  The most passes a cycle gets is qa-max-swings-default: 3 -- his
+#      stated preference, so it can be set per task (open --max N, or SW1NG_QA_MAX).
+#   2. Build.
+#   3. A QA pass runs the WHOLE plan, even after the first issue turns up.  Then the counter goes up
+#      by one, and the fixes are made -- while the counter is below the maximum.
+#   4. A design OPPORTUNITY found on the way out of the QA loop may take the cycle counter up by one
+#      and send the task back to build, ONCE (09-17).
+#   5. A REDESIGN found in QA sends the task back to design ONLY while the indicator is still NO:
+#      set it YES first, write a new QA plan, reset the counter to 0.  A task therefore gets one.
+#   6. If the maximum is spent, the plan is not met, and ANY correction was made, another full
+#      round of passes may be taken -- the cycle counter goes up by one (09-17).
+#   7. The FINAL SWING is owed whenever a pass was not clean -- an unmet requirement, something
+#      left, a cheap improvement, a warning.  It may be skipped only when QA came back clean.  Only
+#      in the final swing does not-regressing-earlier-findings come first, and it is where the
+#      warnings get cleared.  It can be backed out to the version it started from.
+#
+# THE ONE PLACE TWO HONEST READINGS OF HIS 09-17 SENTENCE DIVERGED -- RULED 2026-10-04: PER-CAUSE.
+#   STRICT     the cycle counter takes ONE increment in total, from whichever trigger reaches it
+#              first (items 4 and 6 share it).  Cycles cap at 2.  (The reading not taken.)
+#   PER-CAUSE  "up to one time" binds only the opportunity trigger; the after-a-correction round is
+#              bounded by the redesign-once rule and the final swing.  Cycles cap at 2 + redesigns.
+#   His ruling (2026-10-04): redesign is once per cause, and the final swing is once per try at the
+#   whole build loop.  Until then the two readings were pinned, not picked, and `qa` refused with
+#   exit 9 where they diverged; now PER-CAUSE decides and `next` says when STRICT would have differed.
+#
+# ---------------------------------------------------------------------------------------------
+# TWO DECLARATIONS, because an undeclared check reads as MUST:
+#
+#   MUST     everything read back out of the state file and the arithmetic over it; that files
+#            EXIST at the design and QA-plan paths; that a redesign's QA plan has DIFFERENT BYTES
+#            from the last one (sha256); which move is legal from the recorded state and every
+#            refusal that follows; the baseline copy and its per-file hash on back-out.
+#
+#   JOURNEY  A CORRECTION IS INFERRED, NOT SEEN.  A pass that found anything (issues or warnings)
+#            counts as a correction, because his rule says fixes follow every unclean pass while the
+#            counter is below the maximum.  `qa --unfixed` says a pass's findings were NOT fixed.
+#            THE ISSUE AND WARNING COUNTS ARE THE CALLER'S WORD.  `qa --issues N --warnings W` is
+#            taken as given; nothing here runs the QA plan.  "Clean" -- the one fact that lets a
+#            task skip the final swing -- is therefore an assertion.  Said out loud rather than
+#            counted as mechanical.
+#            DESIGN-FIRST IS AN EXISTENCE TEST.  An empty file satisfies it.
+#            "REPLAN QA" IS A BYTES TEST.  One changed character satisfies it.
+#            THE OLD SPELLINGS.  `swing --corrected|--clean` still work, and are recorded as issues
+#            UNKNOWN -- never clean -- because v1's --clean meant "changed nothing", not "QA clean".
+#            THE CONSTANTS.  3 passes and one redesign are his numbers, applied, measured by nothing.
+#            WHERE THE STATE LIVES.  The walk toward root stops at the mount root, as bin/da1te does.
+#
+# Depends on: sh, awk, sed, cp, sha256sum or shasum.  Never signs.  Never deletes.
+set -eu
+
+mtab() {
+  if [ -r /proc/self/mounts ]; then awk '{print $2}' /proc/self/mounts
+  else mount | sed -n 's/^.* on \(.*\) type .*$/\1/p'; fi \
+  | awk '{print length($0)"\t"$0}' | sort -rn | cut -f2-
+}
+disc_top() { d=$(pwd); mtab | while IFS= read -r m; do
+    case "$d" in "$m") echo "$m"; break ;; "$m"/*) echo "$m"; break ;; esac; done | head -1; }
+find_swing() {
+  d=$(pwd); top=$(disc_top); [ -n "$top" ] || top=$d
+  while :; do
+    [ -f "$d/SWING" ] && { echo "$d/SWING"; return 0; }
+    [ "$d" = "$top" ] && break
+    nd=$(dirname -- "$d"); [ "$nd" = "$d" ] && break; d=$nd
+  done
+  echo "$(pwd)/SWING"
+}
+F=${SWING_FILE:-$(find_swing)}
+# How to name this program back to the reader: `sh bin/sw1ng` in c4, `sh scripts/sw1ng` in the skill.
+# A first cut hardcoded the c4 path in every hint, which sent a skill user to a file they do not have.
+ME="sh $0"
+
+usage() {
+  cat <<'USAGE'
+sw1ng -- the build loop (PDCA with a counted budget and a backed-out last try).  v2, 2026-09-22
+
+  sw1ng open TASK --design PATH --qaplan PATH [--max N]
+                                  design and QA plan first; counter 0; redesign indicator NO
+  sw1ng state                     read the loop back in words
+  sw1ng next                      WHAT THE LOOP SAYS TO DO NOW  <- the verb that matters
+  sw1ng qa --issues N [--warnings W] [--unfixed]
+                                  record one FULL pass of the QA plan; the counter goes up by one.
+                                  Past the maximum, with a correction made, this starts the next cycle.
+  sw1ng complete                  close on a CLEAN pass (0 issues, 0 warnings); final swing not owed
+  sw1ng opportunity NOTE          leave the QA loop on a design opportunity: cycle +1, back to build (once)
+  sw1ng redesign --design PATH --qaplan PATH
+                                  once per task: indicator YES, new QA plan (bytes must differ), counter 0
+  sw1ng final open PATH...        snapshot those files; the final swing may begin
+  sw1ng final close --kept | --worse
+                                  keep it, or back out to the snapshot (hash-verified)
+  sw1ng --prove-red               plant every fault; show them all red
+  sw1ng -h                        this text
+
+  old spellings: `swing --corrected|--clean` = `qa` with issues UNKNOWN (never clean);
+                  --corrected counts a correction, --clean does not
+
+The state lives in ./SWING, or the nearest SWING toward root (SWING_FILE overrides).
+USAGE
+}
+
+die() { printf 'sw1ng: %s\n' "$*" >&2; exit 2; }
+get() { awk -F': ' -v k="$1" '$1==k {sub(/^[^:]*: /,""); _v=$0} END{print _v}' "$F"; }
+getd() { _g=$(get "$1"); if [ -n "$_g" ]; then echo "$_g"; else echo "$2"; fi; }
+# Locals are underscored ON PURPOSE (v1's lesson: set_ once clobbered a caller's $k, and the tool
+# lied about the one number it keeps).  set_ appends a key the file does not have yet, so a v1
+# SWING file grows the v2 keys the first time they are written.
+set_() { _k=$1; _v=$2; _t=$F.new
+  awk -F': ' -v k="$_k" -v v="$_v" '{ if ($1==k) { print k": "v; _f=1 } else print } END { if (!_f) print k": "v }' "$F" > "$_t" && mv "$_t" "$F"; }
+have() { [ -f "$F" ] || die "no loop here -- $F does not exist.  Start one: sw1ng open TASK --design ... --qaplan ..."; }
+note() { printf '# %s  %s\n' "$(date -u +%Y-%m-%dT%H:%MZ)" "$*" >> "$F"; }
+hash_of() { if command -v sha256sum >/dev/null 2>&1; then sha256sum "$1" | cut -d' ' -f1
+            else shasum -a 256 "$1" | cut -d' ' -f1; fi; }
+isnum() { case "$1" in ''|*[!0-9]*) return 1 ;; *) return 0 ;; esac; }
+
+qmax() { getd qa-max 3; }
+ind()  { _i=$(get qa-redesign-indicator)
+         if [ -n "$_i" ]; then echo "$_i"
+         elif [ "$(getd redesigns 0)" -gt 0 ]; then echo YES      # a v1 file that already redesigned
+         else echo NO; fi; }
+clean() { [ "$(getd last-issues -)" = 0 ] && [ "$(getd last-warnings -)" = 0 ]; }
+
+cap_A() { echo 2; }                                     # STRICT: one increment, ever
+cap_B() { echo $((2 + $(getd redesigns 0))); }          # PER-CAUSE: opportunity once, plus reworks
+
+# ---- verbs ------------------------------------------------------------------------------------
+cmd_open() {
+  task=${1:?usage: sw1ng open TASK --design PATH --qaplan PATH [--max N]}; shift
+  design=''; qaplan=''; max=${SW1NG_QA_MAX:-3}
+  while [ $# -gt 0 ]; do case $1 in
+    --design) design=$2; shift 2 ;; --qaplan) qaplan=$2; shift 2 ;; --max) max=$2; shift 2 ;;
+    *) die "unknown option $1" ;; esac; done
+  [ -n "$design" ] || die "DESIGN FIRST.  A build task without a design is the step this loop exists to stop."
+  [ -n "$qaplan" ] || die "THEN THE QA PLAN.  Without one, a clean pass has no meaning and the counter counts nothing."
+  [ -f "$design" ] || die "no design at $design -- naming a file is not writing one.  ls its parent and try again."
+  [ -f "$qaplan" ] || die "no QA plan at $qaplan -- a plan that does not exist passes trivially."
+  isnum "$max" && [ "$max" -ge 1 ] || die "--max takes a whole number of passes, at least 1 (his default is 3)"
+  if [ -f "$F" ]; then
+    die "a loop is already open at $F ($(get task) / $(get state)).  Close it, or name a separate one with SWING_FILE=<path>."
+  fi
+  F=${SWING_FILE:-$(pwd)/SWING}
+  cat > "$F" <<EOS
+# SWING -- one build task's loop (sw1ng v3), written down so it does not have to be remembered.
+# Read it with: $ME state     Ask it what to do with: $ME next
+task: $task
+design: $design
+qaplan: $qaplan
+qaplan-sha: $(hash_of "$qaplan")
+qa-max: $max
+cycle: 1
+swing: 0
+corrections: 0
+opportunity-used: no
+qa-redesign-indicator: NO
+redesigns: 0
+last-issues: -
+last-warnings: -
+final: not-taken
+baseline: -
+state: BUILD
+EOS
+  note "opened; design and QA plan named before any build; QA counter 0; redesign indicator NO; max $max"
+  cmd_next
+}
+
+cmd_state() {
+  have
+  printf 'task             %s\n' "$(get task)"
+  printf 'design           %s\n' "$(get design)"
+  printf 'QA plan          %s\n' "$(get qaplan)"
+  printf 'where it stands  %s\n' "$(get state)"
+  printf 'cycle            %s   (the QA loop has been re-entered %s time(s))\n' "$(getd cycle 1)" "$(( $(getd cycle 1) - 1 ))"
+  printf 'QA counter       %s of %s passes this cycle; %s made a correction\n' "$(getd swing 0)" "$(qmax)" "$(getd corrections 0)"
+  printf 'last pass found  %s issue(s), %s warning(s)%s\n' "$(getd last-issues -)" "$(getd last-warnings -)" \
+         "$( clean && echo '  -- CLEAN' || true )"
+  printf 'design exit      %s\n' "$( [ "$(getd opportunity-used no)" = yes ] && echo 'used -- the one opportunity increment is spent' || echo 'available (once)' )"
+  printf 'redesign         indicator %s%s\n' "$(ind)" "$( [ "$(ind)" = YES ] && echo ' -- the one redesign is spent' || echo ' -- one redesign available' )"
+  printf 'final swing      %s\n' "$(get final)"
+  b=$(getd baseline -); [ "$b" = - ] || printf 'backout          the final swing'"'"'s starting version is held at %s\n' "$b"
+  printf 'the two readings of the cycle counter: STRICT caps at %s; PER-CAUSE caps at %s\n' "$(cap_A)" "$(cap_B)"
+}
+
+# where the loop stands at the maximum: echoes one of CLEAN MORE FINAL NOFIX
+at_max() {
+  if clean; then echo CLEAN; return; fi
+  [ "$(getd corrections 0)" -gt 0 ] || { echo NOFIX; return; }
+  cy=$(getd cycle 1); a=$(cap_A); b=$(cap_B)
+  # Ruled 2026-10-04: PER-CAUSE decides.  STRICT is still computed, so `next` can say where it differs.
+  if [ "$cy" -lt "$b" ]; then echo MORE
+  else echo FINAL; fi
+}
+
+cmd_next() {
+  have
+  st=$(get state); sw=$(getd swing 0); mx=$(qmax); li=$(getd last-issues -); lw=$(getd last-warnings -); cy=$(getd cycle 1)
+  case "$st" in
+    BUILD)
+      echo "Work the build against $(get design) (cycle $cy).  If the design itself is wrong, this is the"
+      echo "cheap moment to redesign (indicator: $(ind)).  When it is ready, run the WHOLE QA plan -- do not"
+      echo "stop at the first issue -- then record the pass:"
+      echo "    $ME qa --issues N --warnings W" ;;
+    QA)
+      if clean; then
+        echo "Pass $sw of $mx came back CLEAN.  The final swing is not owed:"
+        echo "    $ME complete"
+      elif [ "$sw" -lt "$mx" ]; then
+        echo "Pass $sw of $mx (cycle $cy) found $li issue(s) and $lw warning(s).  The counter is below the"
+        echo "maximum, so fix them now -- the meatier ones first; warnings may wait for the final swing --"
+        echo "then run the WHOLE QA plan again and record it:"
+        echo "    $ME qa --issues N --warnings W"
+        [ "$(getd opportunity-used no)" = no ] && { echo "If you are leaving the loop on a design OPPORTUNITY (once; cycle +1, back to build):"
+          echo "    $ME opportunity 'what it is'"; }
+        [ "$(ind)" = NO ] && { echo "If this pass showed the design itself is wrong -- REDESIGN (once; the counter resets):"
+          echo "    $ME redesign --design PATH --qaplan NEW-PLAN"; }
+      else
+        echo "Pass $sw of $mx -- the maximum for cycle $cy -- was not clean ($li issue(s), $lw warning(s))."
+        case $(at_max) in
+          NOFIX) echo "Nothing was corrected in this cycle, so the counter does not move.  What is left:"
+                 [ "$(ind)" = NO ] && echo "    $ME redesign --design PATH --qaplan NEW-PLAN   (once per task)"
+                 echo "    $ME final open PATH...                          the final swing" ;;
+          MORE)  if [ "$cy" -lt "$(cap_A)" ]; then echo "Corrections were made, and another full round is allowed:"
+                 else echo "Corrections were made, and another full round is allowed (per cause, as ruled 2026-10-04; the strict reading would have stopped here):"; fi
+                 echo "    $ME qa --issues N --warnings W     starts cycle $((cy+1)), pass 1"
+                 [ "$(ind)" = NO ] && echo "    $ME redesign --design PATH --qaplan NEW-PLAN   (instead; once per task)"
+                 echo "    $ME final open PATH...             (or take the final swing now)" ;;
+          FINAL) echo "The cycle counter is spent.  The FINAL SWING is owed (once per try at the loop).  Snapshot"
+                 echo "what it may touch, so it can come back out:"
+                 echo "    $ME final open PATH..." ;;
+        esac
+      fi ;;
+    FINAL)
+      echo "The final swing is open.  Close what is left: unmet requirements, reachable fixes, cheap"
+      echo "improvements, and the warnings that did not make the grade in earlier passes.  Here, and only"
+      echo "here, NOT REGRESSING what earlier passes fixed comes first.  Re-run the QA plan, then:"
+      echo "    $ME final close --kept     it helped; keep it"
+      echo "    $ME final close --worse    it made things worse; restore $(get baseline)" ;;
+    DONE)   echo "Closed on a clean pass ($sw of $mx, cycle $cy).  The final swing was not owed." ;;
+    CLOSED) echo "The loop is closed.  Final swing: $(get final)." ;;
+    *) die "unknown state $st" ;;
+  esac
+}
+
+cmd_qa() {
+  have; iss=''; wrn=0; fixed=yes
+  while [ $# -gt 0 ]; do case $1 in
+    --issues) iss=$2; shift 2 ;; --warnings) wrn=$2; shift 2 ;; --unfixed) fixed=no; shift ;;
+    --_corr) fixed=$2; shift 2 ;; *) die "unknown option $1" ;; esac; done
+  [ -n "$iss" ] || die "say what the WHOLE pass found: qa --issues N [--warnings W]"
+  { isnum "$iss" || [ "$iss" = '?' ]; } || die "--issues takes a whole number"
+  isnum "$wrn" || [ "$wrn" = '?' ] || die "--warnings takes a whole number"
+  st=$(get state); [ "$st" = BUILD ] || [ "$st" = QA ] || die "a QA pass belongs to BUILD or QA, not $st"
+  sw=$(getd swing 0); mx=$(qmax); cy=$(getd cycle 1); co=$(getd corrections 0)
+  if [ "$sw" -ge "$mx" ] && [ "$st" = QA ]; then
+    case $(at_max) in
+      CLEAN) die "the last pass was clean -- close it: $ME complete" ;;
+      NOFIX) die "$sw of $mx passes spent in cycle $cy and nothing was corrected -- his rule does not start another round.  Redesign, or take the final swing." ;;
+      FINAL) die "the cycle counter is spent.  Take the final swing: $ME final open PATH..." ;;
+      MORE)  set_ cycle $((cy+1)); sw=0; co=0
+             note "cycle $((cy+1)) started after $mx passes with a correction" ;;
+    esac
+  fi
+  found=yes; [ "$iss" = 0 ] && [ "$wrn" = 0 ] && found=no
+  if [ "$fixed" = yes ] && [ "$found" = yes ]; then co=$((co+1)); fi
+  set_ swing $((sw+1)); set_ corrections "$co"; set_ last-issues "$iss"; set_ last-warnings "$wrn"; set_ state QA
+  note "QA pass $((sw+1)) of $mx in cycle $(getd cycle 1): $iss issue(s), $wrn warning(s)$( [ "$fixed" = no ] && echo ', NOT fixed' || true )"
+  cmd_next || true
+}
+
+cmd_swing() {   # v1 spellings.  Recorded as issues UNKNOWN, so they can never skip the final swing.
+  case "${1:-}" in
+    --corrected) cmd_qa --issues '?' --warnings '?' ;;
+    --clean)     cmd_qa --issues '?' --warnings '?' --_corr no ;;
+    *) die "say what the attempt changed: --corrected or --clean (or use: qa --issues N --warnings W)" ;; esac
+}
+
+cmd_complete() {
+  have; [ "$(get state)" = QA ] || die "complete follows a QA pass; this loop is $(get state)"
+  clean || die "the last pass was not clean ($(getd last-issues -) issue(s), $(getd last-warnings -) warning(s)) -- the final swing is owed, not skipped"
+  set_ state DONE; note "closed on a clean pass $(getd swing 0) of $(qmax), cycle $(getd cycle 1)"; cmd_next
+}
+
+cmd_opportunity() {
+  have; n=${1:?say what the opportunity is, in one line}
+  st=$(get state); [ "$st" = QA ] || die "a design opportunity is found on the way out of QA; this loop is $st"
+  [ "$(getd opportunity-used no)" = no ] || die "the design-opportunity increment is spent -- his rule allows it up to one time"
+  set_ opportunity-used yes; set_ cycle $(( $(getd cycle 1) + 1 )); set_ swing 0; set_ corrections 0
+  set_ last-issues -; set_ last-warnings -; set_ state BUILD
+  note "left the QA loop on a design opportunity: $n"
+  printf 'Cycle counter up by one on a design opportunity (allowed once).  Back to BUILD.\n'
+  printf 'Update the QA plan if the design moved -- a plan written against the old design counts nothing.\n\n'
+  cmd_next
+}
+
+cmd_redesign() {
+  have; design=''; qaplan=''
+  while [ $# -gt 0 ]; do case $1 in --design) design=$2; shift 2 ;; --qaplan) qaplan=$2; shift 2 ;; *) die "unknown option $1" ;; esac; done
+  [ -n "$design" ] && [ -n "$qaplan" ] || die "a redesign names a new design AND a new QA plan"
+  st=$(get state); [ "$st" = BUILD ] || [ "$st" = QA ] || die "a redesign belongs to BUILD or QA, not $st"
+  [ "$(ind)" = NO ] || die "qa-redesign-indicator is YES -- this task has had its redesign"
+  [ -f "$design" ] || die "no design at $design"
+  [ -f "$qaplan" ] || die "no QA plan at $qaplan"
+  old=$(get qaplan-sha); [ -n "$old" ] || { op=$(get qaplan); [ -f "$op" ] && old=$(hash_of "$op"); }
+  new=$(hash_of "$qaplan")
+  [ "$new" != "$old" ] || die "the QA plan is byte-for-byte the old one -- after a redesign, replan QA"
+  set_ qa-redesign-indicator YES; set_ redesigns 1          # SET first, then reset, in his order
+  set_ design "$design"; set_ qaplan "$qaplan"; set_ qaplan-sha "$new"
+  set_ swing 0; set_ corrections 0; set_ last-issues -; set_ last-warnings -; set_ state BUILD
+  note "redesigned; indicator YES; QA replanned ($qaplan); counter reset to 0"
+  cmd_next
+}
+
+cmd_final() {
+  have; sub=${1:-}; shift 2>/dev/null || true
+  case "$sub" in
+    open)
+      st=$(get state)
+      case "$st" in BUILD|QA) ;; FINAL) die "the final swing is already open -- close it with --kept or --worse" ;;
+        *) die "this loop is $st; a closed loop takes no further swings" ;; esac
+      [ $# -gt 0 ] || die "name the files the final swing may touch -- a baseline of nothing backs out nothing"
+      b=".swing-baseline-$(get task)"; mkdir -p "$b"; : > "$b/MANIFEST"
+      for f in "$@"; do
+        [ -f "$f" ] || die "no such file: $f  (a baseline may only hold files that exist now)"
+        case "/$f/" in */../*) die "$f climbs out with '..' -- its copy would land OUTSIDE $b (found 2026-09-26, when one did).  Name it from a folder at or above it, or by its absolute path." ;; esac
+        mkdir -p "$b/$(dirname -- "$f")"; cp -p -- "$f" "$b/$f"
+        printf '%s  %s\n' "$(hash_of "$f")" "$f" >> "$b/MANIFEST"
+      done
+      set_ baseline "$b"; set_ final open; set_ state FINAL
+      note "final swing opened; $# file(s) snapshotted to $b"
+      printf 'Baseline held: %s file(s) under %s, each with its hash.  --worse restores exactly this.\n\n' "$#" "$b"
+      cmd_next ;;
+    close)
+      how=${1:-}; b=$(getd baseline -); [ "$b" != - ] || die "no baseline -- the final swing was never opened"
+      case "$how" in
+        --kept)  set_ final kept; set_ state CLOSED; note "final swing kept"
+                 printf 'Final swing kept.  The baseline stays at %s until removed by hand.\n' "$b" ;;
+        --worse) n=0
+                 while read -r h f; do cp -p -- "$b/$f" "$f"; got=$(hash_of "$f")
+                   [ "$got" = "$h" ] || die "restore of $f does not match the recorded hash -- stopping"
+                   n=$((n+1)); done < "$b/MANIFEST"
+                 set_ final backed-out; set_ state CLOSED; note "final swing backed out; $n file(s) restored and hash-verified"
+                 printf 'Backed out.  %s file(s) restored to the final swing'"'"'s starting version, hash-verified.\n' "$n" ;;
+        *) die "say how it went: --kept or --worse" ;;
+      esac ;;
+    *) die "final open PATH... | final close --kept|--worse" ;;
+  esac
+}
+
+prove_red() {
+  d=$(mktemp -d) || exit 1; trap 'rm -rf "$d"' EXIT INT TERM
+  cd "$d"; F=SWING; fails=0; T="$SELF_BIN"
+  ok() { printf '  ok    %s\n' "$1"; }
+  no() { printf '  FAIL  %s: %s\n' "$1" "$2"; fails=$((fails+1)); }
+  printf 'design\n' > D.md; printf 'plan\n' > P.md; printf 'plan two\n' > P2.md; printf 'v1\n' > work.txt
+  fresh() { rm -f SWING SWING.new; rm -rf .swing-baseline-t; sh "$T" open t --design D.md --qaplan P.md "$@" >/dev/null 2>&1; }
+  q() { sh "$T" qa "$@" >/dev/null 2>&1; }
+
+  echo "RED -- the gates at the door:"
+  sh "$T" open t --qaplan P.md >/dev/null 2>&1 && no "design-first" "opened with no design" || ok "no design, no task"
+  sh "$T" open t --design D.md >/dev/null 2>&1 && no "plan-second" "opened with no QA plan" || ok "no QA plan, no task"
+  sh "$T" state >/dev/null 2>&1 && no "no-loop" "state answered with no loop" || ok "there is no loop until one is written down"
+
+  echo "GREEN/RED -- the counter and the clean pass:"
+  fresh
+  [ "$(get swing)" = 0 ] && [ "$(get qa-redesign-indicator)" = NO ] && [ "$(get cycle)" = 1 ] && ok "open sets counter 0, indicator NO, cycle 1" || no "open" "swing=$(get swing) ind=$(get qa-redesign-indicator)"
+  q --issues 2 --warnings 1
+  [ "$(get swing)" = 1 ] && ok "a full pass moves the counter 0 -> 1" || no "counter" "got $(get swing)"
+  sh "$T" complete >/dev/null 2>&1 && no "complete-dirty" "completed after a pass with issues" || ok "complete is refused after a pass with issues"
+  q --issues 0 --warnings 1
+  sh "$T" complete >/dev/null 2>&1 && no "complete-warn" "completed with a warning left" || ok "complete is refused with warnings left (warnings are not clean)"
+  q --issues 0 --warnings 0
+  sh "$T" complete >/dev/null 2>&1 && [ "$(get state)" = DONE ] && ok "a clean pass closes the loop; the final swing is skipped" || no "complete-clean" "state $(get state)"
+
+  echo "GREEN -- the extra round after a correction (09-17, restored):"
+  fresh; q --issues 1; q --issues 1; q --issues 1
+  q --issues 1 && [ "$(get cycle)" = 2 ] && [ "$(get swing)" = 1 ] && ok "past the maximum with corrections made, the next pass starts cycle 2" || no "extra-round" "cycle=$(get cycle) swing=$(get swing)"
+  q --issues 1; q --issues 1
+  rc=0; q --issues 1 || rc=$?
+  [ "$rc" != 0 ] && [ "$(get cycle)" = 2 ] && ok "STRICT and PER-CAUSE both cap at 2 with no redesign: cycle 3 refused" || no "cap" "exit $rc cycle $(get cycle)"
+  sh "$T" final open work.txt >/dev/null 2>&1 && ok "the final swing opens when the counter is spent" || no "final-at-cap" "refused"
+
+  fresh --max 2; q --issues 1; q --issues 1; q --issues 1
+  [ "$(get cycle)" = 2 ] && [ "$(get swing)" = 1 ] && ok "--max 2 holds: the third pass is cycle 2, pass 1" || no "max" "cycle=$(get cycle) swing=$(get swing)"
+
+  echo "RED -- no correction, no extra round:"
+  fresh; q --issues 1 --unfixed; q --issues 1 --unfixed; q --issues 1 --unfixed
+  q --issues 1 && no "nofix" "a round started with nothing corrected" || ok "three passes with nothing fixed do not start another round"
+
+  echo "GREEN/RED -- the old fork, ruled per cause (2026-10-04):"
+  fresh; q --issues 1; sh "$T" redesign --design D.md --qaplan P2.md >/dev/null 2>&1
+  q --issues 1; q --issues 1; q --issues 1; q --issues 1        # cycle 2 now
+  q --issues 1; q --issues 1
+  rc=0; q --issues 1 || rc=$?
+  [ "$rc" = 0 ] && [ "$(get cycle)" = 3 ] && ok "after a redesign, cycle 3 is allowed (per cause): STRICT would have stopped" || no "per-cause" "exit $rc cycle $(get cycle)"
+  q --issues 1; q --issues 1
+  rc=0; q --issues 1 || rc=$?
+  [ "$rc" != 0 ] && ok "past 2 + redesigns the cycle counter is spent: no cycle 4" || no "per-cause-cap" "exit $rc cycle $(get cycle)"
+
+  echo "GREEN/RED -- the design opportunity (09-17, restored):"
+  fresh; q --issues 2
+  sh "$T" opportunity 'a better shape' >/dev/null 2>&1 && [ "$(get cycle)" = 2 ] && [ "$(get swing)" = 0 ] && [ "$(get state)" = BUILD ] && ok "an opportunity takes the cycle up by one and returns to build" || no "opportunity" "cycle=$(get cycle) state=$(get state)"
+  q --issues 1
+  sh "$T" opportunity 'another' >/dev/null 2>&1 && no "opportunity-once" "a second opportunity was allowed" || ok "the opportunity increment is allowed ONCE"
+
+  echo "RED -- the one redesign:"
+  fresh; q --issues 3
+  sh "$T" redesign --design D.md --qaplan P.md >/dev/null 2>&1 && no "replan" "redesign kept the old QA plan" || ok "a redesign with the same QA plan bytes is refused (replan QA)"
+  sh "$T" redesign --design D.md --qaplan P2.md >/dev/null 2>&1
+  [ "$(get swing)" = 0 ] && [ "$(get qa-redesign-indicator)" = YES ] && ok "redesign resets the counter to 0 and sets the indicator YES" || no "redesign" "swing=$(get swing) ind=$(get qa-redesign-indicator)"
+  printf 'plan three\n' > P3.md
+  sh "$T" redesign --design D.md --qaplan P3.md >/dev/null 2>&1 && no "redesign-once" "a second redesign was allowed" || ok "a second redesign is refused (indicator YES)"
+
+  echo "RED -- old spellings never skip the final swing:"
+  fresh; sh "$T" swing --clean >/dev/null 2>&1
+  [ "$(get swing)" = 1 ] && [ "$(get corrections)" = 0 ] && ok "swing --clean counts a pass and no correction" || no "compat" "swing=$(get swing) co=$(get corrections)"
+  sh "$T" complete >/dev/null 2>&1 && no "compat-clean" "v1 --clean skipped the final swing" || ok "v1 --clean is issues UNKNOWN, so complete is refused"
+
+  echo "GREEN -- a v1 SWING file still reads:"
+  rm -f SWING; printf 'task: old\ndesign: D.md\nqaplan: P.md\ncycle: 1\nswing: 2\ncorrections: 2\nopportunity-used: no\nredesigns: 0\nfinal: not-taken\nbaseline: -\nstate: QA\n' > SWING
+  sh "$T" state >/dev/null 2>&1 && sh "$T" next >/dev/null 2>&1 && ok "state and next read a v1 file" || no "v1-read" "failed"
+
+  echo "RED -- the baseline stays inside its folder:"
+  fresh; q --issues 1; mkdir -p sub; printf 'x\n' > sub/in.txt; ( cd sub && sh "$T" final open ../work.txt >/dev/null 2>&1 ) && no "dotdot" "a ../ path was snapshotted" || ok "a path climbing out with .. is refused (its copy would land outside the baseline)"
+  [ ! -e "../work.txt.leak" ] && ok "nothing was written beside the loop" || no "dotdot-leak" "a stray copy"
+
+  echo "RED -- the backout:"
+  fresh; q --issues 1; printf 'v1\n' > work.txt
+  sh "$T" final open work.txt >/dev/null 2>&1; printf 'v2-worse\n' > work.txt
+  sh "$T" final close --worse >/dev/null 2>&1 && [ "$(cat work.txt)" = v1 ] && ok "--worse restores the snapshot, hash-verified" || no "backout" "got $(cat work.txt)"
+  q --issues 0 && no "closed" "a closed loop took a pass" || ok "a closed loop takes no further passes"
+
+  echo
+  if [ "$fails" -eq 0 ]; then echo "sw1ng: all held, all fired."; else echo "sw1ng: $fails FAILED"; fi
+  [ "$fails" -eq 0 ]
+}
+
+case "${1:-}" in
+  -h|--help|"") usage; exit 0 ;;
+  --prove-red)  unset SWING_FILE   # a proof must never reach a live loop (found in the final swing, 2026-09-22)
+                SELF_BIN=$(cd "$(dirname "$0")" && pwd)/$(basename "$0"); export SELF_BIN; prove_red; exit $? ;;
+  open) shift; cmd_open "$@" ;;
+  state) cmd_state ;;
+  next)  cmd_next ;;
+  qa) shift; cmd_qa "$@" ;;
+  swing) shift; cmd_swing "$@" ;;
+  complete) cmd_complete ;;
+  opportunity) shift; cmd_opportunity "$@" ;;
+  redesign) shift; cmd_redesign "$@" ;;
+  final) shift; cmd_final "$@" ;;
+  *) die "no verb $1" ;;
+esac
