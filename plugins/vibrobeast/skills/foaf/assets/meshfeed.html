@@ -1,0 +1,1507 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MeshFeed</title>
+    <style>
+        /* Modern Dark Theme matching Bastion Console */
+        :root {
+            --bg: #0d1117;
+            --surface: #161b22;
+            --surface-2: #1c2530;
+            --primary: #58a6ff;
+            --text: #e6edf3;
+            --text-muted: #8b97a7;
+            --border: #2b3442;
+            --censored: #f85149;
+            --accent: #3fb950;
+            --warn: #d29922;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+        }
+        .container {
+            display: grid;
+            grid-template-columns: 260px minmax(400px, 600px) 260px;
+            gap: 20px;
+            max-width: 1200px;
+            width: 100%;
+            padding: 20px;
+        }
+
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 16px;
+        }
+        .header {
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            color: var(--text-muted);
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        textarea, input[type="text"] {
+            width: 100%;
+            background: #0d1117;
+            color: var(--text);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 10px 12px;
+            box-sizing: border-box;
+            font-family: inherit;
+            outline: none;
+        }
+        textarea:focus, input[type="text"]:focus {
+            border-color: var(--primary);
+        }
+        textarea {
+            resize: vertical;
+            min-height: 80px;
+            font-size: 14px;
+        }
+        button {
+            background: var(--primary);
+            color: #06101f;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            margin-top: 10px;
+            transition: opacity 0.2s;
+        }
+        button:hover { opacity: 0.85; }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+        button.ghost {
+            background: transparent;
+            color: var(--text-muted);
+            border: 1px solid var(--border);
+        }
+        button.tiny { padding: 4px 10px; font-size: 12px; margin-top: 0; }
+        .row { display: flex; gap: 8px; align-items: center; }
+        .spacer { flex: 1; }
+        .clear { clear: both; }
+
+        .composer-actions {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .icon-btn {
+            background: var(--surface-2);
+            color: var(--text);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 6px 12px;
+            cursor: pointer;
+            font-size: 13px;
+            margin: 0;
+        }
+        .img-preview { position: relative; margin-top: 10px; display: none; }
+        .img-preview img { max-width: 160px; border-radius: 8px; border: 1px solid var(--border); display: block; }
+        .img-preview .remove-img {
+            position: absolute; top: 4px; left: 4px;
+            background: rgba(0,0,0,0.7); color: #fff; border: none;
+            border-radius: 50%; width: 22px; height: 22px; cursor: pointer;
+            margin: 0; padding: 0; line-height: 1; font-weight: bold;
+        }
+
+        /* Threads */
+        .thread { padding: 14px 0; border-bottom: 1px solid var(--border); animation: fadeIn 0.3s ease-in; }
+        .thread:last-child { border-bottom: none; }
+        .subthread { margin-left: 18px; padding: 12px 0 0 14px; border-left: 2px solid var(--border); }
+        .post-author { font-weight: bold; font-size: 15px; }
+        .post-id { font-size: 12px; color: var(--text-muted); margin-left: 5px; font-family: ui-monospace, monospace; }
+        .post-time { font-size: 12px; color: var(--text-muted); float: right; }
+        .post-content { margin-top: 8px; line-height: 1.5; font-size: 14px; word-wrap: break-word; white-space: pre-wrap; }
+        .post-image { margin-top: 10px; max-width: 100%; border-radius: 10px; border: 1px solid var(--border); display: block; }
+
+        .post-toolbar { display: flex; align-items: center; gap: 6px; margin-top: 10px; }
+        .vote-btn {
+            background: transparent; border: 1px solid var(--border); color: var(--text-muted);
+            border-radius: 6px; padding: 2px 9px; cursor: pointer; font-size: 13px; margin: 0;
+        }
+        .vote-btn.up.active { color: var(--accent); border-color: var(--accent); }
+        .vote-btn.down.active { color: var(--censored); border-color: var(--censored); }
+        .vote-score { font-size: 13px; min-width: 22px; text-align: center; color: var(--text-muted); }
+        .reply-btn { background: transparent; border: none; color: var(--text-muted); font-size: 13px; cursor: pointer; margin: 0 0 0 6px; padding: 2px 4px; }
+        .reply-btn:hover { color: var(--primary); }
+        .mod-btn { background: transparent; border: none; color: var(--censored); font-size: 13px; cursor: pointer; margin: 0; padding: 2px 4px; }
+
+        .censored { color: var(--censored); font-weight: bold; }
+
+        .sidebar-list { list-style: none; padding: 0; margin: 0; }
+        .sidebar-list li { padding: 8px 0; font-size: 13px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; }
+        .sidebar-list li:last-child { border-bottom: none; }
+        .status-dot { color: var(--accent); font-size: 10px; }
+
+        .web-item { padding: 9px 8px; font-size: 13px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px; }
+        .web-item:hover { background: var(--surface-2); }
+        .web-item.active { background: var(--surface-2); border: 1px solid var(--border); }
+        .web-lock { font-size: 11px; color: var(--text-muted); }
+        .web-owner-tag { font-size: 10px; color: var(--accent); border: 1px solid var(--accent); border-radius: 4px; padding: 0 4px; }
+
+        .toggle { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-muted); cursor: pointer; }
+        .toggle input { accent-color: var(--primary); }
+
+        .banner {
+            display: none;
+            background: rgba(210, 153, 34, 0.15);
+            border: 1px solid var(--warn);
+            color: var(--warn);
+            padding: 10px;
+            border-radius: 8px;
+            font-size: 13px;
+            text-align: center;
+            margin-bottom: 20px;
+            grid-column: 1 / -1;
+        }
+        .feed-controls { display: flex; gap: 8px; align-items: center; margin-bottom: 6px; }
+        .seg { display: inline-flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+        .seg button { margin: 0; border-radius: 0; background: var(--surface); color: var(--text-muted); padding: 6px 12px; font-weight: 500; }
+        .seg button.active { background: var(--primary); color: #06101f; font-weight: 600; }
+
+        .mesh-chip { display:inline-flex; align-items:center; gap:6px; font-size:12px; padding:3px 10px; border-radius:999px; border:1px solid var(--border); color:var(--text-muted); white-space:nowrap; }
+        .mesh-chip .dot { font-size:9px; }
+        .mesh-chip.online { color:var(--accent); border-color:var(--accent); }
+        .mesh-chip.preview { color:var(--warn); border-color:var(--warn); }
+        .char-counter { font-size:12px; color:var(--text-muted); }
+        .char-counter.over { color:var(--censored); }
+        .new-pill { display:none; position:sticky; top:8px; z-index:5; margin:0 auto 12px; width:fit-content; background:var(--primary); color:#06101f; font-weight:600; font-size:13px; padding:6px 14px; border-radius:999px; cursor:pointer; box-shadow:0 2px 10px rgba(0,0,0,.45); }
+        .post-link { color:var(--primary); text-decoration:none; }
+        .post-link:hover { text-decoration:underline; }
+        .mention { color:var(--primary); font-weight:600; }
+        .hashtag { color:var(--accent); font-weight:600; }
+        .edited-tag { font-size:11px; color:var(--text-muted); margin-left:6px; }
+        .post-image { cursor:zoom-in; }
+        .collapse-btn { background:transparent; border:none; color:var(--text-muted); font-size:12px; cursor:pointer; margin:8px 0 0; padding:0; }
+        .collapse-btn:hover { color:var(--primary); }
+        .vote-score.hot { color:var(--warn); font-weight:700; }
+        .post-action { background:transparent; border:none; color:var(--text-muted); font-size:13px; cursor:pointer; margin:0; padding:2px 4px; }
+        .post-action:hover { color:var(--primary); }
+        .lightbox { display:none; position:fixed; inset:0; background:rgba(0,0,0,.85); z-index:100; align-items:center; justify-content:center; cursor:zoom-out; }
+        .lightbox.open { display:flex; }
+        .lightbox img { max-width:92vw; max-height:92vh; border-radius:10px; border:1px solid var(--border); }
+
+        .media-launch { display:flex; align-items:center; gap:8px; margin-top:10px; flex-wrap:wrap; }
+        .media-launch-label { font-size:12px; color:var(--text-muted); }
+        .media-pill { background:var(--surface-2); color:var(--text-muted); border:1px solid var(--border); border-radius:999px; padding:5px 12px; font-size:13px; cursor:pointer; margin:0; }
+        .media-pill.on { color:#06101f; background:var(--primary); border-color:var(--primary); font-weight:600; }
+        .media-card { display:flex; align-items:center; gap:10px; margin-top:10px; padding:10px 12px; border:1px solid var(--border); border-radius:10px; background:var(--surface-2); }
+        .media-live { color:var(--censored); font-weight:700; font-size:12px; letter-spacing:.5px; }
+        .media-stage, .share-modal { display:none; position:fixed; inset:0; background:rgba(0,0,0,.8); z-index:120; align-items:center; justify-content:center; }
+        .media-stage.open, .share-modal.open { display:flex; }
+        .stage-inner { background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:16px; width:min(900px,94vw); max-height:92vh; overflow:auto; }
+        .stage-head { display:flex; align-items:center; gap:10px; margin-bottom:12px; font-weight:600; }
+        .roster { font-size:12px; color:var(--text-muted); font-weight:400; }
+        .tiles { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:12px; }
+        .tile { position:relative; background:#000; border:1px solid var(--border); border-radius:10px; overflow:hidden; aspect-ratio:16/9; display:flex; align-items:center; justify-content:center; }
+        .tile video { width:100%; height:100%; object-fit:cover; }
+        .tile.audio { background:var(--surface-2); }
+        .audio-orb { font-size:40px; }
+        .tile-label { position:absolute; bottom:6px; left:8px; font-size:12px; color:#fff; background:rgba(0,0,0,.55); padding:1px 7px; border-radius:6px; }
+        .stage-msg { color:var(--text-muted); font-size:13px; margin-top:12px; text-align:center; }
+        .stage-msg button { margin-top:8px; }
+        .stage-controls { display:flex; gap:8px; justify-content:center; margin-top:14px; flex-wrap:wrap; }
+        .ghost.off { color:var(--censored); border-color:var(--censored); }
+        .share-inner { background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:18px; width:min(420px,92vw); }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+        #loading { height: 100vh; display: flex; align-items: center; justify-content: center; font-size: 15px; color: var(--text-muted); }
+        @media (max-width: 900px) { .container { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+    <div id="loading">Connecting to the Bastion Mesh...</div>
+
+    <div class="container" id="app" style="display: none;">
+        <div id="preview-banner" class="banner">
+            ⚠️ <strong>Preview Mode:</strong> You opened this file locally. You are not connected to the live Aegis mesh.
+        </div>
+
+        <!-- LEFT: Identity + MESH-webs -->
+        <div class="sidebar">
+            <div class="card">
+                <div class="header">Identity</div>
+                <div id="my-name" style="font-weight: bold; font-size: 16px;"></div>
+                <div id="my-id" style="font-size: 12px; color: var(--text-muted); margin-bottom: 15px; font-family: ui-monospace, monospace;"></div>
+
+                <div style="font-size: 12px; margin-bottom: 8px; color: var(--text-muted);">Display name</div>
+                <input type="text" id="name-input" placeholder="Set a display name...">
+                <button onclick="updateName()" class="ghost" style="width: 100%; text-align: center;">Save name</button>
+
+                <div style="font-size: 12px; margin: 14px 0 8px; color: var(--text-muted);">Persistent Status</div>
+                <input type="text" id="status-input" placeholder="Set your status...">
+                <button onclick="updateStatus()" class="ghost" style="width: 100%; text-align: center;">Update</button>
+            </div>
+
+            <div class="card">
+                <div class="header">MESH-webs</div>
+                <div id="web-list"></div>
+                <div id="web-create" style="margin-top: 12px; border-top: 1px solid var(--border); padding-top: 12px;">
+                    <input type="text" id="new-web-name" placeholder="New MESH-web name...">
+                    <label class="toggle" style="margin-top: 10px;">
+                        <input type="checkbox" id="new-web-private"> Private (invite by ID)
+                    </label>
+                    <button onclick="createWeb()" style="width: 100%; text-align: center; margin-top: 10px;">Create MESH-web</button>
+                    <div style="font-size: 12px; margin: 12px 0 6px; color: var(--text-muted);">Join private web by ID</div>
+                    <div class="row">
+                        <input type="text" id="join-web-id" placeholder="web-xxxxxx">
+                        <button onclick="joinWebById()" class="ghost tiny">Join</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- CENTER: Composer + Feed -->
+        <div class="main-feed">
+            <div class="card">
+                <div class="row" style="margin-bottom:10px;">
+                    <div id="web-context" style="font-size: 13px; color: var(--text-muted); flex:1;"></div>
+                    <span class="mesh-chip" id="mesh-chip"><span class="dot">●</span> <span>connecting…</span></span>
+                </div>
+                <textarea id="composer" placeholder="What's happening on the mesh?" oninput="composerInput()" onkeydown="postKey(event)"></textarea>
+                <div class="img-preview" id="img-preview">
+                    <button class="remove-img" onclick="clearComposerImage()">×</button>
+                    <img id="img-preview-el" alt="attachment preview">
+                </div>
+                <div class="composer-actions">
+                    <label class="icon-btn">🖼 Add image
+                        <input type="file" accept="image/*" id="img-input" style="display:none" onchange="onComposerImage(event)">
+                    </label>
+                    <div class="spacer"></div>
+                    <span class="char-counter" id="char-counter">0/1000</span>
+                    <button id="post-btn" onclick="publishPost()">Post</button>
+                </div>
+                <div class="media-launch">
+                    <span class="media-launch-label">Live thread:</span>
+                    <button class="media-pill" id="ml-audio" onclick="toggleMediaKind('audio', this)">🎙 Audio</button>
+                    <button class="media-pill" id="ml-video" onclick="toggleMediaKind('video', this)">🎥 Video</button>
+                    <button class="media-pill" id="ml-screen" onclick="toggleMediaKind('screen', this)">🖥 Screen</button>
+                    <div class="spacer"></div>
+                    <button class="ghost tiny" onclick="startMediaThread()">Start</button>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="feed-controls">
+                    <div class="seg">
+                        <button id="sort-new" class="active" onclick="setSort('new')">Newest</button>
+                        <button id="sort-random" onclick="setSort('random')">🎲 Random (7d)</button>
+                    </div>
+                    <div class="spacer"></div>
+                    <button id="reshuffle" class="ghost tiny" style="display:none" onclick="reshuffle()">Reshuffle</button>
+                </div>
+            </div>
+
+            <div class="new-pill" id="new-pill" onclick="jumpTop()"></div>
+            <div class="card" id="feed-container">
+                <div id="empty-state" style="text-align: center; color: var(--text-muted); padding: 40px 20px;">
+                    Listening for mesh events...<br><br>Be the first to post!
+                </div>
+            </div>
+        </div>
+
+        <!-- RIGHT: Presence -->
+        <div class="sidebar">
+            <div class="card">
+                <div class="header">Active Peers</div>
+                <ul id="presence-list" class="sidebar-list">
+                    <li style="color: var(--text-muted);">Scanning channel...</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <div class="lightbox" id="lightbox" onclick="closeLightbox()"><img id="lightbox-img" alt="full size"></div>
+
+    <div class="media-stage" id="media-stage">
+        <div class="stage-inner">
+            <div class="stage-head"><span class="media-live">● LIVE</span> <span>Media thread</span><div class="spacer"></div><span class="roster" id="roster"></span></div>
+            <div class="tiles" id="tiles"></div>
+            <div class="stage-msg" id="stage-msg"></div>
+            <div class="stage-controls">
+                <button class="ghost tiny" onclick="toggleMic(this)">🎙 Mute</button>
+                <button class="ghost tiny" onclick="toggleCam(this)">🎥 Camera</button>
+                <button onclick="leaveMediaThread()">Leave thread</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="share-modal" id="share-modal">
+        <div class="share-inner">
+            <div class="header" style="border:none;justify-content:flex-start;">Share MESH-web invite</div>
+            <p style="font-size:13px;color:var(--text-muted);margin:0 0 8px;">Copy this ID and send it to whoever you want to invite:</p>
+            <input type="text" id="share-input" readonly onclick="selectShare()">
+            <div class="row" style="margin-top:10px;justify-content:flex-end;">
+                <button class="ghost tiny" onclick="selectShare()">Select all</button>
+                <button class="tiny" onclick="closeShareModal()">Done</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let b = null;        // The Bastion SDK instance
+        let me = null;       // { id, name }
+        let isPreview = false;
+
+        // -----------------------
+        // Local mesh state (the mesh streams flat events; we fold them into views)
+        // -----------------------
+        const posts = new Map();      // postId -> post
+        const seenPostIds = new Set();// dedupe guard (fixes the "my post shows twice" bug)
+        const votes = new Map();      // postId -> Map(voterId -> dir)
+        const profiles = new Map();   // userId -> latest display name
+        const webs = new Map();       // webId -> { id, name, owner, private }
+        let currentWeb = 'mesh';      // 'mesh' = the main public feed
+        let feedSort = 'new';         // 'new' | 'random'
+        let shuffleSeed = Date.now(); // stable shuffle within a session
+        let composerImage = null;     // data URL for a pending attachment
+        let lastSyncAnswer = 0;       // cooldown so we don't storm the channel answering syncs
+        let lastSyncRequest = 0;      // rate-limit how often WE ask the mesh to replay
+        const knownPeers = new Set(); // peers we've already seen, so we can spot fresh joins
+        const collapsed = new Set();  // thread ids the user has collapsed
+        let pendingNew = 0;           // counter behind the "new posts" pill
+        const MAX_LEN = 1000;         // soft character budget shown in the composer
+        const SESSION_START = Date.now(); // tells genuinely-new posts from history replays
+        const mediaWant = { audio: false, video: false, screen: false }; // composer selection
+        let localStream = null;       // mic/cam capture
+        let screenStream = null;      // display capture
+        let activeCall = null;        // media thread id we're currently in
+        const peers = new Map();      // peerId -> RTCPeerConnection (for the active call)
+        const callRoster = new Map(); // peerId -> label, for the live "who's in the call" list
+        const RTC_CONF = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+
+        const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+
+        // -----------------------
+        // Robust SDK Initialization (With Offline Drag-n-Drop Mock)
+        // -----------------------
+        function getBastion() {
+            return new Promise(function(resolve) {
+                if (window.Bastion) { resolve({ sdk: window.Bastion, preview: false }); return; }
+                let done = false;
+                function ok() {
+                    if (done) return;
+                    done = true;
+                    resolve({ sdk: window.Bastion, preview: false });
+                }
+                window.addEventListener('bastion-ready', ok);
+                setTimeout(function() {
+                    if (done) return;
+                    done = true;
+                    window.removeEventListener('bastion-ready', ok);
+                    resolve(window.Bastion ? { sdk: window.Bastion, preview: false } : { sdk: previewMock(), preview: true });
+                }, 1200);
+            });
+        }
+
+        function previewMock() {
+            let subs = [];
+            let kvStore = {};
+            let mockId = 'local-' + Math.random().toString(36).substring(2, 8);
+            let activePeers = [mockId, 'alice-a1b2c3', 'bob-d4e5f6'];
+
+            function emit(type, data, from) { subs.forEach(h => h({ type, data, from: from || mockId })); }
+
+            // Seed a small living world so the preview is demonstrably working —
+            // including an edited post, a deleted tombstone, a hot thread, a decorated
+            // post (mention/hashtag/link), and an image so every upgrade is visible.
+            function seed() {
+                const now = Date.now(), H = 60*60*1000, M = 60*1000;
+                const demoImg = 'data:image/svg+xml;utf8,' + encodeURIComponent(
+                    '<svg xmlns="http://www.w3.org/2000/svg" width="480" height="280">' +
+                    '<rect width="480" height="280" fill="#161b22"/>' +
+                    '<rect x="14" y="14" width="452" height="252" rx="12" fill="none" stroke="#2b3442"/>' +
+                    '<text x="50%" y="46%" fill="#58a6ff" font-family="sans-serif" font-size="26" text-anchor="middle">MESH · garage node</text>' +
+                    '<text x="50%" y="62%" fill="#8b97a7" font-family="sans-serif" font-size="14" text-anchor="middle">click to zoom</text></svg>');
+
+                emit('web', { id: 'web-design', name: 'Design Lab', owner: 'alice-a1b2c3', private: false, timestamp: now }, 'alice-a1b2c3');
+                emit('post', { id: 'p-media1', parentId: null, webId: 'mesh', kind: 'media', media: { audio: true, video: true, screen: false }, author: 'Alice', authorId: 'alice-a1b2c3', content: 'Hopping on a quick video standup — join in.', image: null, timestamp: now - 10*M }, 'alice-a1b2c3');
+
+                // Thread 1 — becomes "hot" (score >= 5) and has nested sub-threads.
+                emit('post', { id: 'p-root1', parentId: null, webId: 'mesh', author: 'Alice', authorId: 'alice-a1b2c3', content: 'Booted the mesh node on a Raspberry Pi in the garage. Range is wild.', image: demoImg, timestamp: now - 2*H }, 'alice-a1b2c3');
+                emit('post', { id: 'p-reply1', parentId: 'p-root1', webId: 'mesh', author: 'Bob', authorId: 'bob-d4e5f6', content: 'Solar panel + battery and you never touch it again.', image: null, timestamp: now - 1*H }, 'bob-d4e5f6');
+                emit('post', { id: 'p-reply2', parentId: 'p-reply1', webId: 'mesh', author: 'Alice', authorId: 'alice-a1b2c3', content: 'Exactly. Sub-thread of a sub-thread, all the way down.', image: null, timestamp: now - 30*M }, 'alice-a1b2c3');
+                ['bob-d4e5f6','carol-9z8y7x','dave-7g6h5j','erin-3k2l1m','frank-0n9b8v'].forEach(v =>
+                    emit('vote', { postId: 'p-root1', dir: 1, voterId: v, timestamp: now }, v)); // 5 upvotes -> 🔥
+                emit('vote', { postId: 'p-reply1', dir: 1, voterId: 'alice-a1b2c3', timestamp: now }, 'alice-a1b2c3');
+
+                // Thread 2 — gets edited live (note the "(edited)" tag).
+                emit('post', { id: 'p-root2', parentId: null, webId: 'mesh', author: 'Bob', authorId: 'bob-d4e5f6', content: 'Who else is seeing packet loss on channel 6?', image: null, timestamp: now - 26*H }, 'bob-d4e5f6');
+                emit('edit', { postId: 'p-root2', content: 'Who else is seeing packet loss on channel 6? (fixed — it was a loose antenna)', by: 'bob-d4e5f6', timestamp: now - 25*H }, 'bob-d4e5f6');
+
+                // Thread 3 — shows mention / hashtag highlighting and a clickable link.
+                emit('post', { id: 'p-root3', parentId: null, webId: 'mesh', author: 'Carol', authorId: 'carol-9z8y7x', content: 'Wrote up the antenna fix — see https://bastion.mesh/docs and ping @alice about #mesh-webs.', image: null, timestamp: now - 3*H }, 'carol-9z8y7x');
+
+                // Thread 4 — author deletes it, leaving a tombstone (its reply survives).
+                emit('post', { id: 'p-root4', parentId: null, webId: 'mesh', author: 'Dave', authorId: 'dave-7g6h5j', content: 'Anyone got a spare 5dBi antenna? Never mind, found one.', image: null, timestamp: now - 5*H }, 'dave-7g6h5j');
+                emit('post', { id: 'p-reply3', parentId: 'p-root4', webId: 'mesh', author: 'Erin', authorId: 'erin-3k2l1m', content: 'Replies stick around even after the parent is deleted.', image: null, timestamp: now - 4*H }, 'erin-3k2l1m');
+                emit('delete', { postId: 'p-root4', by: 'dave-7g6h5j', timestamp: now - 3.5*H }, 'dave-7g6h5j');
+            }
+
+            // Simulate an occasional incoming post.
+            setInterval(() => {
+                if (subs.length > 0) {
+                    emit('post', { id: 'p-' + Math.random().toString(36).slice(2, 9), parentId: null, webId: 'mesh', author: 'Alice', authorId: 'alice-a1b2c3', content: 'Still broadcasting from the offline simulator — publish via Bastion to reach real peers.', image: null, timestamp: Date.now() }, 'alice-a1b2c3');
+                }
+            }, 20000);
+
+            return {
+                whoami: () => Promise.resolve({ id: mockId, name: 'Preview User' }),
+                subscribe: (cb) => { subs.push(cb); setTimeout(seed, 60); return () => {}; },
+                publish: (type, data) => {
+                    setTimeout(() => emit(type, data, mockId), 40); // echoes back, like the real mesh
+                    if (type === 'sync') setTimeout(seed, 120);     // a peer answers the catch-up request
+                },
+                presence: (cb) => { cb(activePeers); setInterval(() => cb(activePeers), 5000); },
+                kvSet: (k, v) => Promise.resolve(kvStore[k] = v),
+                kvGet: (k) => Promise.resolve(kvStore[k])
+            };
+        }
+
+        // -----------------------
+        // Profanity Filter
+        // -----------------------
+        const ProfanityFilter = {
+            badWords: ['fuck', 'shit', 'bitch', 'asshole', 'cunt', 'dick', 'bastard', 'slut', 'whore', 'fag', 'nigger', 'nigga'],
+            charMap: { 'a': '[a@4\\*]', 'e': '[e3\\*]', 'i': '[i1!\\|\\*]', 'o': '[o0\\*]', 'u': '[uv\\*]', 's': '[s\\$5z\\*]', 't': '[t7\\+]', 'c': '[ck\\(]', 'k': '[ck]' },
+            getRegex(word) {
+                const pattern = word.split('').map(char => this.charMap[char] || char).join('\\s*\\W*\\s*');
+                return new RegExp(`\\b${pattern}\\b`, 'gi');
+            },
+            clean(text) {
+                if (!text) return text;
+                let cleaned = text;
+                this.badWords.forEach(word => {
+                    cleaned = cleaned.replace(this.getRegex(word), match => '*'.repeat(match.length));
+                });
+                return cleaned;
+            }
+        };
+
+        // -----------------------
+        // App Lifecycle
+        // -----------------------
+        getBastion().then(async (env) => {
+            b = env.sdk;
+            isPreview = env.preview;
+
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('app').style.display = 'grid';
+            if (isPreview) document.getElementById('preview-banner').style.display = 'block';
+            updateMeshChip([]);
+
+            me = await b.whoami();
+
+            // Hydrate persisted display name + status from the kv store.
+            const savedName = await b.kvGet('displayname_' + me.id);
+            if (savedName && savedName.text) me.name = savedName.text;
+            profiles.set(me.id, me.name);
+
+            document.getElementById('my-name').textContent = ProfanityFilter.clean(me.name) || "Anonymous";
+            document.getElementById('my-id').textContent = '@' + me.id.substring(0, 8);
+            document.getElementById('name-input').value = me.name || '';
+
+            const myStatus = await b.kvGet('status_' + me.id);
+            if (myStatus && myStatus.text) document.getElementById('status-input').value = ProfanityFilter.clean(myStatus.text);
+
+            // Restore the saved MESH-web list so it's there on rejoin, before any rebroadcast.
+            const savedWebs = await b.kvGet('webs_' + me.id);
+            if (Array.isArray(savedWebs)) savedWebs.forEach(w => {
+                if (w && w.id) webs.set(w.id, { id: w.id, name: w.name || 'Untitled', owner: w.owner, private: !!w.private });
+            });
+
+            b.subscribe(handleMeshEvent);
+            b.presence(handlePresence);
+            renderWebs();
+            renderFeed();
+
+            // Ask the mesh to replay history so we don't start on an empty feed.
+            setTimeout(requestSync, 400);
+            // Low-rate safety net: reconcile periodically in case we missed a join event.
+            setInterval(requestSync, 90000);
+            // Keep relative timestamps fresh; react to scrolling for the "new posts" pill.
+            setInterval(refreshTimes, 30000);
+            window.addEventListener('scroll', onScroll);
+        });
+
+        // -----------------------
+        // Network Events (every event is idempotent so echoes are harmless)
+        // -----------------------
+        function handleMeshEvent(evt) {
+            if (!evt || !evt.type) return;
+            switch (evt.type) {
+                case 'post':      ingestPost(evt.data, evt.from); break;
+                case 'vote':      ingestVote(evt.data); break;
+                case 'profile':   ingestProfile(evt.data); break;
+                case 'web':       ingestWeb(evt.data); break;
+                case 'moderate':  ingestModeration(evt.data); break;
+                case 'sync':      handleSyncRequest(evt.data); break;
+                case 'edit':      ingestEdit(evt.data); break;
+                case 'delete':    ingestDelete(evt.data); break;
+                case 'rtc':       handleRtc(evt.data); break;
+            }
+        }
+
+        // -----------------------
+        // Catch-up sync: a late joiner asks the mesh to replay history.
+        // Because every ingest is idempotent, replays cost nothing but bandwidth.
+        // -----------------------
+        function requestSync() {
+            if (!me) return;
+            const now = Date.now();
+            if (now - lastSyncRequest < 5000) return; // don't spam the channel with requests
+            lastSyncRequest = now;
+            b.publish('sync', { requesterId: me.id, timestamp: Date.now() });
+        }
+
+        function handleSyncRequest(data) {
+            if (!data || !me || data.requesterId === me.id) return; // ignore our own echoed request
+            const now = Date.now();
+            if (now - lastSyncAnswer < 8000) return;                // answer at most once per cooldown
+            lastSyncAnswer = now;
+            // Jitter so that when many peers hear the request they don't all reply at once.
+            setTimeout(rebroadcastState, 200 + Math.random() * 1000);
+        }
+
+        function rebroadcastState() {
+            // Replay only shareable history: Main Mesh + public webs. Private webs never leak.
+            const shareable = new Set(['mesh']);
+            webs.forEach(w => { if (!w.private) { shareable.add(w.id); b.publish('web', { ...w, timestamp: Date.now() }); } });
+            profiles.forEach((name, userId) => b.publish('profile', { userId, name, timestamp: Date.now() }));
+
+            const cutoff = Date.now() - WEEK_MS;
+            posts.forEach(p => {
+                if (!shareable.has(p.webId) || p.timestamp < cutoff || p.removed) return;
+                if (p.deleted) { b.publish('delete', { postId: p.id, by: p.authorId, timestamp: Date.now() }); return; }
+                b.publish('post', { id: p.id, parentId: p.parentId, webId: p.webId, author: p.author, authorId: p.authorId, content: p.content, image: p.image, kind: p.kind, media: p.media, timestamp: p.timestamp });
+                if (p.editedAt) b.publish('edit', { postId: p.id, content: p.content, by: p.authorId, timestamp: p.editedAt });
+                const vm = votes.get(p.id);
+                if (vm) vm.forEach((dir, voterId) => b.publish('vote', { postId: p.id, dir, voterId, timestamp: Date.now() }));
+            });
+        }
+
+        function ingestPost(data, fromId) {
+            if (!data || !data.id) return;
+            if (seenPostIds.has(data.id)) return; // the double-post fix: one id, one render
+            seenPostIds.add(data.id);
+            posts.set(data.id, {
+                id: data.id,
+                parentId: data.parentId || null,
+                webId: data.webId || 'mesh',
+                author: data.author || 'Anonymous',
+                authorId: data.authorId || fromId || 'unknown', // payload author wins; a relayer is not the author
+                content: data.content || '',
+                image: data.image || null,
+                kind: data.kind || 'post',
+                media: data.media || null,
+                timestamp: data.timestamp || Date.now(),
+                removed: false
+            });
+            maybeFlagNew(data);
+            renderFeed();
+        }
+
+        function ingestVote(data) {
+            if (!data || !data.postId || !data.voterId) return;
+            if (!votes.has(data.postId)) votes.set(data.postId, new Map());
+            const m = votes.get(data.postId);
+            if (data.dir === 0) m.delete(data.voterId);
+            else m.set(data.voterId, data.dir);
+            renderFeed();
+        }
+
+        function ingestProfile(data) {
+            if (!data || !data.userId) return;
+            profiles.set(data.userId, data.name || 'Anonymous');
+            renderFeed();
+        }
+
+        function ingestWeb(data) {
+            if (!data || !data.id) return;
+            // owner comes from the payload, so a peer relaying this web during catch-up
+            // can never be mistaken for its creator.
+            webs.set(data.id, { id: data.id, name: data.name || 'Untitled', owner: data.owner, private: !!data.private });
+            renderWebs();
+            persistWebs();
+        }
+
+        // Save the web list to per-peer storage so it (including private webs and correct
+        // ownership) survives leaving and rejoining — not just public re-announcements.
+        function persistWebs() {
+            if (me) b.kvSet('webs_' + me.id, [...webs.values()]);
+        }
+
+        function ingestModeration(data) {
+            if (!data || !data.postId) return;
+            const p = posts.get(data.postId);
+            // Only the owner of the web a post lives in may moderate it.
+            if (p && data.action === 'remove' && isWebOwner(p.webId, data.by)) {
+                p.removed = true;
+                renderFeed();
+            }
+        }
+
+        function handlePresence(activeIds) {
+            // A fresh peer appearing means a node just (re)joined or a split just healed —
+            // quietly re-sync so histories reconcile. requestSync is rate-limited, so even a
+            // burst of joins can't storm the channel.
+            if (activeIds) {
+                let fresh = false;
+                activeIds.forEach(id => { if (id !== (me && me.id) && !knownPeers.has(id)) { knownPeers.add(id); fresh = true; } });
+                if (fresh) setTimeout(requestSync, 800 + Math.random() * 600);
+            }
+            updateMeshChip(activeIds);
+
+            const list = document.getElementById('presence-list');
+            list.innerHTML = '';
+            if (!activeIds || activeIds.length === 0) {
+                list.innerHTML = '<li style="color: var(--text-muted);">You are the only one here.</li>';
+                return;
+            }
+            activeIds.forEach(id => {
+                const li = document.createElement('li');
+                const isMe = (id === me?.id);
+                const name = profiles.get(id);
+                const label = isMe ? 'You' : (name ? ProfanityFilter.clean(name) : '@' + id.substring(0, 8));
+                li.innerHTML = `<span class="status-dot">●</span> <span>${escapeHTML(label)}</span>`;
+                list.appendChild(li);
+            });
+        }
+
+        // -----------------------
+        // Actions: posting + images
+        // -----------------------
+        function onComposerImage(event) {
+            const file = event.target.files && event.target.files[0];
+            if (!file) return;
+            downscaleImage(file, 1280, 0.72).then(dataUrl => {
+                composerImage = dataUrl;
+                document.getElementById('img-preview-el').src = dataUrl;
+                document.getElementById('img-preview').style.display = 'block';
+            });
+            event.target.value = '';
+        }
+
+        function clearComposerImage() {
+            composerImage = null;
+            document.getElementById('img-preview').style.display = 'none';
+            document.getElementById('img-preview-el').src = '';
+        }
+
+        // Downscale + compress in the browser so we never push huge blobs over the mesh.
+        function downscaleImage(file, maxDim, quality) {
+            return new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onload = () => {
+                    const img = new Image();
+                    img.onload = () => {
+                        let { width, height } = img;
+                        if (width > maxDim || height > maxDim) {
+                            const scale = Math.min(maxDim / width, maxDim / height);
+                            width = Math.round(width * scale);
+                            height = Math.round(height * scale);
+                        }
+                        const canvas = document.createElement('canvas');
+                        canvas.width = width; canvas.height = height;
+                        canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+                        resolve(canvas.toDataURL('image/jpeg', quality));
+                    };
+                    img.onerror = () => resolve(null);
+                    img.src = reader.result;
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+
+        function newId(prefix) { return prefix + '-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+
+        function publishPost(parentId) {
+            const input = parentId
+                ? document.getElementById('reply-text-' + parentId)
+                : document.getElementById('composer');
+            const text = (input.value || '').trim();
+            const image = parentId ? (replyImages[parentId] || null) : composerImage;
+            if (!text && !image) return;
+            if (!me) return;
+
+            const postData = {
+                id: newId('p'),
+                parentId: parentId || null,
+                webId: currentWeb,
+                content: text,
+                author: me.name,
+                authorId: me.id,
+                image: image,
+                timestamp: Date.now()
+            };
+
+            // Optimistic local ingest. The id-based dedupe means the mesh echo is ignored,
+            // so the author sees the post exactly once (this is the bug fix).
+            ingestPost(postData, me.id);
+            b.publish('post', postData);
+
+            input.value = '';
+            if (parentId) { delete replyImages[parentId]; }
+            else { clearComposerImage(); }
+            renderFeed();
+        }
+
+        // -----------------------
+        // Actions: votes
+        // -----------------------
+        function castVote(postId, dir) {
+            if (!me) return;
+            const m = votes.get(postId);
+            const current = m && m.get(me.id);
+            const nextDir = (current === dir) ? 0 : dir; // clicking your active vote clears it
+            ingestVote({ postId, dir: nextDir, voterId: me.id, timestamp: Date.now() });
+            b.publish('vote', { postId, dir: nextDir, voterId: me.id, timestamp: Date.now() });
+        }
+
+        function scoreOf(postId) {
+            const m = votes.get(postId);
+            if (!m) return 0;
+            let s = 0; m.forEach(d => s += d); return s;
+        }
+
+        // -----------------------
+        // Actions: identity
+        // -----------------------
+        async function updateName() {
+            const input = document.getElementById('name-input');
+            const text = (input.value || '').trim();
+            if (!text || !me) return;
+            me.name = text;
+            profiles.set(me.id, text);
+            document.getElementById('my-name').textContent = ProfanityFilter.clean(text);
+            await b.kvSet('displayname_' + me.id, { text: text, updated: Date.now() });
+            b.publish('profile', { userId: me.id, name: text, timestamp: Date.now() }); // peers relabel your posts live
+            flash(input);
+            renderFeed();
+        }
+
+        async function updateStatus() {
+            const input = document.getElementById('status-input');
+            const text = (input.value || '').trim();
+            if (!me) return;
+            await b.kvSet('status_' + me.id, { text: text, updated: Date.now() });
+            flash(input);
+        }
+
+        function flash(input) {
+            input.style.borderColor = "var(--accent)";
+            setTimeout(() => input.style.borderColor = "var(--border)", 1000);
+        }
+
+        // -----------------------
+        // Actions: MESH-webs
+        // -----------------------
+        function isWebOwner(webId, who) {
+            if (webId === 'mesh') return false; // nobody owns the main mesh
+            const w = webs.get(webId);
+            return !!(w && w.owner === (who || (me && me.id)));
+        }
+
+        function createWeb() {
+            const nameEl = document.getElementById('new-web-name');
+            const name = (nameEl.value || '').trim();
+            if (!name || !me) return;
+            const isPrivate = document.getElementById('new-web-private').checked;
+            const web = { id: newId('web'), name, owner: me.id, private: isPrivate };
+            webs.set(web.id, web);
+            // Public webs are announced to the mesh; private ones stay local and are shared by ID.
+            if (!isPrivate) b.publish('web', { ...web, timestamp: Date.now() });
+            nameEl.value = '';
+            document.getElementById('new-web-private').checked = false;
+            currentWeb = web.id;
+            persistWebs();
+            renderWebs();
+            renderFeed();
+        }
+
+        function joinWebById() {
+            const el = document.getElementById('join-web-id');
+            const id = (el.value || '').trim();
+            if (!id) return;
+            if (!webs.has(id)) {
+                // We can switch to it; posts will populate as peers in that web broadcast.
+                webs.set(id, { id, name: id, owner: null, private: true });
+            }
+            currentWeb = id;
+            el.value = '';
+            persistWebs();
+            renderWebs();
+            renderFeed();
+        }
+
+        function switchWeb(webId) {
+            currentWeb = webId;
+            renderWebs();
+            renderFeed();
+        }
+
+        function renameWeb(webId) {
+            const w = webs.get(webId);
+            if (!w || !isWebOwner(webId)) return;
+            const name = prompt('Rename MESH-web', w.name);
+            if (!name) return;
+            w.name = name.trim();
+            if (!w.private) b.publish('web', { ...w, timestamp: Date.now() });
+            persistWebs();
+            renderWebs();
+            renderFeed();
+        }
+
+        function toggleWebPrivacy(webId) {
+            const w = webs.get(webId);
+            if (!w || !isWebOwner(webId)) return;
+            w.private = !w.private;
+            if (!w.private) b.publish('web', { ...w, timestamp: Date.now() });
+            persistWebs();
+            renderWebs();
+            renderFeed();
+        }
+
+        function moderateRemove(postId) {
+            const p = posts.get(postId);
+            if (!p || !isWebOwner(p.webId)) return;
+            p.removed = true;
+            b.publish('moderate', { postId, webId: p.webId, by: me.id, action: 'remove', timestamp: Date.now() });
+            renderFeed();
+        }
+
+        // -----------------------
+        // Feed sort controls
+        // -----------------------
+        function setSort(mode) {
+            feedSort = mode;
+            document.getElementById('sort-new').classList.toggle('active', mode === 'new');
+            document.getElementById('sort-random').classList.toggle('active', mode === 'random');
+            document.getElementById('reshuffle').style.display = (mode === 'random') ? 'inline-block' : 'none';
+            renderFeed();
+        }
+        function reshuffle() { shuffleSeed = Date.now(); renderFeed(); }
+
+        // Deterministic seeded shuffle so the random feed is stable until you reshuffle.
+        function seededShuffle(arr, seed) {
+            const a = arr.slice();
+            let s = seed % 2147483647; if (s <= 0) s += 2147483646;
+            const rnd = () => (s = s * 16807 % 2147483647) / 2147483647;
+            for (let i = a.length - 1; i > 0; i--) {
+                const j = Math.floor(rnd() * (i + 1));
+                [a[i], a[j]] = [a[j], a[i]];
+            }
+            return a;
+        }
+
+        // -----------------------
+        // Rendering: MESH-web list
+        // -----------------------
+        function renderWebs() {
+            const wrap = document.getElementById('web-list');
+            wrap.innerHTML = '';
+            const entries = [{ id: 'mesh', name: 'Main Mesh', owner: null, private: false }, ...webs.values()];
+            entries.forEach(w => {
+                const div = document.createElement('div');
+                div.className = 'web-item' + (w.id === currentWeb ? ' active' : '');
+                const owned = isWebOwner(w.id);
+                div.innerHTML =
+                    `<span>${w.id === 'mesh' ? '🌐' : (w.private ? '🔒' : '#')}</span>` +
+                    `<span style="flex:1">${escapeHTML(ProfanityFilter.clean(w.name))}</span>` +
+                    (owned ? '<span class="web-owner-tag">admin</span>' : '');
+                div.onclick = () => switchWeb(w.id);
+                wrap.appendChild(div);
+            });
+
+            // Admin panel for a web you own.
+            renderWebContext();
+        }
+
+        function renderWebContext() {
+            const ctx = document.getElementById('web-context');
+            if (currentWeb === 'mesh') {
+                ctx.innerHTML = 'Posting to <strong>Main Mesh</strong> — the public 7-day feed.';
+                return;
+            }
+            const w = webs.get(currentWeb);
+            if (!w) { ctx.textContent = ''; return; }
+            let html = `Posting to ${w.private ? '🔒' : '#'} <strong>${escapeHTML(ProfanityFilter.clean(w.name))}</strong>` +
+                       `<span class="post-id">${escapeHTML(w.id)}</span>`;
+            if (w.private) html += ` <button class="ghost tiny" onclick="copyWebId(event, '${w.id}')">Copy invite ID</button>`;
+            if (isWebOwner(currentWeb)) {
+                html += `<div class="row" style="margin-top:8px;flex-wrap:wrap">` +
+                        `<button class="ghost tiny" onclick="renameWeb('${w.id}')">Rename</button>` +
+                        `<button class="ghost tiny" onclick="toggleWebPrivacy('${w.id}')">${w.private ? 'Make public' : 'Make private'}</button>` +
+                        `<span class="web-owner-tag">you are admin</span></div>`;
+            }
+            ctx.innerHTML = html;
+        }
+
+        // -----------------------
+        // Rendering: feed (threads -> sub-threads -> sub-sub-threads)
+        // -----------------------
+        function renderFeed() {
+            const container = document.getElementById('feed-container');
+            container.innerHTML = '';
+
+            // Index children by parent, scoped to the active web.
+            const childrenOf = new Map();
+            posts.forEach(p => {
+                if (p.webId !== currentWeb) return;
+                const key = p.parentId || '__root__';
+                if (!childrenOf.has(key)) childrenOf.set(key, []);
+                childrenOf.get(key).push(p);
+            });
+
+            let roots = (childrenOf.get('__root__') || []);
+            const cutoff = Date.now() - WEEK_MS;
+            roots = roots.filter(p => p.timestamp >= cutoff); // "latest posts from the last 7 days"
+
+            if (feedSort === 'random') {
+                roots = seededShuffle(roots, shuffleSeed);
+            } else {
+                roots.sort((a, b2) => b2.timestamp - a.timestamp); // newest at the top
+            }
+
+            if (roots.length === 0) {
+                container.innerHTML = '<div id="empty-state" style="text-align:center;color:var(--text-muted);padding:40px 20px;">No threads here yet in the last 7 days.<br><br>Be the first to post!</div>';
+                return;
+            }
+
+            roots.forEach(root => container.appendChild(renderNode(root, childrenOf, 0)));
+        }
+
+        function renderNode(post, childrenOf, depth) {
+            const el = document.createElement('div');
+            el.className = depth === 0 ? 'thread' : 'subthread';
+
+            const displayName = profiles.get(post.authorId) || post.author || 'Anonymous';
+            const safeName = escapeHTML(ProfanityFilter.clean(displayName));
+            const absStr = new Date(post.timestamp).toLocaleString();
+            const shortId = (post.authorId || 'unknown').substring(0, 8);
+            const editedTag = (post.editedAt && !post.deleted && !post.removed) ? '<span class="edited-tag">(edited)</span>' : '';
+
+            let bodyHtml;
+            if (post.removed) {
+                bodyHtml = `<div class="post-content"><em style="color:var(--text-muted)">[removed by MESH-web admin]</em></div>`;
+            } else if (post.deleted) {
+                bodyHtml = `<div class="post-content"><em style="color:var(--text-muted)">[deleted by author]</em></div>`;
+            } else if (post.kind === 'media') {
+                const m = post.media || {};
+                const kinds = [m.audio && '🎙 audio', m.video && '🎥 video', m.screen && '🖥 screen'].filter(Boolean).join(' + ') || 'media';
+                const joined = activeCall === post.id;
+                bodyHtml = `<div class="post-content">${renderContent(post.content)}</div>` +
+                    `<div class="media-card"><span class="media-live">● LIVE</span> <strong>${kinds} thread</strong><div class="spacer"></div>` +
+                    `<button class="ghost tiny" onclick="${joined ? 'leaveMediaThread()' : `joinMediaThread('${post.id}')`}">${joined ? 'Leave' : 'Join'}</button></div>`;
+            } else {
+                bodyHtml = `<div class="post-content">${renderContent(post.content)}</div>`;
+                if (post.image) bodyHtml += `<img class="post-image" src="${post.image}" alt="shared image" onclick="openLightbox(this.src)">`;
+            }
+
+            const myVote = (votes.get(post.id) || new Map()).get(me && me.id);
+            const score = scoreOf(post.id);
+            const hot = score >= 5;
+            const live = !post.removed && !post.deleted;
+            const canModerate = isWebOwner(post.webId) && live;
+            const isMine = me && post.authorId === me.id && live;
+
+            el.innerHTML = `
+                <div class="post-time" data-ts="${post.timestamp}" title="${escapeHTML(absStr)}">${timeAgo(post.timestamp)}</div>
+                <span class="post-author">${safeName}</span>
+                <span class="post-id">@${shortId}</span>
+                ${editedTag}
+                ${bodyHtml}
+                <div class="post-toolbar">
+                    <button class="vote-btn up ${myVote === 1 ? 'active' : ''}" onclick="castVote('${post.id}', 1)">▲</button>
+                    <span class="vote-score ${hot ? 'hot' : ''}">${hot ? '🔥 ' : ''}${score}</span>
+                    <button class="vote-btn down ${myVote === -1 ? 'active' : ''}" onclick="castVote('${post.id}', -1)">▼</button>
+                    ${live ? `<button class="reply-btn" onclick="toggleReply('${post.id}')">Reply</button>` : ''}
+                    ${isMine ? `<button class="post-action" onclick="editPost('${post.id}')">Edit</button>` : ''}
+                    ${isMine ? `<button class="post-action" onclick="deletePost('${post.id}')">Delete</button>` : ''}
+                    ${canModerate ? `<button class="mod-btn" onclick="moderateRemove('${post.id}')">Remove</button>` : ''}
+                </div>
+                <div id="reply-box-${post.id}" style="display:none;margin-top:10px;"></div>
+            `;
+
+            const kids = (childrenOf.get(post.id) || []).slice().sort((a, b2) => b2.timestamp - a.timestamp);
+            if (kids.length > 0) {
+                const isCollapsed = collapsed.has(post.id);
+                const total = countDescendants(post.id, childrenOf);
+                const toggle = document.createElement('button');
+                toggle.className = 'collapse-btn';
+                toggle.textContent = (isCollapsed ? '▸ show ' : '▾ hide ') + total + ' ' + (total === 1 ? 'reply' : 'replies');
+                toggle.onclick = () => { collapsed.has(post.id) ? collapsed.delete(post.id) : collapsed.add(post.id); renderFeed(); };
+                el.appendChild(toggle);
+                if (!isCollapsed) {
+                    const wrap = document.createElement('div');
+                    kids.forEach(k => wrap.appendChild(renderNode(k, childrenOf, depth + 1)));
+                    el.appendChild(wrap);
+                }
+            }
+            return el;
+        }
+
+        const replyImages = {}; // pending reply attachments keyed by parent id
+
+        function toggleReply(postId) {
+            const box = document.getElementById('reply-box-' + postId);
+            if (!box) return;
+            if (box.style.display === 'block') { box.style.display = 'none'; box.innerHTML = ''; return; }
+            box.style.display = 'block';
+            box.innerHTML = `
+                <textarea id="reply-text-${postId}" placeholder="Reply to this thread..." style="min-height:60px;" onkeydown="postKey(event, '${postId}')"></textarea>
+                <div class="composer-actions">
+                    <label class="icon-btn">🖼 Add image
+                        <input type="file" accept="image/*" style="display:none" onchange="onReplyImage(event, '${postId}')">
+                    </label>
+                    <div class="spacer"></div>
+                    <button onclick="publishPost('${postId}')">Reply</button>
+                </div>
+                <div id="reply-img-${postId}" style="margin-top:8px;"></div>
+            `;
+        }
+
+        function onReplyImage(event, postId) {
+            const file = event.target.files && event.target.files[0];
+            if (!file) return;
+            downscaleImage(file, 1280, 0.72).then(dataUrl => {
+                replyImages[postId] = dataUrl;
+                const slot = document.getElementById('reply-img-' + postId);
+                if (slot) slot.innerHTML = `<img src="${dataUrl}" style="max-width:120px;border-radius:8px;border:1px solid var(--border);">`;
+            });
+            event.target.value = '';
+        }
+
+        // -----------------------
+        // Content rendering + escaping (profanity stays censored even after escaping)
+        // -----------------------
+        function renderContent(raw) {
+            const escaped = escapeHTML(ProfanityFilter.clean(raw || ''));
+            // Linkify URLs first, then decorate only the gaps between links so we never
+            // rewrite anything inside an href.
+            const urlRe = /(https?:\/\/[^\s<]+)/g;
+            let out = '', last = 0, m;
+            while ((m = urlRe.exec(escaped)) !== null) {
+                out += decorateText(escaped.slice(last, m.index));
+                out += `<a class="post-link" href="${m[0]}" target="_blank" rel="noopener noreferrer">${m[0]}</a>`;
+                last = m.index + m[0].length;
+            }
+            out += decorateText(escaped.slice(last));
+            return out;
+        }
+        function decorateText(s) {
+            return s
+                .replace(/(\*{2,})/g, '<span class="censored">$1</span>')        // censor marks stay red
+                .replace(/(^|\s)@([\w-]{2,})/g, '$1<span class="mention">@$2</span>')
+                .replace(/(^|\s)#([\w-]{2,})/g, '$1<span class="hashtag">#$2</span>');
+        }
+
+        function escapeHTML(str) {
+            return String(str).replace(/[&<>'"]/g,
+                tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
+            );
+        }
+
+        // -----------------------
+        // Upgrades: relative time, lightbox, composer UX, new-posts pill, mesh chip,
+        // invite copy, and author edit/delete. All event ingest stays idempotent.
+        // -----------------------
+        function timeAgo(ts) {
+            const sec = Math.floor((Date.now() - ts) / 1000);
+            if (sec < 45) return 'just now';
+            if (sec < 90) return '1m ago';
+            const min = Math.floor(sec / 60); if (min < 60) return min + 'm ago';
+            const hr = Math.floor(min / 60); if (hr < 24) return hr + 'h ago';
+            const day = Math.floor(hr / 24); if (day < 7) return day + 'd ago';
+            return new Date(ts).toLocaleDateString([], { month: 'short', day: 'numeric' });
+        }
+        function refreshTimes() {
+            document.querySelectorAll('.post-time[data-ts]').forEach(el => {
+                el.textContent = timeAgo(Number(el.getAttribute('data-ts')));
+            });
+        }
+        function countDescendants(id, childrenOf) {
+            const kids = childrenOf.get(id) || [];
+            let n = kids.length;
+            kids.forEach(k => n += countDescendants(k.id, childrenOf));
+            return n;
+        }
+
+        // Composer UX: auto-grow, live character budget, and Cmd/Ctrl+Enter to send.
+        function composerInput() {
+            const t = document.getElementById('composer');
+            t.style.height = 'auto';
+            t.style.height = Math.min(t.scrollHeight, 320) + 'px';
+            const c = document.getElementById('char-counter');
+            c.textContent = t.value.length + '/' + MAX_LEN;
+            c.classList.toggle('over', t.value.length > MAX_LEN);
+        }
+        function postKey(e, parentId) {
+            if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); publishPost(parentId); }
+        }
+
+        // Click any shared image to view it full-size.
+        function openLightbox(src) {
+            document.getElementById('lightbox-img').src = src;
+            document.getElementById('lightbox').classList.add('open');
+        }
+        function closeLightbox() {
+            document.getElementById('lightbox').classList.remove('open');
+            document.getElementById('lightbox-img').src = '';
+        }
+
+        // "New posts" pill: only for genuinely-new roots that land while you're scrolled away.
+        function maybeFlagNew(data) {
+            if (data.parentId) return;
+            if (data.authorId === (me && me.id)) return;
+            if ((data.webId || 'mesh') !== currentWeb) return;
+            if ((data.timestamp || 0) < SESSION_START - 5000) return; // ignore history replays
+            if (window.scrollY <= 300) return;
+            pendingNew++;
+            const pill = document.getElementById('new-pill');
+            pill.textContent = '↑ ' + pendingNew + ' new post' + (pendingNew > 1 ? 's' : '');
+            pill.style.display = 'block';
+        }
+        function jumpTop() {
+            pendingNew = 0;
+            document.getElementById('new-pill').style.display = 'none';
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+        function onScroll() {
+            if (window.scrollY < 300 && pendingNew) {
+                pendingNew = 0;
+                document.getElementById('new-pill').style.display = 'none';
+            }
+        }
+
+        // Live mesh-status chip in the composer header.
+        function updateMeshChip(activeIds) {
+            const chip = document.getElementById('mesh-chip');
+            if (!chip) return;
+            const n = (activeIds || []).length;
+            if (isPreview) {
+                chip.className = 'mesh-chip preview';
+                chip.innerHTML = '<span class="dot">●</span> <span>Preview Mode</span>';
+            } else {
+                chip.className = 'mesh-chip online';
+                chip.innerHTML = `<span class="dot">●</span> <span>On the mesh · ${n} peer${n === 1 ? '' : 's'}</span>`;
+            }
+        }
+
+        // Copy text robustly. The async Clipboard API is blocked inside many sandboxed
+        // iframes (where Bastion may host this file), so we fall back to a hidden-textarea
+        // execCommand copy, and finally to a manual "select this" modal that always works.
+        function copyText(text) {
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                return navigator.clipboard.writeText(text).then(() => true).catch(() => legacyCopy(text));
+            }
+            return Promise.resolve(legacyCopy(text));
+        }
+        function legacyCopy(text) {
+            try {
+                const ta = document.createElement('textarea');
+                ta.value = text; ta.setAttribute('readonly', '');
+                ta.style.position = 'fixed'; ta.style.top = '-1000px'; ta.style.opacity = '0';
+                document.body.appendChild(ta);
+                ta.select(); ta.setSelectionRange(0, text.length);
+                const ok = document.execCommand('copy');
+                document.body.removeChild(ta);
+                return ok;
+            } catch (e) { return false; }
+        }
+        function copyWebId(ev, id) {
+            const btn = ev && ev.currentTarget;
+            copyText(id).then(ok => {
+                if (ok && btn) { const t = btn.textContent; btn.textContent = 'Copied!'; setTimeout(() => btn.textContent = t, 1200); }
+                else { showShareModal(id); } // clipboard blocked — let the user copy by hand
+            });
+        }
+        function showShareModal(id) {
+            const input = document.getElementById('share-input');
+            input.value = id;
+            document.getElementById('share-modal').classList.add('open');
+            setTimeout(selectShare, 30);
+        }
+        function selectShare() {
+            const input = document.getElementById('share-input');
+            input.focus(); input.select(); input.setSelectionRange(0, input.value.length);
+            try { document.execCommand('copy'); } catch (e) {}
+        }
+        function closeShareModal() { document.getElementById('share-modal').classList.remove('open'); }
+
+        // Edit / delete your own posts. Author-owned and idempotent; replays through sync.
+        function editPost(postId) {
+            const p = posts.get(postId);
+            if (!p || !me || p.authorId !== me.id) return;
+            const next = prompt('Edit your post', p.content);
+            if (next === null) return;
+            const data = { postId, content: next.trim(), by: me.id, timestamp: Date.now() };
+            ingestEdit(data);
+            b.publish('edit', data);
+        }
+        function deletePost(postId) {
+            const p = posts.get(postId);
+            if (!p || !me || p.authorId !== me.id) return;
+            if (!confirm('Delete this post? Replies will remain.')) return;
+            const data = { postId, by: me.id, timestamp: Date.now() };
+            ingestDelete(data);
+            b.publish('delete', data);
+        }
+        function ingestEdit(data) {
+            if (!data || !data.postId) return;
+            const p = posts.get(data.postId);
+            if (!p || p.authorId !== data.by) return;                  // only the author may edit
+            if (p.editedAt && data.timestamp <= p.editedAt) return;     // newest edit wins (idempotent)
+            p.content = data.content || '';
+            p.editedAt = data.timestamp || Date.now();
+            renderFeed();
+        }
+        function ingestDelete(data) {
+            if (!data || !data.postId) return;
+            const p = posts.get(data.postId);
+            if (!p || p.authorId !== data.by) return;                  // only the author may delete
+            p.deleted = true;
+            renderFeed();
+        }
+
+        // -----------------------
+        // Live media threads (audio / video / screen, or any combination).
+        // The Bastion mesh has no media transport, so we use it as the WebRTC *signaling*
+        // channel: 'rtc' events carry join/offer/answer/candidate, and real audio+video
+        // flow peer-to-peer over RTCPeerConnections. Signaling is ephemeral live control,
+        // not stored state, so (unlike posts/votes) it isn't idempotent — it's a handshake.
+        // -----------------------
+        function inIframe() { try { return window.self !== window.top; } catch (e) { return true; } }
+        function popOut() { window.open(location.href, '_blank', 'noopener'); }
+
+        function toggleMediaKind(kind, btn) {
+            mediaWant[kind] = !mediaWant[kind];
+            btn.classList.toggle('on', mediaWant[kind]);
+        }
+        function describeWant(w) { return [w.audio && 'audio', w.video && 'video', w.screen && 'screen'].filter(Boolean).join('+'); }
+
+        // Capture local media. mic+cam come from getUserMedia; screen from getDisplayMedia.
+        async function captureLocalMedia(want) {
+            let stream = null, screen = null;
+            if (want.audio || want.video) {
+                stream = await navigator.mediaDevices.getUserMedia({ audio: !!want.audio, video: !!want.video });
+            }
+            if (want.screen) {
+                screen = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
+            }
+            return { stream, screen };
+        }
+        function localTrackPairs() {
+            const out = [];
+            if (localStream) localStream.getTracks().forEach(t => out.push({ t, s: localStream }));
+            if (screenStream) screenStream.getTracks().forEach(t => out.push({ t, s: screenStream }));
+            return out;
+        }
+
+        async function beginCapture(want) {
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                openStage(); document.getElementById('stage-msg').innerHTML = mediaErrorHtml({ name: 'Unsupported' }); return false;
+            }
+            try {
+                const { stream, screen } = await captureLocalMedia(want);
+                localStream = stream; screenStream = screen;
+                if (screenStream) {
+                    const st = screenStream.getVideoTracks()[0];
+                    if (st) st.onended = () => { screenStream = null; renderStage(); };  // user hit "Stop sharing"
+                }
+                return true;
+            } catch (e) {
+                openStage(); document.getElementById('stage-msg').innerHTML = mediaErrorHtml(e); return false;
+            }
+        }
+
+        async function startMediaThread() {
+            if (!me) return;
+            if (!(mediaWant.audio || mediaWant.video || mediaWant.screen)) { alert('Pick audio, video, and/or screen first.'); return; }
+            if (!(await beginCapture(mediaWant))) return;
+            const id = newId('p');
+            const postData = { id, parentId: null, webId: currentWeb, kind: 'media',
+                media: { audio: mediaWant.audio, video: mediaWant.video, screen: mediaWant.screen },
+                content: 'Started a live ' + describeWant(mediaWant) + ' thread.', author: me.name, authorId: me.id, image: null, timestamp: Date.now() };
+            ingestPost(postData, me.id);
+            b.publish('post', postData);
+            enterCall(id);
+        }
+
+        async function joinMediaThread(threadId) {
+            const post = posts.get(threadId);
+            const want = (post && post.media) ? { ...post.media } : { audio: true, video: false, screen: false };
+            if (!(await beginCapture(want))) return;
+            enterCall(threadId);
+            b.publish('rtc', { threadId, from: me.id, to: null, kind: 'join' }); // peers already here will offer us
+            if (isPreview) addSyntheticPeer(); // there are no real peers offline — show a simulated one
+        }
+
+        function enterCall(threadId) { activeCall = threadId; callRoster.clear(); openStage(); renderStage(); renderRoster(); renderFeed(); }
+
+        function leaveMediaThread() {
+            if (activeCall) b.publish('rtc', { threadId: activeCall, from: me.id, to: null, kind: 'leave' });
+            peers.forEach(pc => { try { pc.close(); } catch (e) {} });
+            peers.clear();
+            [localStream, screenStream].forEach(st => st && st.getTracks().forEach(t => t.stop()));
+            localStream = null; screenStream = null;
+            activeCall = null;
+            closeStage();
+            renderFeed();
+        }
+
+        // ---- WebRTC signaling over the mesh ----
+        function handleRtc(d) {
+            if (!d || !me || d.threadId !== activeCall) return; // only the call we're actually in
+            if (d.from === me.id) return;                       // ignore our own echo
+            if (d.to && d.to !== me.id) return;                 // not addressed to us
+            if (d.kind === 'join') { makeOfferTo(d.from); return; }      // everyone here offers the newcomer -> full mesh
+            if (d.kind === 'leave') { dropPeer(d.from); return; }
+            const pc = ensurePeer(d.from);
+            if (d.kind === 'offer') {
+                pc.setRemoteDescription(d.payload)
+                  .then(() => pc.createAnswer())
+                  .then(ans => pc.setLocalDescription(ans).then(() =>
+                      b.publish('rtc', { threadId: activeCall, from: me.id, to: d.from, kind: 'answer', payload: ans })));
+            } else if (d.kind === 'answer') {
+                pc.setRemoteDescription(d.payload);
+            } else if (d.kind === 'candidate') {
+                try { pc.addIceCandidate(d.payload); } catch (e) {}
+            }
+        }
+        function ensurePeer(peerId) {
+            if (peers.has(peerId)) return peers.get(peerId);
+            const pc = new RTCPeerConnection(RTC_CONF);
+            localTrackPairs().forEach(({ t, s }) => pc.addTrack(t, s));
+            pc.onicecandidate = (e) => { if (e.candidate) b.publish('rtc', { threadId: activeCall, from: me.id, to: peerId, kind: 'candidate', payload: e.candidate }); };
+            pc.ontrack = (e) => attachRemote(peerId, e.streams[0]);
+            pc.onconnectionstatechange = () => { if (['failed', 'closed', 'disconnected'].includes(pc.connectionState)) dropPeer(peerId); };
+            peers.set(peerId, pc);
+            return pc;
+        }
+        function makeOfferTo(peerId) {
+            const pc = ensurePeer(peerId);
+            pc.createOffer()
+              .then(off => pc.setLocalDescription(off).then(() =>
+                  b.publish('rtc', { threadId: activeCall, from: me.id, to: peerId, kind: 'offer', payload: off })));
+        }
+        function dropPeer(peerId) {
+            const pc = peers.get(peerId);
+            if (pc) { try { pc.close(); } catch (e) {} peers.delete(peerId); }
+            removeTile(peerId);
+        }
+
+        // ---- Stage UI ----
+        function openStage() { document.getElementById('media-stage').classList.add('open'); }
+        function closeStage() {
+            document.getElementById('media-stage').classList.remove('open');
+            document.getElementById('tiles').innerHTML = '';
+            document.getElementById('stage-msg').innerHTML = '';
+            callRoster.clear();
+        }
+        function renderStage() {
+            const tiles = document.getElementById('tiles');
+            tiles.innerHTML = '';
+            if (localStream && localStream.getVideoTracks().length) addVideoTile('You', localStream, true);
+            else if (localStream) addAudioTile('You (audio)');
+            if (screenStream) addVideoTile('You · screen', screenStream, true);
+            if (!localStream && !screenStream) document.getElementById('stage-msg').textContent = 'Connecting…';
+        }
+        function addVideoTile(label, stream, muted) {
+            const tile = document.createElement('div'); tile.className = 'tile';
+            const v = document.createElement('video'); v.autoplay = true; v.playsInline = true; v.muted = !!muted; v.srcObject = stream;
+            tile.appendChild(v); tile.appendChild(tileLabel(label));
+            document.getElementById('tiles').appendChild(tile);
+        }
+        function addAudioTile(label) {
+            const tile = document.createElement('div'); tile.className = 'tile audio';
+            tile.innerHTML = '<div class="audio-orb">🎙</div>'; tile.appendChild(tileLabel(label));
+            document.getElementById('tiles').appendChild(tile);
+        }
+        function tileLabel(text) { const d = document.createElement('div'); d.className = 'tile-label'; d.textContent = text; return d; }
+        function attachRemote(peerId, stream) {
+            let tile = document.getElementById('tile-' + peerId);
+            if (!tile) {
+                tile = document.createElement('div'); tile.className = 'tile'; tile.id = 'tile-' + peerId;
+                const v = document.createElement('video'); v.autoplay = true; v.playsInline = true; v.id = 'v-' + peerId;
+                tile.appendChild(v); tile.appendChild(tileLabel(rosterLabel(peerId)));
+                document.getElementById('tiles').appendChild(tile);
+            }
+            document.getElementById('v-' + peerId).srcObject = stream;
+            callRoster.set(peerId, rosterLabel(peerId)); renderRoster();
+        }
+        function removeTile(peerId) {
+            const t = document.getElementById('tile-' + peerId); if (t) t.remove();
+            callRoster.delete(peerId); renderRoster();
+        }
+        function rosterLabel(peerId) {
+            if (peerId === 'casey-preview') return 'Casey (preview)';
+            const n = profiles.get(peerId);
+            return n ? ProfanityFilter.clean(n) : '@' + peerId.substring(0, 8);
+        }
+        function renderRoster() {
+            const el = document.getElementById('roster'); if (!el) return;
+            const names = ['You', ...callRoster.values()];
+            el.textContent = names.length + (names.length === 1 ? ' participant · ' : ' in call · ') + names.join(', ');
+        }
+
+        function toggleMic(btn) {
+            const tr = localStream && localStream.getAudioTracks()[0]; if (!tr) return;
+            tr.enabled = !tr.enabled; btn.classList.toggle('off', !tr.enabled);
+            btn.textContent = tr.enabled ? '🎙 Mute' : '🔇 Unmute';
+        }
+        function toggleCam(btn) {
+            const tr = localStream && localStream.getVideoTracks()[0]; if (!tr) return;
+            tr.enabled = !tr.enabled; btn.classList.toggle('off', !tr.enabled);
+            btn.textContent = tr.enabled ? '🎥 Camera' : '🚫 Camera';
+        }
+
+        function mediaErrorHtml(e) {
+            const name = (e && e.name) || 'Error';
+            const sandbox = inIframe();
+            let msg = name === 'NotAllowedError' ? 'Camera/mic/screen permission was blocked.'
+                    : name === 'NotFoundError' ? 'No matching camera or microphone was found.'
+                    : name === 'Unsupported' ? 'This browser context does not expose media devices.'
+                    : 'Could not start capture (' + name + ').';
+            if (sandbox) msg += ' This file is running inside a sandboxed frame, which commonly blocks media access. Open it in its own window to grant permission:';
+            return '<p>' + escapeHTML(msg) + '</p>' + (sandbox ? '<button onclick="popOut()">Open in new window</button>' : '');
+        }
+
+        // Offline preview only: a synthetic animated "remote" so the stage is demonstrable.
+        function addSyntheticPeer() {
+            const canvas = document.createElement('canvas'); canvas.width = 320; canvas.height = 200;
+            const ctx = canvas.getContext('2d'); let h = 0;
+            (function draw() {
+                if (activeCall === null) return;
+                h = (h + 1) % 360;
+                ctx.fillStyle = '#161b22'; ctx.fillRect(0, 0, 320, 200);
+                ctx.fillStyle = 'hsl(' + h + ',60%,55%)';
+                ctx.beginPath(); ctx.arc(160, 95, 38 + 16 * Math.sin(h / 18), 0, 7); ctx.fill();
+                ctx.fillStyle = '#e6edf3'; ctx.font = '14px sans-serif'; ctx.fillText('Preview Peer · Casey', 92, 180);
+                requestAnimationFrame(draw);
+            })();
+            attachRemote('casey-preview', canvas.captureStream(15));
+        }
+    </script>
+</body>
+</html>

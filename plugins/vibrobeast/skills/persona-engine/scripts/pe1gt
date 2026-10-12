@@ -1,0 +1,109 @@
+#!/bin/sh
+# pe1gt -- PERSONA ENGINE 1 GATE: is persona work warranted, and if so the shortest careful path.
+# usage: pe1gt plan --use N [--name NAME] [--for PRINCIPAL] [--declared yes|no] [--second-use yes|no]
+#                           [--consent yes|no] [--building yes|no] [--roll yes|no]
+#        pe1gt refusals
+#        pe1gt sheet FILE      the header lines every tool reads, and a journal; names cs1gk
+# Exit: 0 GO, 3 WAIT, 4 HOLD, 5 STOP; 0/1 for sheet (1 = something missing); 2 usage.
+# PE1GT_AWK chooses the awk.  scripts/pe1gt.py is the second reader and must print the same bytes.
+# Unfolded from persona-engine.org; edit that, not this.
+# Copyright 2026 Corwin Brust <corwin@bru.st> and Contributors; GPL-3.0-or-later.
+# Mentat (for Corwin; claude-opus-5-5)
+set -u
+LC_ALL=C; export LC_ALL
+AWK=${PE1GT_AWK:-awk}
+cmd=${1:-}; [ $# -gt 0 ] && shift
+case $cmd in
+  refusals)
+    cat <<'EOF'
+1. Never mint a persona. A declaration pointing at a file that does not exist is a FAULT, never a cue to write that file.
+2. Never write the persona's voice. A skeleton may be drafted; the journal entry is the persona's own.
+3. Never edit a sheet another session wrote, except by appending to that sheet's own log.
+4. Never take the rights. The byline says for somebody, always.
+5. A persona's voice may not be the place a defect is explained. Fix the thing first; then the persona may say what it likes about it.
+EOF
+    exit 0 ;;
+  sheet)
+    f=${1:-}; [ -f "$f" ] || { echo "pe1gt: no such sheet: $f" >&2; exit 2; }
+    exec $AWK '
+      NR == 1 && /^---[ \t]*$/ { infm = 1; next }
+      infm && /^---[ \t]*$/ { infm = 0; next }
+      NR <= 15 && infm && /^name:/ { fmname = 1 }
+      NR <= 15 && infm && /^(status|description):/ { l = tolower($0); gsub(/model[ \t]+this[ \t]+book/, "", l); if (l ~ /persona|model/) fmmodel = 1 }
+      NR <= 40 && /^name:[ \t]*[^ \t]/ { name = 1 }
+      NR <= 40 && /^actor:[ \t]*[^ \t]/ { actor = 1 }
+      NR <= 40 && /^principal:[ \t]*[^ \t]/ { principal = 1 }
+      NR <= 15 && tolower($0) ~ /^#[ \t]+(character sheet|item sheet|persona)/ { heading = 1 }
+      /^#+[ \t].*([Jj]ournal|[Ll]og)/ { journal = 1 }
+      /^[Aa]ctor:[ \t]*fiction/ { fiction = 1 }
+      /for fiction or analysis/ { news = 1 }
+      END {
+        miss = 0
+        if (actor) print "OK       actor:"
+        else if (heading) print "OK       a sheet heading (no actor: line)"
+        else if (fmname && fmmodel) print "OK       frontmatter names a persona model (name and description)"
+        else { print "MISSING  actor: or a CHARACTER SHEET / PERSONA heading (how the server knows a sheet)"; miss++ }
+        if (name) print "OK       name:"; else print "DEFAULT  name: none, so the file name stands for it"
+        if (principal) print "OK       principal:"; else print "DEFAULT  principal: none, so the tools assume Corwin (bin/mt1pl)"
+        if (journal) print "OK       a journal or log section"; else { print "MISSING  a journal or log section (changes append there)"; miss++ }
+        if (fiction && !news) { print "MISSING  the NEWS mark a fiction sheet carries (for fiction or analysis)"; miss++ }
+        print "NOTCHK   the full gauge is bin/cs1gk (sections, guards, sidecar, corpus, twin, bad-guy stage)"
+        exit miss > 0
+      }' "$f" ;;
+  plan) ;;
+  *) echo "usage: pe1gt plan --use N [...] | pe1gt refusals | pe1gt sheet FILE" >&2; exit 2 ;;
+esac
+use="" name="" for_="" declared="" second="" consent="" building="" roll=""
+while [ $# -gt 0 ]; do
+  [ $# -ge 2 ] || { echo "pe1gt: $1 needs a value" >&2; exit 2; }
+  case $1 in
+    --use) use=$2 ;; --name) name=$2 ;; --for) for_=$2 ;; --declared) declared=$2 ;;
+    --second-use) second=$2 ;; --consent) consent=$2 ;; --building) building=$2 ;; --roll) roll=$2 ;;
+    *) echo "pe1gt: unknown option $1" >&2; exit 2 ;;
+  esac
+  shift 2
+done
+# The values travel in the environment, not -v: awk reads escapes in a -v value (a name with \t in it
+# would come out with a tab), and the Python reader takes its words as given.
+PE1GT_USE=$use PE1GT_NAME=$name PE1GT_FOR=$for_ PE1GT_DECLARED=$declared PE1GT_SECOND=$second
+PE1GT_CONSENT=$consent PE1GT_BUILDING=$building PE1GT_ROLL=$roll
+export PE1GT_USE PE1GT_NAME PE1GT_FOR PE1GT_DECLARED PE1GT_SECOND PE1GT_CONSENT PE1GT_BUILDING PE1GT_ROLL
+exec $AWK '
+function say(v, why) { verdict = v; print v ": " why }
+function step(s) { print "  " (++ns) ". " s }
+BEGIN {
+  use = ENVIRON["PE1GT_USE"]; name = ENVIRON["PE1GT_NAME"]; for_ = ENVIRON["PE1GT_FOR"]
+  declared = ENVIRON["PE1GT_DECLARED"]; second = ENVIRON["PE1GT_SECOND"]; consent = ENVIRON["PE1GT_CONSENT"]
+  building = ENVIRON["PE1GT_BUILDING"]; roll = ENVIRON["PE1GT_ROLL"]
+  # lname: the name in small letters, so mentat is Mentat (ASCII letters only under LC_ALL=C, as in
+  # the Python reader)
+  ns = 0; who = name; pr = for_; lname = tolower(name)
+  if (use !~ /^[1-4]$/) say("STOP", "no use named (1 a real person, 2 a system actor, 3 the context of an actor, 4 tensions at an intersection); without one a persona is not warranted. Say it in your own voice.")
+  else if (building == "yes") say("WAIT", "never during a local build or test; come back when the work is used.")
+  else if (roll == "yes" && (lname == "mentat" || lname == "vibrobeast")) say("STOP", name " grew its voice before the bias engine; it is not re-rolled.")
+  else if (roll == "yes" && use != "2") say("STOP", "bias rolls are for system actors (use 2) only.")
+  else if (use != "4" && (declared != "yes" || name == "")) say("STOP", "nothing declared, so nothing to resolve. Never mint a persona; the voice stays Mentat.")
+  else if (use == "2" && second != "yes") say("WAIT", "a system actor affixes on its second use, not its first.")
+  else if (use == "1" && name != for_ && consent != "yes") say("HOLD", "a real person who is not the principal: consent first (consent-gate), and share their view, not their facts.")
+  else if (for_ == "") say("WAIT", "no principal named; name one with --for (the byline says for somebody, always).")
+  else if (use == "4") {
+    say("GO", "model the tensions in the LENS; read the actors\047 sheets where declared; make no new sheet.")
+    step("name the actors at the intersection; persona_resolve each (or bin/mt1pl --explain)")
+    step("persona_read each declared sheet once; an undeclared actor stays a plain description")
+    step("run the LENS: the four views apart, the persona and its inverse, restate from principles")
+    step("write the tensions in your own voice; sign Author: Mentat (for " pr ")")
+  }
+  else {
+    say("GO", "use " use " for " who ", written for " pr ".")
+    step("persona_resolve " who " (or sh bin/mt1pl --explain)")
+    step("persona_read " who " once; cite the sheet by path")
+    if (use == "1") step("share the person\047s view, not their private facts; nothing from a SECRET file")
+    if (use == "2") step("the actor\047s jobs (watching) and clothes (showing, stating, reporting, knowing)")
+    if (use == "2" && roll == "yes") step("one bad-guy roll with bin/rf1bm --fate (a fold, never a sample), kept; then an inversion stage")
+    if (use == "3") step("tell the context as a story in your own voice; the actor\047s journal stays its own")
+    step("persona_byline " who " " pr " (Author: " who " (for " pr "))")
+    step("change the sheet only by persona_mutate with the entry, evidence and would_change all in hand")
+    step("before hand-back: bin/cs1gk on any sheet that changed, persona_chain for generations; else NOT CHECKED")
+  }
+  exit (verdict == "GO" ? 0 : verdict == "WAIT" ? 3 : verdict == "HOLD" ? 4 : 5)
+}'

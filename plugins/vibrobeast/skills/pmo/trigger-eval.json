@@ -1,0 +1,82 @@
+[
+  {
+    "query": "whats on my plate across all my projects right now? give me the A-priority stuff first",
+    "should_trigger": true
+  },
+  {
+    "query": "the ccspt agpl license blocker is handled \u2014 mark it done and refresh my status report",
+    "should_trigger": true
+  },
+  {
+    "query": "im starting the svhck IOC scan, move that item to in progress",
+    "should_trigger": true
+  },
+  {
+    "query": "bump the 'confirm real repo urls on code.bru.st' task up to priority A",
+    "should_trigger": true
+  },
+  {
+    "query": "add a todo under dragaera, priority B: rationalize the idea tags into a decision matrix",
+    "should_trigger": true
+  },
+  {
+    "query": "what are my current risks and top items across everything?",
+    "should_trigger": true
+  },
+  {
+    "query": "the tsv ledgers changed, regenerate the pmo readme and dashboard",
+    "should_trigger": true
+  },
+  {
+    "query": "give me a cross-project status rollup for ccspt, polygram and svhck \u2014 whats open and whats blocking?",
+    "should_trigger": true
+  },
+  {
+    "query": "close out item #38, the first ccspt publish shipped",
+    "should_trigger": true
+  },
+  {
+    "query": "i finished the medley shellcheck pass, update my project tracker",
+    "should_trigger": true
+  },
+  {
+    "query": "add a TODO comment in main.go right where the auth check is missing",
+    "should_trigger": false
+  },
+  {
+    "query": "whats still open on our team's jira board for this sprint?",
+    "should_trigger": false
+  },
+  {
+    "query": "prioritize my personal errands for today \u2014 groceries, dentist, oil change",
+    "should_trigger": false
+  },
+  {
+    "query": "regenerate the README.md for my polygram repo from the python docstrings",
+    "should_trigger": false
+  },
+  {
+    "query": "i want to build a little project tracker for my d&d group, python + a tsv file",
+    "should_trigger": false
+  },
+  {
+    "query": "make me an excel sheet with a gantt chart of my project timelines",
+    "should_trigger": false
+  },
+  {
+    "query": "whats the git status of the as4ce repo? anything uncommitted before i push?",
+    "should_trigger": false
+  },
+  {
+    "query": "summarize the quarterly status report pdf thats in my downloads folder",
+    "should_trigger": false
+  },
+  {
+    "query": "set up a scheduled task to dm me a standup reminder every weekday at 9",
+    "should_trigger": false
+  },
+  {
+    "query": "walk me through how the pmo-report awk script builds the html dashboard",
+    "should_trigger": false
+  }
+]

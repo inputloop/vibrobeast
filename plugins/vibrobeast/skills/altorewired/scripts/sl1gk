@@ -1,0 +1,132 @@
+#!/bin/sh
+# sl1gk -- SILENCE 1 GAUGE: count the misses of altorewired's grown 03 ("waiting is not silence")
+# in a saved session transcript (JSONL).
+#
+# usage: sl1gk TRANSCRIPT.jsonl [--strict] [--wait ERE]
+#        sl1gk --prove-red
+#
+# A WAIT is a tool call whose name matches --wait (default: delegate_(async|task|result)$, the
+# Llama Bridge calls).  SPEECH is a SendUserMessage call, or (unless --strict) any assistant text
+# block of 20 characters or more.  Two misses are counted:
+#   quiet   a WAIT that follows another WAIT with no SPEECH between them
+#   lost    a background job id (from "background job ID" in a result) that no later tool call,
+#           other than delegate_result itself, carries in its input -- written nowhere
+# SL1GK_AWK picks the awk (tested: mawk, gawk, busybox awk).
+# Exit 0 no misses, 1 a miss (or the two readers disagree), 2 usage.
+# Measures: the order of calls and text in the transcript.  Takes on its word: that a text block
+# reached the person (Cowork summarises text between tool calls; --strict counts only
+# SendUserMessage).  Two readers: python3 (stdlib) lists the events and judges them; awk judges
+# the same event list on its own; the counts must AGREE.
+# Copyright 2026 Corwin Brust <corwin@bru.st> and Contributors; GPL-3.0-or-later.
+# Mentat (for Corwin; claude-opus-5-5)
+set -u
+die() { echo "sl1gk: $*" >&2; exit 2; }
+command -v python3 >/dev/null 2>&1 || die "python3 not found"
+tmp=$(mktemp -d) || exit 2; trap 'rm -rf "$tmp"' EXIT
+cat > "$tmp/ev.py" <<'PY'
+import json, re, sys
+path, strict, wait = sys.argv[1], sys.argv[2] == "1", re.compile(sys.argv[3])
+ev, quiet, waits_since, ids = [], 0, 0, {}
+carried = set()
+def inputs(o):
+    return json.dumps(o, ensure_ascii=False)
+for n, line in enumerate(open(path, encoding="utf-8", errors="replace"), 1):
+    try:
+        o = json.loads(line)
+    except ValueError:
+        continue
+    m = o.get("message") or {}
+    c = m.get("content")
+    if not isinstance(c, list):
+        continue
+    for b in c:
+        if not isinstance(b, dict):
+            continue
+        t = b.get("type")
+        if t == "text" and m.get("role") == "assistant" and not strict and len(b.get("text", "").strip()) >= 20:
+            ev.append((n, "SPEECH", "text"))
+        elif t == "tool_use":
+            name = b.get("name", "?")
+            s = inputs(b.get("input", {}))
+            if name.endswith("SendUserMessage"):
+                ev.append((n, "SPEECH", name))
+            elif wait.search(name):
+                ev.append((n, "WAIT", name))
+            if not name.endswith("delegate_result"):
+                for j in ids:
+                    if j in s:
+                        carried.add(j)
+        elif t == "tool_result":
+            body = b.get("content")
+            s = body if isinstance(body, str) else inputs(body)
+            for j in re.findall(r"background job ([0-9a-f]{6,})", s):
+                ids.setdefault(j, n)
+                ev.append((n, "JOB", j))
+with open(sys.argv[4], "w") as fh:
+    for e in ev:
+        fh.write("%d\t%s\t%s\n" % e)
+    for j in sorted(carried):
+        fh.write("0\tCARRIED\t%s\n" % j)
+last = None
+for n, k, x in ev:
+    if k == "WAIT":
+        if last == "WAIT":
+            quiet += 1
+            print("quiet\tline %d\t%s follows a wait with no word to the person" % (n, x))
+        last = "WAIT"
+    elif k == "SPEECH":
+        last = "SPEECH"
+lost = [j for j in ids if j not in carried]
+for j in lost:
+    print("lost\tline %d\tjob %s is written nowhere after it started" % (ids[j], j))
+print("TALLY\tquiet=%d\tlost=%d\twaits=%d\tjobs=%d" % (quiet, len(lost), sum(1 for e in ev if e[1] == "WAIT"), len(ids)))
+PY
+awkjudge() { ${SL1GK_AWK:-awk} -F'\t' '
+  $2=="WAIT" { if (last=="WAIT") q++; last="WAIT"; w++ }
+  $2=="SPEECH" { last="SPEECH" }
+  $2=="JOB" { if (!($3 in job)) { job[$3]=1; nj++ } }
+  $2=="CARRIED" { car[$3]=1 }
+  END { for (j in job) if (!(j in car)) l++; printf "quiet=%d\tlost=%d\twaits=%d\tjobs=%d\n", q, l, w, nj }' "$1"; }
+run() { # TRANSCRIPT STRICT WAIT -> prints report, returns 0 clean / 1 miss or disagreement
+  python3 "$tmp/ev.py" "$1" "$2" "$3" "$tmp/events" > "$tmp/rep" || die "cannot read $1"
+  grep -v '^TALLY' "$tmp/rep"
+  p=$(sed -n 's/^TALLY\t//p' "$tmp/rep"); a=$(awkjudge "$tmp/events")
+  echo "sl1gk: $p"
+  if [ "$p" != "$a" ]; then echo "sl1gk: DISAGREE (awk reads $a)"; return 1; fi
+  echo "sl1gk: AGREE (python3 and awk)"
+  case $p in quiet=0*lost=0*) return 0 ;; *) return 1 ;; esac
+}
+fx() { # NAME LINE... -> a fixture transcript
+  f="$tmp/$1.jsonl"; shift; : > "$f"; for l in "$@"; do printf '%s\n' "$l" >> "$f"; done; }
+A='{"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","id":"%s","name":"%s","input":%s}]}}'
+R='{"type":"user","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"%s","content":"%s"}]}}'
+T='{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"%s"}]}}'
+a() { printf "$A" "$1" "$2" "$3"; }; r() { printf "$R" "$1" "$2"; }; t() { printf "$T" "$1"; }
+DA=mcp__remote-devices__llama-bridge__delegate_async; DR=mcp__remote-devices__llama-bridge__delegate_result
+SU=SendUserMessage; DB=mcp__remote-devices__device_bash
+case ${1:-} in
+  --prove-red)
+    fx good "$(a 1 $SU '{"message":"sending 4 batches to gemma"}')" "$(a 2 $DA '{"prompt":"x"}')" "$(r 2 'Started background job abc123def456.')" \
+      "$(a 3 $DB '{"command":"echo abc123def456 >> jobs.tsv"}')" "$(t 'Still running; checking the build meanwhile.')" "$(a 4 $DR '{"job_id":"abc123def456"}')"
+    fx quiet "$(a 1 $SU '{"message":"go"}')" "$(a 2 $DA '{"prompt":"x"}')" "$(r 2 'Started background job abc123def456.')" \
+      "$(a 3 $DB '{"command":"echo abc123def456 >> jobs.tsv"}')" "$(a 4 $DR '{"job_id":"abc123def456"}')" "$(a 5 $DR '{"job_id":"abc123def456"}')"
+    fx lost "$(a 1 $SU '{"message":"go"}')" "$(a 2 $DA '{"prompt":"x"}')" "$(r 2 'Started background job abc123def456.')" \
+      "$(t 'Waiting on the model now, will report.')" "$(a 3 $DR '{"job_id":"abc123def456"}')"
+    fx strict "$(a 2 $DA '{"prompt":"x"}')" "$(r 2 'Started background job abc123def456.')" "$(a 3 $DB '{"command":"echo abc123def456 > j"}')" \
+      "$(t 'A text block that strict mode does not count.')" "$(a 4 $DR '{"job_id":"abc123def456"}')"
+    rc=0; W='delegate_(async|task|result)$'
+    run "$tmp/good.jsonl" 0 "$W" >/dev/null && echo "prove-red: a narrated, recorded handoff stays green" || { echo "prove-red: the good transcript went red"; rc=1; }
+    run "$tmp/quiet.jsonl" 0 "$W" >/dev/null && { echo "prove-red: two silent polls were NOT caught"; rc=1; } || echo "prove-red: two silent polls were caught"
+    run "$tmp/lost.jsonl" 0 "$W" >/dev/null && { echo "prove-red: a job id written nowhere was NOT caught"; rc=1; } || echo "prove-red: a job id written nowhere was caught"
+    run "$tmp/strict.jsonl" 0 "$W" >/dev/null || { echo "prove-red: text did not count as speech"; rc=1; }
+    run "$tmp/strict.jsonl" 1 "$W" >/dev/null && { echo "prove-red: --strict let a text block count"; rc=1; } || echo "prove-red: --strict counts only SendUserMessage"
+    sed 's/if last == "WAIT":/if False:/' "$tmp/ev.py" > "$tmp/ev2.py"; cmp -s "$tmp/ev.py" "$tmp/ev2.py" && { echo "prove-red: the blind reader could not be planted"; rc=1; }
+    mv "$tmp/ev2.py" "$tmp/ev.py"
+    run "$tmp/quiet.jsonl" 0 "$W" | grep -q DISAGREE && echo "prove-red: a python reader gone blind is caught by awk" || { echo "prove-red: the readers did not disagree"; rc=1; }
+    [ $rc = 0 ] && echo "PROVE-RED OK" || echo "PROVE-RED FAILED"; exit $rc ;;
+  ''|-*) die "usage: sl1gk TRANSCRIPT.jsonl [--strict] [--wait ERE] | --prove-red" ;;
+esac
+f=$1; shift; strict=0; W='delegate_(async|task|result)$'
+while [ $# -gt 0 ]; do case $1 in --strict) strict=1 ;; --wait) shift; W=${1:?} ;; *) die "unknown option $1" ;; esac; shift; done
+[ -f "$f" ] || die "no such transcript: $f"
+run "$f" $strict "$W"

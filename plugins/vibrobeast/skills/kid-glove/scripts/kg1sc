@@ -1,0 +1,331 @@
+#!/bin/sh
+# kg1sc -- KID GLOVE 1 SCAN: the house rules first; the kit fills only the gaps; conflicts kept
+# quietly and once; a re-check before hand-back.
+#
+# usage: kg1sc scan ROOT [--raw]        find house rules, name gaps, log conflicts, save a baseline
+#        kg1sc note ROOT TOPIC WORDS..  log one conflict you noticed (once; repeats are dropped)
+#        kg1sc recheck ROOT [--raw]     what the work did to the house since the scan
+#        kg1sc topics                   read the kit back in words
+#        kg1sc where ROOT               print the state directory for ROOT
+# Writes nothing inside ROOT.  State: $KG_STATE, default ${XDG_STATE_HOME:-$HOME/.local/state}/kid-glove.
+# The re-check asks a second reader ($KG_TWIN, default kg1sc.py beside this) and says if it disagrees.
+# Exit: 0 fine; 1 the re-check found a TRAMPLE; 2 could not look (NOT CHECKED).  Disable: KG1SC=0.
+#
+# Unfolded from kid-glove.org; edit that, not this.
+# Copyright 2026 Corwin Brust <corwin@bru.st> and Contributors; GPL-3.0-or-later.
+# Mentat (for Corwin; claude-opus-5-5)
+set -u
+[ "${KG1SC:-1}" = 0 ] && { echo "kg1sc: disabled (KG1SC=0); NOT CHECKED"; exit 0; }
+me=$(cd "$(dirname "$0")" && pwd)
+KIT=${KG_KIT:-$me/../kit/topics.org-table}
+LC_ALL=C; export LC_ALL
+TAB=$(printf '\t')
+
+die() { echo "kg1sc: NOT CHECKED: $*" >&2; exit 2; }
+now() { date -u +%Y-%m-%dT%H:%MZ; }
+today() { date -u +%Y-%m-%d; }
+
+kit_rows() { # topic TAB governs TAB probes TAB ours TAB flagship
+  [ -r "$KIT" ] || die "the kit is not readable: $KIT"
+  awk -F'|' '/^\|/ && !/^\|-/ {
+      if (!hdr) { hdr = 1; next }
+      out = ""
+      for (i = 2; i < NF; i++) { f = $i; gsub(/^[ \t]+|[ \t]+$/, "", f); sep = (i > 2) ? "\t" : ""; out = out sep f }
+      print out }' "$KIT"
+}
+
+state() { # ROOT -> its state directory, created
+  base=${KG_STATE:-${XDG_STATE_HOME:-$HOME/.local/state}/kid-glove}
+  id=$(printf '%s' "$1" | cksum | cut -d' ' -f1)
+  d="$base/$(basename "$1")-$id"
+  mkdir -p "$d" 2>/dev/null || die "cannot make the state directory $d"
+  printf '%s\n' "$d"
+}
+
+probe() { # run with cwd = ROOT; $1 = probes; $2 = all|first; prints matching paths
+  hits=0
+  set -f
+  for p in $1; do
+    set +f
+    g=${p%%"~"*}; re=
+    case $p in *"~"*) re=${p#*"~"} ;; esac
+    for f in $g; do
+      [ -e "$f" ] || continue
+      if [ -n "$re" ]; then
+        [ -f "$f" ] || continue
+        grep -Eq -- "$re" "$f" 2>/dev/null || continue
+      fi
+      printf '%s\n' "$f"; hits=1
+      [ "$2" = first ] && { set +f; return 0; }
+    done
+    set -f
+  done
+  set +f
+  [ "$hits" = 1 ]
+}
+
+lic_family() { # FILE -> GPL-3, MIT, ... or unknown
+  head -c 6000 "$1" 2>/dev/null | tr '\n\r' '  ' | awk '{ t = t $0 } END {
+    if (t ~ /GNU AFFERO GENERAL PUBLIC LICENSE/) f = "AGPL"
+    else if (t ~ /GNU LESSER GENERAL PUBLIC LICENSE/) f = "LGPL"
+    else if (t ~ /GNU GENERAL PUBLIC LICENSE/) f = (t ~ /Version 3/ ? "GPL-3" : (t ~ /Version 2/ ? "GPL-2" : "GPL"))
+    else if (t ~ /Permission is hereby granted, free of charge/) f = "MIT"
+    else if (t ~ /Apache License/) f = "Apache-2.0"
+    else if (t ~ /Mozilla Public License/) f = "MPL-2.0"
+    else if (t ~ /Redistribution and use in source and binary forms/) f = "BSD"
+    else if (t ~ /Attribution-ShareAlike/) f = "CC-BY-SA"
+    else if (t ~ /Attribution 4\.0/) f = "CC-BY"
+    else if (t ~ /free and unencumbered software released into the public domain/) f = "Unlicense"
+    else if (t ~ /ISC License/) f = "ISC"
+    else f = "unknown"
+    print f }'
+}
+
+spdx_family() { # SPDX id -> family, matching lic_family's words
+  case $1 in
+    GPL-3.0*) echo GPL-3 ;; GPL-2.0*) echo GPL-2 ;; LGPL*) echo LGPL ;; AGPL*) echo AGPL ;;
+    MIT) echo MIT ;; Apache-2.0) echo Apache-2.0 ;; MPL*) echo MPL-2.0 ;; BSD*) echo BSD ;;
+    CC-BY-SA*) echo CC-BY-SA ;; CC-BY-*) echo CC-BY ;; Unlicense) echo Unlicense ;; ISC) echo ISC ;;
+    *) echo "$1" ;;
+  esac
+}
+
+reuse_ids() { # ROOT -> the SPDX ids the house declares the REUSE way: REUSE.toml, .reuse/dep5, LICENSES/
+  {
+    [ -f "$1/REUSE.toml" ] && awk '/^[ \t]*SPDX-License-Identifier[ \t]*=/ { sub(/^[^=]*=/, ""); print }' "$1/REUSE.toml"
+    [ -f "$1/.reuse/dep5" ] && awk '/^License:/ { sub(/^License:/, ""); print }' "$1/.reuse/dep5"
+    if [ -d "$1/LICENSES" ]; then
+      for f in "$1"/LICENSES/*; do
+        [ -f "$f" ] || continue
+        b=${f##*/}; e=${b##*.}
+        case $e in *[!A-Za-z]*|"") ;; *) b=${b%.*} ;; esac   # GPL-3.0-or-later.txt names GPL-3.0-or-later
+        printf '%s\n' "$b"
+      done
+    fi
+  } | awk '{ gsub(/"/, " "); gsub(/[(),\r]/, " "); gsub(/\[/, " "); gsub(/]/, " ")
+             n = split($0, w, " "); skip = 0
+             for (i = 1; i <= n; i++) {
+               if (w[i] == "WITH") { skip = 1; continue }
+               if (skip) { skip = 0; continue }
+               if (w[i] != "OR" && w[i] != "AND") print w[i] } }'
+}
+
+house_family() { # ROOT LICFILE -> the house's licence families, comma separated, code first; a prose
+                 # family (CC-*) only where there is no code one; unknown when neither text nor REUSE says
+  {
+    [ -f "$1/$2" ] && lic_family "$1/$2"
+    reuse_ids "$1" | while IFS= read -r i; do spdx_family "$i"; done
+  } | grep -vx unknown | sort -u |
+    awk '{ if ($0 ~ /^CC-/) { s = (p == "") ? "" : ","; p = p s $0 } else { s = (c == "") ? "" : ","; c = c s $0 } }
+         END { if (c != "") print c; else if (p != "") print p; else print "unknown" }'
+}
+
+spdx_line() { # stdin (a file's first lines) -> its first SPDX-License-Identifier value, or nothing
+  sed -n 's/.*SPDX-License-Identifier:[[:space:]]*\([A-Za-z0-9.+-]*\).*/\1/p' | head -n 1
+}
+
+has_enhance() { # ROOT keeps ENHANCE notes of its own?
+  (cd "$1" && find . -maxdepth 3 -name '*ENHANCE*' ! -path './.git/*' 2>/dev/null | grep -q .)
+}
+
+log_line() { # LEDGER TAG TOPIC WORDS -> prints NEW or KNOWN
+  key="$3: $4"
+  if [ -f "$1" ] && cut -d' ' -f3- "$1" | grep -Fxq -- "$key"; then echo KNOWN; return; fi
+  printf '%s %s %s\n' "$2" "$(today)" "$key" >> "$1"
+  echo NEW
+}
+
+analyse() { # ROOT -> machine lines: TAG, FOUND, GAP, LICENCE, CONFLICT, SOURCE
+  r=$1
+  if has_enhance "$r"; then printf 'TAG\tCONFLICT\n'; else printf 'TAG\tENHANCE\n'; fi
+  lic=; cl=
+  kit_rows | while IFS="$TAB" read -r topic governs probes ours flagship; do
+    first=$(cd "$r" && probe "$probes" first) || first=
+    if [ -n "$first" ]; then
+      printf 'FOUND\t%s\t%s\n' "$topic" "$first"
+      (cd "$r" && probe "$probes" all) | while IFS= read -r s; do printf 'SOURCE\t%s\t%s\n' "$topic" "$s"; done
+    else
+      case $ours in
+        "HOLD:"*) printf 'HOLD\t%s\n' "$topic" ;;              # never filled from the kit: the owners choose
+        "NOT CHECKED:"*) printf 'UNCHECKED\t%s\n' "$topic" ;;  # the person's own, perhaps in their account
+        *) printf 'GAP\t%s\n' "$topic" ;;
+      esac
+    fi
+  done > "$tmp.rows"
+  cat "$tmp.rows"
+  lic=$(awk -F'\t' '$1 == "FOUND" && $2 == "licence" { print $3 }' "$tmp.rows")
+  cl=$(awk -F'\t' '$1 == "FOUND" && $2 == "changelog" { print $3 }' "$tmp.rows")
+  fam=none
+  [ -n "$lic" ] && fam=$(house_family "$r" "$lic")
+  printf 'LICENCE\t%s\n' "$fam"
+  case ",$fam," in
+    ,none,|,unknown,|*,GPL-3,*) ;;
+    *) printf 'CONFLICT\tlicence\thouse %s reads %s; the kit default for code is GPL-3.0-or-later; chose house\n' "$lic" "$fam" ;;
+  esac
+  if [ -n "$cl" ] && [ "$cl" != ChangeLog ]; then
+    printf 'CONFLICT\tchangelog\thouse keeps %s; the kit writes a GNU-style ChangeLog; chose house: entries go in %s, in its form\n' "$cl" "$cl"
+  fi
+  return 0
+}
+
+scan() {
+  root=$(cd "$1" 2>/dev/null && pwd) || die "cannot read $1"
+  tmp=$(mktemp) || die "no temp file"; trap 'rm -f "$tmp" "$tmp".*' EXIT
+  analyse "$root" > "$tmp.lines"
+  if [ "${2:-}" = --raw ]; then grep -v '^SOURCE' "$tmp.lines"; return 0; fi
+  st=$(state "$root")
+  tag=$(awk -F'\t' '$1 == "TAG" { print $2 }' "$tmp.lines")
+  ledger="$st/$tag"
+  echo "kid glove: the house at $root ($(now))"
+  nf=$(grep -c '^FOUND' "$tmp.lines")
+  echo "Found $nf house rule(s); they come first:"
+  awk -F'\t' '$1 == "FOUND" { printf "  %-16s %s\n", $2, $3 }' "$tmp.lines"
+  fam=$(awk -F'\t' '$1 == "LICENCE" { print $2 }' "$tmp.lines")
+  case $fam in
+    none) ;;
+    unknown) echo "  (the house licence could not be told from its file or from REUSE: NOT CHECKED)" ;;
+    *) echo "  (the house licence reads $fam)" ;;
+  esac
+  ng=$(grep -c '^GAP' "$tmp.lines")
+  echo "Gaps the kit fills, ours first, then the flagship ($ng):"
+  kit_rows > "$tmp.kit"
+  awk -F'\t' 'NR == FNR { ours[$1] = $4; flag[$1] = $5; next }
+    $1 == "GAP" { printf "  %-16s ours: %s\n  %-16s flagship: %s\n", $2, ours[$2], "", flag[$2] }' "$tmp.kit" "$tmp.lines"
+  for k in HOLD UNCHECKED; do
+    nk=$(grep -c "^$k" "$tmp.lines"); [ "$nk" -gt 0 ] || continue
+    if [ $k = HOLD ]; then echo "Held for the owners; the kit never fills these ($nk):"
+    else echo "Not checked: the person's own, which may live outside this tree ($nk):"; fi
+    awk -F'\t' -v k=$k 'NR == FNR { ours[$1] = $4; next } $1 == k { printf "  %-16s %s\n", $2, ours[$2] }' "$tmp.kit" "$tmp.lines"
+  done
+  new=0; known=0
+  grep '^CONFLICT' "$tmp.lines" > "$tmp.c" || :
+  while IFS="$TAB" read -r _ topic words; do
+    if [ "$(log_line "$ledger" "$tag" "$topic" "$words")" = NEW ]; then
+      new=$((new + 1)); printf '  %s: %s\n' "$topic" "$words" >> "$tmp.newc"
+    else known=$((known + 1)); fi
+  done < "$tmp.c"
+  echo "Conflicts: $new new, $known known; the house chose each (ledger: $ledger)"
+  [ -f "$tmp.newc" ] && cat "$tmp.newc"
+  head=$(git -C "$root" --no-optional-locks rev-parse -q --verify HEAD 2>/dev/null) || head=
+  {
+    printf 'WHEN\t%s\n' "$(now)"; printf 'HEAD\t%s\n' "$head"; printf 'TAG\t%s\n' "$tag"
+    printf 'LICENCE\t%s\n' "$fam"
+    awk -F'\t' '$1 == "FOUND" && $2 == "changelog" { printf "CHANGELOG\t%s\n", $3 }' "$tmp.lines"
+    seen=
+    awk -F'\t' '$1 == "SOURCE" { print $3 }' "$tmp.lines" | sort -u | while IFS= read -r s; do
+      # one file under two names (CHANGELOG and ChangeLog on a case-blind filesystem) is one house file
+      id=$(stat -L -c '%d:%i' "$root/$s" 2>/dev/null) || id=
+      if [ -n "$id" ]; then case " $seen " in *" $id "*) continue ;; esac; seen="$seen $id"; fi
+      if [ -f "$root/$s" ]; then printf 'SOURCE\t%s\t%s\n' "$(sha256sum < "$root/$s" | cut -c1-64)" "$s"
+      else printf 'SOURCE\tdir\t%s\n' "$s"; fi
+    done
+  } > "$st/BASELINE"
+  echo "Baseline for the re-check: $st/BASELINE ($(grep -c '^SOURCE' "$st/BASELINE") house file(s)${head:+, git $head})"
+}
+
+note() {
+  root=$(cd "$1" 2>/dev/null && pwd) || die "cannot read $1"
+  [ $# -ge 3 ] || die "usage: kg1sc note ROOT TOPIC WORDS..."
+  topic=$2; shift 2; words=$*
+  if has_enhance "$root"; then tag=CONFLICT; else tag=ENHANCE; fi
+  st=$(state "$root")
+  r=$(log_line "$st/$tag" "$tag" "$topic" "$words")
+  if [ "$r" = NEW ]; then echo "kg1sc: noted ($tag, $st/$tag)"; else echo "kg1sc: already noted; not repeated"; fi
+}
+
+recheck() {
+  root=$(cd "$1" 2>/dev/null && pwd) || die "cannot read $1"
+  st=$(state "$root"); b="$st/BASELINE"
+  [ -r "$b" ] || { echo "kg1sc recheck: NOT CHECKED (no baseline; run kg1sc scan $1 first)"; exit 2; }
+  tmp=$(mktemp) || die "no temp file"; trap 'rm -f "$tmp" "$tmp".*' EXIT
+  : > "$tmp.f"
+  awk -F'\t' '$1 == "SOURCE"' "$b" | while IFS="$TAB" read -r _ sha path; do
+    if [ ! -e "$root/$path" ]; then printf 'TOUCHED\t%s\tgone since the scan\n' "$path"
+    elif [ "$sha" != dir ] && [ "$(sha256sum < "$root/$path" | cut -c1-64)" != "$sha" ]; then
+      printf 'TOUCHED\t%s\tchanged since the scan\n' "$path"; fi
+  done >> "$tmp.f"
+  head=$(awk -F'\t' '$1 == "HEAD" { print $2 }' "$b")
+  fam=$(awk -F'\t' '$1 == "LICENCE" { print $2 }' "$b")
+  cl=$(awk -F'\t' '$1 == "CHANGELOG" { print $2 }' "$b")
+  gitok=0
+  if [ -n "$head" ] && git -C "$root" --no-optional-locks rev-parse -q --verify "$head^{commit}" >/dev/null 2>&1; then
+    gitok=1
+    { git -C "$root" --no-optional-locks diff --name-only "$head" --
+      git -C "$root" --no-optional-locks ls-files --others --exclude-standard; } | sort -u > "$tmp.ch"
+  else
+    : > "$tmp.ch"
+    # no list of the changes: a comparison that never ran is not a pass
+    printf "UNCHECKED\t(git)\tno baseline commit, so only the house files were compared\n" >> "$tmp.f"
+  fi
+  n=$(grep -c . "$tmp.ch")
+  while IFS= read -r f; do
+    [ -f "$root/$f" ] || continue
+    id=$(head -n 12 "$root/$f" | spdx_line)
+    if git -C "$root" --no-optional-locks cat-file -e "$head:$f" 2>/dev/null; then
+      # a licence line on a file the house already had is the house's, whatever its licence
+      was=$(git -C "$root" --no-optional-locks show "$head:$f" 2>/dev/null | head -n 12 | spdx_line)
+      if [ "$was" != "$id" ]; then
+        if [ -z "$was" ]; then w="a licence line was added (SPDX $id) to a file the house already had"
+        elif [ -z "$id" ]; then w="its licence line (SPDX $was) was taken out"
+        else w="its licence line changed from SPDX $was to SPDX $id"; fi
+        printf 'TOUCHED\t%s\t%s\n' "$f" "$w" >> "$tmp.f"
+      fi
+    fi
+    [ -n "$id" ] || continue
+    case $fam in
+      none|unknown) printf 'UNCHECKED\t%s\tcarries SPDX %s; the house licence is %s, so it was not compared (a HOLD for the owners)\n' "$f" "$id" "$fam" >> "$tmp.f"; continue ;;
+    esac
+    sf=$(spdx_family "$id")
+    case $sf in CC-*) continue ;; esac
+    case ",$fam," in
+      *",$sf,"*) ;;
+      *) printf 'TRAMPLE\t%s\tcarries SPDX %s; the house licence is %s\n' "$f" "$id" "$fam" >> "$tmp.f" ;;
+    esac
+  done < "$tmp.ch"
+  if [ -n "$cl" ] && [ "$n" -gt 0 ] && ! grep -Fxq -- "$cl" "$tmp.ch"; then
+    printf 'GAP\t%s\t%s file(s) changed; %s does not record them yet\n' "$cl" "$n" "$cl" >> "$tmp.f"
+  fi
+  tag=$(awk -F'\t' '$1 == "TAG" { print $2 }' "$b")
+  open=0; [ -f "$st/$tag" ] && open=$(grep -c . "$st/$tag")
+  pushed=$( [ -f "$st/$tag" ] && cut -d' ' -f3 "$st/$tag" | tr -d ':' | sort -u | paste -sd, - )
+  nt=$(grep -c '^TRAMPLE' "$tmp.f"); nu=$(grep -c '^TOUCHED' "$tmp.f"); ng=$(grep -c '^GAP' "$tmp.f")
+  nx=$(grep -c '^UNCHECKED' "$tmp.f")
+  rc=0; [ "$nx" -gt 0 ] && rc=2; [ "$nt" -gt 0 ] && rc=1
+  if [ "${2:-}" = --raw ]; then cat "$tmp.f"; exit "$rc"; fi
+  # a second reader, in another language, reads the same baseline and tree: one reader's verdict is data
+  twin=${KG_TWIN:-$me/kg1sc.py}; tn=$(basename "$twin")
+  if command -v python3 >/dev/null 2>&1 && [ -r "$twin" ]; then
+    trc=0; python3 "$twin" recheck "$root" --raw > "$tmp.t" 2>/dev/null || trc=$?
+    if cmp -s "$tmp.f" "$tmp.t" && [ "$trc" = "$rc" ]; then tw="agrees"; tws=agrees
+    else tw="DISAGREES; the verdicts above are data, not evidence"; tws=disagrees; nx=$((nx + 1)); [ "$rc" = 1 ] || rc=2; fi
+  else tw="NOT CHECKED (no python3, or no $twin); the verdicts above come from one reader"; tws="not run"; fi
+  echo "kg1sc recheck: $root (baseline $(awk -F'\t' '$1 == "WHEN" { print $2 }' "$b"))"
+  awk -F'\t' '{ k = ($1 == "UNCHECKED") ? "NOT CHECKED" : $1
+               w = ($1 == "TOUCHED") ? "; say whether the work did it, and why" : ""
+               printf "  %-8s %s: %s%s\n", k, $2, $3, w }' "$tmp.f"
+  echo "  Second reader ($tn): $tw"
+  echo "  Conflicts open: $open (the house chose each); ledger: $st/$tag"
+  if [ "$nt" -gt 0 ]; then ob="no, $nt trample(s)"
+  elif [ "$nx" -gt 0 ]; then ob="NOT CHECKED, $nx thing(s) not compared"
+  else ob="yes, no house rule trampled"; fi
+  if [ "$open" -gt 0 ]; then sa="yes, $open conflict(s), the house chose"; else sa="no"; fi
+  echo "DRIFT checkpoint (paste into the hand-back):"
+  echo "$(now) · checkpoint · on-bearing? $ob · still-arguing? $sa · pushed-back: ${pushed:-none} · grader: kg1sc recheck · note: $n file(s) changed; $nt trample, $nu touched, $ng gap, $nx not checked; second reader $tws"
+  exit "$rc"
+}
+
+topics() {
+  kit_rows | while IFS="$TAB" read -r topic governs probes ours flagship; do
+    printf '%s: %s.\n  The house is looked for in: %s\n  Ours: %s\n  Flagship: %s\n\n' "$topic" "$governs" "$probes" "$ours" "$flagship"
+  done
+}
+
+cmd=${1:-}; [ $# -gt 0 ] && shift
+case $cmd in
+  scan) [ $# -ge 1 ] || die "usage: kg1sc scan ROOT [--raw]"; scan "$@" ;;
+  note) note "$@" ;;
+  recheck) [ $# -ge 1 ] || die "usage: kg1sc recheck ROOT [--raw]"; recheck "$@" ;;
+  topics) topics ;;
+  where) [ $# -ge 1 ] || die "usage: kg1sc where ROOT"; state "$(cd "$1" && pwd)" ;;
+  *) sed -n '2,14p' "$0" | sed 's/^# \{0,1\}//'; exit 2 ;;
+esac

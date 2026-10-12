@@ -1,0 +1,12 @@
+# NEGATIVE CONTROL. (g) takes a second entry while (a), (b) and (c) still stand empty -- the
+# classic pooling failure, where the easiest bucket to fill absorbs everything and the walk stops
+# being a sample. Final counts alone would NOT catch this, which is why the invariant is checked
+# against arrival order.
+grp	entry	note
+i	high-intersection-node
+h	provenance-tagging
+g	stale-read-vs-truncation
+g	mount-rm-vs-truncate	second entry, and (a)(b)(c) are still empty
+f	crypto-provenance-model
+e	volunteer-runs-the-card
+d	the-sweep-misses-QA

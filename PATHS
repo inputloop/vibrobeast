@@ -1,0 +1,27 @@
+# PATHS -- where each published path comes from in the source tree (bin/gh1in reads this; bin/gh1pb writes by it).
+# published-prefix <TAB> source-prefix-or-rule.  First match wins.  Rules: GENERATED:<generator>, SKILL (see gh1in).
+README.md	GENERATED:publish/github/vibrobeast/README.md.in
+SKILLS.md	GENERATED:bin/gh1pb (from each SKILL.md's front matter)
+PROVENANCE	GENERATED:bin/gh1pb
+PATHS	publish/github/vibrobeast/PATHS
+CITATION.cff	publish/github/vibrobeast/CITATION.cff
+CONTRIBUTING.md	publish/github/vibrobeast/CONTRIBUTING.md
+SECURITY.md	publish/github/vibrobeast/SECURITY.md
+RELEASING.md	publish/github/vibrobeast/RELEASING.md
+.github/	publish/github/vibrobeast/.github/
+.claude-plugin/marketplace.json	GENERATED:bin/gh1pb
+extension/	GENERATED:make mcpb (polygram/mcpb.py)
+plugins/vibrobeast/skills/	SKILL
+plugins/vibrobeast-skills/skills/	SKILL
+plugins/vibrobeast/servers/polygram/	polygram/
+plugins/vibrobeast/servers/bin/	bin/
+plugins/vibrobeast/servers/launch.cmd	polygram/launch.cmd
+plugins/vibrobeast/GRAMMARY.md	GRAMMARY.md
+plugins/vibrobeast/FRAME.md	FRAME.md
+plugins/vibrobeast/COPYING	COPYING
+plugins/vibrobeast-skills/COPYING	COPYING
+plugins/vibrobeast-skills/GRAMMARY.md	GRAMMARY.md
+plugins/vibrobeast-skills/FRAME.md	FRAME.md
+plugins/vibrobeast/PRIVACY.md	GENERATED:bin/tp2mt
+plugins/vibrobeast/TERMS-OF-SERVICE.md	GENERATED:bin/tp2mt
+plugins/	GENERATED:make dist (polygram/plugin.py, polygram/mcpb.py)

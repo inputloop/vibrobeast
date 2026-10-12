@@ -1,0 +1,141 @@
+#!/bin/sh
+# sw1mt -- MULTITASK SWING: work several build loops at once, run every task's QA checks, and contrast.
+# Copyright 2026 Corwin Brust <corwin@bru.st>.  GPL-3.0-or-later: you can redistribute it and/or
+# modify it under the terms of the GNU General Public License, version 3 or (at your option) any
+# later version.
+#
+# Written at the plaid fold of 2026-09-29 (h/FOLD-2026-09-29-plaid.md), from his words: "implementing
+# a multitask swing to work tasks and contrast results".  One sw1ng loop per task, as ever; this tool
+# runs them side by side and adds the plaid's second dimension: a check that two tasks' plans share is
+# run under both, and must come out the same.
+#
+#   sh sw1mt open PLAN          open one sw1ng loop per task row (design and QA plan named first)
+#   sh sw1mt run PLAN           run every CHECK: and WARN: line of every task's QA plan, from the
+#                               folder you are in; print one row per task and one row per shared check
+#   sh sw1mt run PLAN --record  the same, then record one sw1ng qa pass per task with what it found
+#   sh sw1mt --prove-red        plant the faults; each must fire; the control stays green
+#   (sw1mt is bin/sw1mt in C4, and scripts/sw1mt in the build-loop soft skill, beside sw1ng.)
+#
+#   PLAN     a TSV: TASK SWING DESIGN QAPLAN (a header row, # comments).  SWING is the task's own
+#            SWING file (sw1ng's SWING_FILE).  In a QA plan, a line starting CHECK: is a check whose
+#            failure is an issue, WARN: one whose failure is a warning; the rest of the line is run by
+#            sh from the folder sw1mt is called from (the tree root, in C4), exit 0 held.
+#   MUST     reads the plans; runs each distinct command once per task that names it; a command two
+#            tasks share that holds for one and fails for the other is a SPLIT, printed, and counted as
+#            an issue for both; writes only through sw1ng (with --record), never a SWING by hand.
+#   JOURNEY  "contrast" is taken narrowly: the same check, the same outcome, whichever plan named it.
+#            Wider readings (a task's check run against another task's files) are the next cycle.
+#            2026-09-29, the absorb into the build-loop soft skill (c4 h/DESIGN-2026-09-29-absorb-
+#            build-loop.md): sw1ng is found BESIDE this file, and checks run from the folder sw1mt
+#            is called from, so the skill's copy (scripts/sw1mt by scripts/sw1ng) runs as C4's does.
+#            Copied as it was, it ran 4 RED of its own prove-red there.  --prove-red builds its own root.
+#   ENV      SW1MT_ROOT (default: the current folder), SW1NG (default: the sw1ng beside this file),
+#            SW1MT_TIMEOUT (seconds per check, default 600).
+set -u
+LC_ALL=C; export LC_ALL
+me=sw1mt
+die() { printf '%s: %s\n' "$me" "$1" >&2; exit "${2:-2}"; }
+ROOT=${SW1MT_ROOT:-$PWD}
+SW1NG=${SW1NG:-$(cd "$(dirname "$0")" && pwd)/sw1ng}
+TO=${SW1MT_TIMEOUT:-600}
+
+rows() {  # PLAN -> TASK<TAB>SWING<TAB>DESIGN<TAB>QAPLAN, header and comments dropped
+  [ -f "$1" ] || die "no plan $1"
+  awk -F'\t' '{ sub(/\r$/, "") } /^#/ || !NF { next } !h { h = 1; next } NF < 4 { printf "sw1mt: plan row %d has %d columns, not 4\n", NR, NF > "/dev/stderr"; bad = 1; next } { print } END { exit bad }' "$1"
+}
+
+open_all() {
+  rows "$1" > "$tmp/rows" || die "the plan does not read" 1
+  while IFS='	' read -r task swing design qaplan; do
+    SWING_FILE=$swing sh "$SW1NG" open "$task" --design "$design" --qaplan "$qaplan" || die "sw1ng would not open $task" 1
+  done < "$tmp/rows"
+}
+
+run_all() {  # PLAN RECORD
+  rows "$1" > "$tmp/rows" || die "the plan does not read" 1
+  : > "$tmp/results"
+  while IFS='	' read -r task swing design qaplan; do
+    [ -f "$qaplan" ] || { printf '%s\tPLAN\t-\t1\tno QA plan at %s\n' "$task" "$qaplan" >> "$tmp/results"; continue; }
+    grep -E '^(CHECK|WARN):' "$qaplan" | sed 's/\r$//' | awk '{ c = $0; sub(/^[A-Z]+: ?/, "", c) } !seen[c]++' > "$tmp/lines"
+    [ -s "$tmp/lines" ] || printf '%s\tPLAN\t-\t1\tits QA plan has no CHECK: line\n' "$task" >> "$tmp/results"
+    # a check written as a bullet or indented is not run; say so rather than skip it (2026-09-29)
+    hid=$(grep -c -E '^[[:space:]]*([-*+][[:space:]]+)?(CHECK|WARN):' "$qaplan"); hid=$((hid - $(grep -c -E '^(CHECK|WARN):' "$qaplan")))
+    [ "$hid" -gt 0 ] && printf '%s\tPLAN\t-\t1\t%s CHECK:/WARN: line(s) not at the start of a line were not run\n' "$task" "$hid" >> "$tmp/results"
+    while IFS= read -r line; do
+      kind=${line%%:*}; cmd=${line#*:}; cmd=${cmd# }
+      t0=$(date +%s)
+      if command -v timeout >/dev/null 2>&1; then (cd "$ROOT" && timeout "$TO" sh -c "$cmd") >/dev/null 2>&1 </dev/null; else (cd "$ROOT" && sh -c "$cmd") >/dev/null 2>&1 </dev/null; fi
+      rc=$?; t1=$(date +%s)
+      printf '%s\t%s\t%s\t%s\t%s\n' "$task" "$kind" "$((t1 - t0))" "$rc" "$cmd" >> "$tmp/results"
+    done < "$tmp/lines"
+  done < "$tmp/rows"
+  awk -F'\t' -v rows="$tmp/rows" -v out="$tmp/tally" '
+    BEGIN { while ((getline l < rows) > 0) { split(l, f, "\t"); order[++nt] = f[1] } }
+    { t = $1; k = $2; rc = $4 + 0; c = $5; n[t]++; secs[t] += $3
+      if (k == "PLAN") { iss[t]++; why[t] = why[t] " " c; next }
+      if (rc) { if (k == "WARN") warn[t]++; else iss[t]++; failed[t] = failed[t] "\n    " (k == "WARN" ? "warn  " : "FAIL  ") c }
+      if (!(c in seen)) { seen[c] = 1; cmds[++nc] = c }
+      res[c, t] = rc ? "FAIL" : "ok"; who[c] = who[c] (who[c] == "" ? "" : " ") t; tasks[c]++ }
+    END {
+      for (i = 1; i <= nc; i++) { c = cmds[i]; if (tasks[c] < 2) continue
+        shared++; o = ""; mixed = 0; split(who[c], w, " ")
+        for (j = 1; j <= tasks[c]; j++) { o = o " " w[j] "=" res[c, w[j]]; if (res[c, w[j]] != res[c, w[1]]) mixed = 1 }
+        line[shared] = (mixed ? "SPLIT " : "same  ") c "  :" o
+        if (mixed) for (j = 1; j <= tasks[c]; j++) { iss[w[j]]++; failed[w[j]] = failed[w[j]] "\n    SPLIT " c } }
+      printf "%-18s %6s %6s %6s %8s %6s\n", "TASK", "checks", "held", "issues", "warnings", "secs"
+      for (i = 1; i <= nt; i++) { t = order[i]
+        printf "%-18s %6d %6d %6d %8d %6d%s\n", t, n[t], n[t] - iss[t] - warn[t], iss[t], warn[t], secs[t], failed[t] (why[t] != "" ? "\n    PLAN " why[t] : "")
+        printf "%s\t%d\t%d\n", t, iss[t], warn[t] > out }
+      printf "\nshared checks (the plaid: one command, every plan that names it): %d\n", shared
+      for (i = 1; i <= shared; i++) print "  " line[i]
+      for (i = 1; i <= nt; i++) { tot += iss[order[i]] + warn[order[i]] }
+      printf "\n%s\n", tot ? "not clean: " tot " issue(s) and warning(s) across " nt " task(s)" : "clean: every task, every check, every shared check the same"
+    }' "$tmp/results"
+  if [ "$2" = record ]; then
+    while IFS='	' read -r task issues warnings; do
+      swing=$(awk -F'\t' -v t="$task" '$1 == t { print $2 }' "$tmp/rows")
+      SWING_FILE=$swing sh "$SW1NG" qa --issues "$issues" --warnings "$warnings" >/dev/null || die "sw1ng would not record $task" 1
+      printf 'recorded  %s: %s issue(s), %s warning(s)  ->  %s\n' "$task" "$issues" "$warnings" "$(SWING_FILE=$swing sh "$SW1NG" next 2>&1 | head -1)"
+    done < "$tmp/tally"
+  fi
+  awk -F'\t' '{ s += $2 + $3 } END { exit (s > 0) }' "$tmp/tally"
+}
+
+prove_red() {
+  fails=0; ok() { printf '  ok    %s\n' "$1"; }; red() { printf '  RED   %s\n' "$1"; fails=$((fails+1)); }
+  d=$tmp/p; mkdir -p "$d/bin"; ROOT=$d   # its own root: holds from any folder, beside any sw1ng
+  printf 'CHECK: true\nCHECK: test -d bin\nWARN: true\n' > "$d/qa-a"; printf 'CHECK: true\nCHECK: test -d bin\n' > "$d/qa-b"
+  printf 'TASK\tSWING\tDESIGN\tQAPLAN\nA\t%s/SW-a\t%s/qa-a\t%s/qa-a\nB\t%s/SW-b\t%s/qa-b\t%s/qa-b\n' "$d" "$d" "$d" "$d" "$d" "$d" > "$d/plan"
+  printf 'HELD -- the control:\n'
+  ( open_all "$d/plan" ) >/dev/null 2>&1 && [ -f "$d/SW-a" ] && [ -f "$d/SW-b" ] && ok 'open: one sw1ng loop per task' || red 'open'
+  ( run_all "$d/plan" run ) > "$d/o1" 2>&1 && grep -q '^clean' "$d/o1" && grep -q '^  same  true' "$d/o1" && ok 'run: two tasks, clean, and the shared checks named' || red 'control run'
+  printf 'RED -- each planted fault must fire:\n'
+  printf 'CHECK: false\n' >> "$d/qa-b"
+  ( run_all "$d/plan" run ) > "$d/o2" 2>&1 && red 'a failing check went unseen' || { grep -q '^B .* 1 ' "$d/o2" && grep -q 'FAIL  false' "$d/o2" && ok 'a failing CHECK is an issue, and named' || red 'the failing check was not named'; }
+  printf 'CHECK: true\nCHECK: test -d bin\nWARN: false\n' > "$d/qa-a"; printf 'CHECK: true\nCHECK: test -d bin\n' > "$d/qa-b"
+  ( run_all "$d/plan" run ) > "$d/o3" 2>&1; grep -q '^  same  true  : A=ok B=ok$' "$d/o3" && ok 'a command a plan names twice runs once for that task' || red 'a command ran twice for one task'
+  grep -q '^A .* 0        1 ' "$d/o3" && ok 'a failing WARN is a warning, not an issue' || red 'WARN'
+  printf 'CHECK: touch %s/flag\nCHECK: test -f %s/flag\n' "$d" "$d" > "$d/qa-a"; printf 'CHECK: rm -f %s/flag\nCHECK: test -f %s/flag\n' "$d" "$d" > "$d/qa-b"
+  ( run_all "$d/plan" run ) > "$d/o4" 2>&1; grep -q '^  SPLIT test -f' "$d/o4" && ok 'a shared check that holds under one task and fails under another is a SPLIT' || red 'a split went unseen'
+  [ "$(awk '$1 == "A" { print $4 }' "$d/o4")" = 1 ] && [ "$(awk '$1 == "B" { print $4 }' "$d/o4")" = 2 ] && ok 'a SPLIT is charged as an issue to both tasks' || red 'a split was not charged'
+  printf 'CHECK: true\n' > "$d/qa-a"; printf 'WARN: false\n' > "$d/qa-b"
+  ( run_all "$d/plan" run ) > "$d/o6" 2>&1 && red 'a warning alone exited 0' || ok 'a warning alone is not clean: the run exits non-zero'
+  printf 'CHECK: true\n  CHECK: false\n- WARN: false\n' > "$d/qa-a"; printf 'CHECK: true\n' > "$d/qa-b"
+  ( run_all "$d/plan" run ) > "$d/o7" 2>&1 && red 'an indented CHECK went unseen' || { grep -q '2 CHECK:/WARN: line(s) not at the start' "$d/o7" && ok 'a CHECK written as a bullet or indented is named, not skipped' || red 'the hidden checks were not named'; }
+  printf 'CHECK: true\n' > "$d/qa-a"; printf 'CHECK: true\n' > "$d/qa-b"; awk '{ printf "%s\r\n", $0 }' "$d/plan" > "$d/plan-crlf"
+  ( run_all "$d/plan-crlf" run ) > "$d/o8" 2>&1 && grep -q '^clean' "$d/o8" && ok 'a plan saved with CRLF line ends reads the same' || red 'a CRLF plan did not read'
+  printf 'TASK\tSWING\tDESIGN\n' > "$d/bad"; printf 'A\tx\ty\n' >> "$d/bad"
+  ( run_all "$d/bad" run ) >/dev/null 2>&1 && red 'a plan row with three columns was run' || ok 'a plan row without four columns is refused'
+  printf 'CHECK: true\n' > "$d/qa-a"; printf 'CHECK: true\n' > "$d/qa-b"
+  ( run_all "$d/plan" record ) > "$d/o5" 2>&1 && grep -q 'recorded  A: 0 issue' "$d/o5" && grep -q '^last-issues: 0' "$d/SW-a" && grep -q 'QA pass 1' "$d/SW-b" && ok '--record writes one qa pass per task, through sw1ng' || red 'record'
+  if [ "$fails" = 0 ]; then printf '\nsw1mt: all held, all fired.\n'; return 0; else printf '\nsw1mt: %s RED\n' "$fails"; return 1; fi
+}
+
+tmp=$(mktemp -d "${TMPDIR:-/tmp}/sw1mt.XXXXXX") || die 'no tmp'
+trap 'rm -rf "$tmp"' EXIT
+case ${1:-} in
+  open) [ -n "${2:-}" ] || die 'usage: sw1mt open PLAN'; open_all "$2" ;;
+  run) [ -n "${2:-}" ] || die 'usage: sw1mt run PLAN [--record]'; if [ "${3:-}" = --record ]; then run_all "$2" record; else run_all "$2" run; fi ;;
+  --prove-red) prove_red ;;
+  *) sed -n '2,/^set -u$/p' "$0" | sed '$d' | sed 's/^# \{0,1\}//' ;;
+esac

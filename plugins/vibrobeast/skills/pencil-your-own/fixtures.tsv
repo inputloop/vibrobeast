@@ -1,0 +1,21 @@
+# fixtures.tsv --- the oracle. Per oracle-transfers, the reusable asset is the fixtures and the
+# expected verdicts, NOT the code: pencil.sh is disposable, this file is not. Rewrite the tool in
+# any language and it must still produce column 8 from columns 1-7.
+#
+# Columns 1-7 are what a real concern record carries; pencil.sh reads only those and ignores the
+# rest. Column 8 (`expect`) is the oracle and is read only by tests.sh. Column 9 is prose.
+#
+# Rows 6, 7 and 8 are the NEGATIVE CONTROLS -- the cases where this skill's advice is WRONG and the
+# check must refuse to relax. If you change the tool and these stop going red, you have a slogan,
+# not a check.
+id	source	owner	floor	witnesses	level	falsifier	expect	note
+mine-single	MINE	me	no	1	pencil	name a rung outside me that it traces to	PENCIL	the common case the reflex gets wrong
+mine-witnessed	MINE	me	no	2	firm	find a third source that contradicts both	STANDS	two independent witnesses; nothing of mine left to relax
+domain-law-restated	DOMAIN	me	no	3	inked	show a POSIX shell where this is false	HOLD	my record, not my claim -- I may not pencil the law I copied
+corwin-signed-rule	HIS	corwin	no	1	inked	his signed words say otherwise	NOT-YOURS	route it to the party the tag names; do not soften it
+vague-unease	MINE	me	no	0	faint	-	FEELING	no check that could fail it, so it is not yet a concern
+floor-tagged-mine	MINE	me	yes	0	uninked	-	FLOOR	NEGATIVE CONTROL: a floor item mis-sorted as mine must not relax
+third-party-datum	MINE	third-party	no	1	pencil	ask the party whose data it is	NOT-YOURS	NEGATIVE CONTROL: never pencil another party's ink
+numeric-level	MINE	me	no	1	0.5	names a falsifier	REFUSED-LITERAL	NEGATIVE CONTROL: file by words, a row carries the name not the level
+unknown-level	MINE	me	no	1	smudged	names a falsifier	REFUSED-UNKNOWN	a level word with no row in levels.tsv
+floor-beats-all	HIS	corwin	yes	0	uninked	-	FLOOR	the floor precedes every other rule, including whose ink it is

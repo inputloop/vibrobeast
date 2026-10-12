@@ -1,0 +1,15 @@
+Written in this garden on 2026-10-05 (Corwin Brust's AS4CE0001, skills/llama-bridge).
+
+The text between the "his text" markers in SKILL.md is Bryant Frankford's llama-bridge SKILL.md,
+v1.4, from his bundle gauntlet-nexus-skills-2026-10-05 (received through c4 intake as
+from-bryant/2026-10-05 and 2026-10-05-r2), lines 8 to 268 of his file, byte for byte. His whole
+file's sha256: 16b32644bdc94e15ceb859e6535690d9e0c6a0c8fba197937393dd19fecc17d3. His terms for
+it: CC-BY-SA-4.0 (his REUSE.toml). Under the attribution ladder (c4 man/attribution-ladder.md)
+that is rung 1, attribute: his name is on the footer as maker of that text.
+
+The rest of SKILL.md, scripts/fake_ollama.py, scripts/bridge_smoke.py and references/ were written
+here (Mentat, for Corwin). The bridge the skill operates is Bryant's Llama Bridge 1.4.0 with this
+garden's changes (1.4.0-vb.1): servers/polygram/mcp/llama_bridge.py in the plugin, and
+NOTICE-llama_bridge beside it.
+
+No literate recipe; edit here.

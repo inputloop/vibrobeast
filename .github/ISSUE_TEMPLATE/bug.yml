@@ -1,0 +1,32 @@
+name: Something is wrong
+description: It did something it should not, or did not do what it says.
+labels: ["bug"]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what happened instead.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: The version from vibrobeast_status, or the PROVENANCE file.
+  - type: dropdown
+    id: where
+    attributes:
+      label: Where
+      options:
+        - Claude Desktop (extension)
+        - Claude Desktop (skills plugin)
+        - Claude Code
+        - Cowork
+        - Other
+  - type: textarea
+    id: log
+    attributes:
+      label: Log lines, if any
+      description: From Claude Desktop's extension log. Remove anything private first.
+      render: text
