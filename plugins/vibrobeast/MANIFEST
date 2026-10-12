@@ -44,7 +44,7 @@ f4cfd09cd21c53f6bdce3c86157d07b33dd62f2f025fab8f907582961c1073e1  ./servers/poly
 0f8d9be5ae980cb8d4dc66bf2f54d3f5cd4b1a6ef86641ac01720070635e1832  ./servers/polygram/mcp/spans.py
 3c5eacf1437178552ce770f3e236c519f44c5613989bb6ee863ba36abe90ee6e  ./servers/polygram/mcp/store.py
 6ffaa56681406aa55073cb9c5ae296edd6659730ff8d73793c5655a77483e78c  ./servers/polygram/mcp/tavern_upstream.py
-cfab978ac45800ab8ffaa1c9b9b03f685d01693fe885ea559f5adf3e61a1b892  ./servers/polygram/mcp/tavernface.py
+2e99167d61229ad7e963a8a817d21322db5fd224a4af08e53763f2526a01a1ac  ./servers/polygram/mcp/tavernface.py
 4f24becd1aedfbabcecf0bdfc8c8603cdd4c09924629c451c1e2bf674320f0c9  ./servers/polygram/mcp/verify.py
 f80190f47487673d99b97021684b4bb67f27f07cdd490707c958cb46e036b68f  ./servers/polygram/mcp/words.py
 dc1a4923cd7f4edb52e713ead298b6e002195cc4296ae1eda8a0c8f6d90c440a  ./skills/aethernet-relay/.signature.asc
