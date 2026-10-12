@@ -29,12 +29,13 @@ A memory Claude keeps on your own computer, in plain files you can read, with th
 
 Do not also install the full `vibrobeast` plugin in Claude Desktop: the extension already runs its servers, and two would share one memory.
 
-**Claude Code:**
+**Claude Code** (2.1.275 or later, one step):
 
 ```
-/plugin marketplace add inputloop/vibrobeast
-/plugin install vibrobeast@inputloop
+/plugin install vibrobeast --marketplace inputloop/vibrobeast
 ```
+
+On older versions: `/plugin marketplace add inputloop/vibrobeast`, then `/plugin install vibrobeast@inputloop`.
 
 That plugin carries the servers and the skills together. While this repository is private, adding it needs a GitHub account with access to it.
 

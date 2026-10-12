@@ -24,11 +24,11 @@ jobs:
       matrix:
         python: ["3.10", "3.12"]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python }}
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: "22"
       - name: Lint, test and verify the published tree
@@ -37,7 +37,7 @@ jobs:
     name: the checks can fail
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Plant one fault per check in a copy; each must go red
         run: sh .github/ci/check.sh --prove-red
   anthropic-validate:
@@ -45,8 +45,8 @@ jobs:
     runs-on: ubuntu-24.04
     continue-on-error: true
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: "22"
       - name: claude plugin validate (marketplace and both plugins)
@@ -58,7 +58,7 @@ jobs:
     needs: check
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: The three installable files
         run: |
           mkdir -p out
@@ -66,7 +66,7 @@ jobs:
           (cd plugins/vibrobeast && python3 -m zipfile -c ../../out/vibrobeast.plugin $(ls -A))
           (cd plugins/vibrobeast-skills && python3 -m zipfile -c ../../out/vibrobeast-skills.plugin $(ls -A))
           (cd out && sha256sum * > SHA256SUMS && cat SHA256SUMS)
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: vibrobeast-${{ github.sha }}
           path: out/
