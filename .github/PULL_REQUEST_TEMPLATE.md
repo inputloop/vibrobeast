@@ -7,7 +7,7 @@
 **What would show it wrong** (the check that should fail without this change):
 
 - [ ] Tests or checks pass where they apply (`python3 -m unittest discover -s tests` in the source tree; `sh check.sh` for the plugin).
-- [ ] AI help, if any, is named in an `Assisted-by:` line.
+- [ ] Work an agent wrote is signed by the agent, for the person: `Authored by NAME (for PERSON).`
 - [ ] I agree this is distributed under the licence of the files it changes.
 
 <!-- This repository is built from source; a maintainer carries your change back with bin/gh1in, and you stay its author. -->

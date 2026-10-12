@@ -63,6 +63,17 @@ Type these to Claude after installing:
 - **Sent by Claude:** what any tool answers becomes part of your conversation with Claude, under Anthropic's terms, not ours.
 - **To erase:** delete the folder. Every store is plain text.
 
+## Yours to decide
+
+This is free software, and it is built so the choices stay with you, in practice and not only in the licence.
+
+- **Your words.** Call things what you call them. Tell Claude the word you use and it uses yours; to make it last, `word_register` writes down what a word means to you (one small file per word, never overwritten), and `word_where` finds it again. The project's own terms are explained where they ship (`GRAMMARY.md`), as a glossary, not a rule.
+- **Your defaults.** Every default is a preference you can change by asking in plain words (`pref_set`, `pref_list`); the extension's settings page wins over anything set elsewhere.
+- **Your keeper.** The keeper is the person an install is for, whose say decides what is kept about people. Put your own name in the settings page's **Keeper** field. (Left empty, this build still names the person it began with; we count that as a bug and are fixing it.)
+- **Your byline.** When an agent writes for you, it signs as itself, for you: `persona_byline` gives `Author: NAME (for YOU)`, and the copyright line stays yours. You choose the name, or withhold one. Nothing here signs as you.
+- **Your consent.** Doors start closed. The ghostwheel door asks before it looks anything up or trusts a new key; "always" is a separate switch, and only you set it.
+- **Your copy.** Everything is plain files you can read, move or delete, under licences that let you run, study, change and share all of it, these words included.
+
 ## Permissions
 
 - Each door is a switch on the extension's settings page, or a preference you ask Claude to set in Claude Code. Off means one tool that says so, and nothing sent.
@@ -112,8 +123,9 @@ Code: `GPL-3.0-or-later OR LGPL-3.0-or-later`, your choice. Prose, skills' text 
 
 Bryant Frankford spent months showing Corwin Brust how to work with Claude before Corwin knew he wanted to: tell it to keep notes for you, to be sparing with tokens, to write a model of the problem before starting. On late evenings of shared screens the two found they were building tools out of the work itself, and kept going. Corwin, a long-time GNU volunteer, wanted the notes kept the way free software keeps its history: in the open, added to and never rewritten. That became the memory seat. Tavern and Llama Bridge began in Bryant's workshop; the persona sheets and most of the skills grew in Corwin's.
 
-Much of the writing is Claude's, under one keeper's direction or the other's, in the voices the gardens have grown: Mentat, who keeps the notes in Corwin's shop, and Alfred, in Bryant's. Each file says who wrote it and for whom. The name VIBROBEAST is older than any of it: a joke between Corwin and Dee Brust that a group naming call, years later, picked up and kept.
+Much of the writing is Claude's, in the voices the gardens have grown: Mentat in Corwin's shop, Alfred in Bryant's. Agent work is signed the same way everywhere here, by the agent, for the person, with the model: `Mentat (for Corwin; claude-opus-5-5)`. The byline says *for* somebody, always; the copyright stays with the person. The name VIBROBEAST is older than any of it: a joke between Corwin and Dee Brust that a group naming call, years later, picked up and kept.
 
 inputloop is the home the two made to share all of it. It is built on the Model Context Protocol and on Claude, by Anthropic.
 
+Authored by Mentat (for Corwin; claude-opus-5-5).
 Copyright 2026 Corwin Brust and Bryant Frankford and Contributors.

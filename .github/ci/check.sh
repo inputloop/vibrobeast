@@ -9,6 +9,7 @@
 # One line per check: ok, FAIL (with why) or SKIP (with what it needs; never counted as ok).
 # Exit 0 when nothing failed; 1 when something did; 2 when the tree could not be read.
 set -u
+export PYTHONDONTWRITEBYTECODE=1   # a check must not leave bytecode in the tree it checks
 PY=${PYTHON:-python3}
 here=$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)
 fails=0; skips=0
@@ -111,6 +112,9 @@ P
     case $out in DOWN*|"") fail "C9 extension hub: ${out:-no answer}" ;; *) ok "C9 extension hub: $out" ;; esac
   else fail "C9 extension/vibrobeast.mcpb does not unpack"; fi
   rm -rf "$x"
+  # 11 no bytecode ships (a .pyc is code nobody can read; the plugin's check.sh treats one as hostile)
+  pyc=$(find "$R" -path "$R/.git" -prune -o \( -name '*.pyc' -o -name __pycache__ \) -print | head -3)
+  [ -z "$pyc" ] && ok "C11 no bytecode in the tree" || fail "C11 bytecode in the tree: $(printf '%s ' $pyc)"
   # 10 the icon's two renderers agree (gwicon.js and gwicon.py share one model)
   G=$R/plugins/vibrobeast/servers/polygram/mcp
   if [ ! -f "$G/gwicon.js" ]; then skip "C10 no gwicon in this build"
@@ -118,7 +122,7 @@ P
   else
     in='{"letter":"G","hosts":[["gw7",[["up",100],["load",80],["disk",55]]],["gw33",[["down",0]]]]}'
     a=$(printf '%s' "$in" | node "$G/gwicon.js")
-    b=$(cd "$R/plugins/vibrobeast/servers" && "$PY" -c 'import json,sys; from polygram.mcp import gwicon; i=json.loads(sys.argv[1]); print(gwicon.render(i["letter"], [(h,p) for h,p in i["hosts"]])[1])' "$in")
+    b=$(cd "$R/plugins/vibrobeast/servers" && "$PY" -B -c 'import json,sys; from polygram.mcp import gwicon; i=json.loads(sys.argv[1]); print(gwicon.render(i["letter"], [(h,p) for h,p in i["hosts"]])[1])' "$in")
     [ -n "$a" ] && [ "$a" = "$b" ] && ok "C10 icon renderers agree" || fail "C10 gwicon.js and gwicon.py differ"
   fi
 }
@@ -136,6 +140,7 @@ prove_red() {
   plant "a skill with no description" C4 'f=$(ls plugins/vibrobeast/skills/*/SKILL.md | head -1); sed -i "/^description:/d" "$f"'
   plant "a marketplace entry under the wrong name" C5 'sed -i "s/\"name\": \"vibrobeast-skills\"/\"name\": \"vibrobeast-skillz\"/" .claude-plugin/marketplace.json'
   plant "an artifact changed after PROVENANCE" C6 'echo x >> extension/vibrobeast.mcpb'
+  plant "a stray .pyc" C11 'mkdir -p plugins/vibrobeast/servers/__pycache__ && echo x > plugins/vibrobeast/servers/__pycache__/x.pyc'
   plant "a plugin file changed after its MANIFEST" C7 'f=$(ls plugins/vibrobeast/skills/*/SKILL.md | head -1); echo x >> "$f"'
   [ $bad -eq 0 ] && { echo "check: PROVE-RED OK"; return 0; } || { echo "check: PROVE-RED FAILED ($bad missed)"; return 1; }; }
 

@@ -23,3 +23,6 @@ reply from a person; with two maintainers, allow a few days.
 - Claude reading or writing your notes: that is what the tools are for.
 - Tavern members seeing what is posted: everything in a Tavern is visible to every member, by design.
 - A skill's advice being wrong: please open an ordinary issue.
+
+Authored by Mentat (for Corwin; claude-opus-5-5).
+Copyright 2026 Corwin Brust <corwin@bru.st> and Contributors. SPDX-License-Identifier: CC-BY-SA-4.0

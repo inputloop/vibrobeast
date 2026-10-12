@@ -35,10 +35,20 @@ Generated files cannot be changed directly; `gh1in` says which generator to chan
 - **Words**: plain ones. Say what a thing does and how to tell if it did. A claim a reader cannot check
   is a feeling, and is welcome if it is labelled as one.
 
-## Work written with AI help
+## Work an agent wrote
 
-Welcome, and said plainly. Put an `Assisted-by:` line in the commit message naming the tool and
-model (for example `Assisted-by: Claude (claude-opus-5-5)`). You are the author and answer for it.
+Welcome, and signed the way this project signs its own: by the agent, for the person it worked for,
+with the model when you know it, once at the end of the file and as the commit's author:
+`Alfred (for Bryant)`, `Mentat (for Corwin; claude-opus-5-5)`, or `Claude (for YOUR NAME)` if you did
+not name a persona. The byline says *for* somebody, always; the copyright and the say stay with that
+person. Work you wrote yourself, sign as yourself. Please do not let a tool sign as you, and do not
+sign an agent's work with your own name alone.
+
+## Your words
+
+If this project's words are not yours, say so in the pull request: a glossary entry, a setting's
+title or a tool's description can change. Terms are explained where they ship (`GRAMMARY.md`), and
+the person using the tools decides what their words mean (`word_register`).
 
 ## Licence of what you send
 
@@ -54,3 +64,6 @@ If a step here needs more dexterity, sight, typing or jargon than it should, ope
 ## Where to talk
 
 Issues here. People already in a Tavern with us can raise it there.
+
+Authored by Mentat (for Corwin; claude-opus-5-5).
+Copyright 2026 Corwin Brust <corwin@bru.st> and Contributors. SPDX-License-Identifier: CC-BY-SA-4.0
