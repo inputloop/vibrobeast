@@ -1,0 +1,19 @@
+{
+  "name": "vibrobeast-skills",
+  "version": "1.1.9",
+  "description": "The vibrobeast skills alone, for Claude Desktop beside the Vibrobeast extension, which carries the servers. Starts no server.",
+  "author": {
+    "name": "Corwin Brust",
+    "email": "corwin@bru.st"
+  },
+  "license": "GPL-3.0-or-later",
+  "homepage": "https://vibrobeast.bru.st",
+  "keywords": [
+    "persona",
+    "provenance",
+    "skills",
+    "archive",
+    "free-software"
+  ],
+  "skills": "./skills/"
+}

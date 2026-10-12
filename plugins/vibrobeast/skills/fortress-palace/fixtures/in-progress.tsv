@@ -1,0 +1,15 @@
+# A walk still running. Every group has one, three have two. Invariant held, stop NOT met.
+# This is the normal state of a walk and exits 1 -- not a failure, just unfinished.
+grp	entry	note
+i	high-intersection-node
+h	provenance-tagging
+g	stale-read-vs-truncation
+f	crypto-provenance-model
+e	volunteer-runs-the-card
+d	the-sweep-misses-QA
+c	claude-md-mutated
+b	staged-signing-relaxation
+a	new-prompt-this-session
+g	mount-rm-vs-truncate
+d	brier-on-predictions
+a	the-mp3-model

@@ -1,0 +1,20 @@
+# The 2026-09-03 palace run, as actually filed. Stop MET: 7 of 9 doubled, (h) and (i) held at one
+# on purpose -- they are the floor and its first child, and padding them would fake the floor.
+# Arrival order is firsts (i..a) then seconds, which is what the invariant requires.
+grp	entry	note
+i	governance-lineage-walk	the floor
+h	the-sweep-rule	provenance; the floor's first child
+g	check-shelf-vs-bundle-seal	x/y between two gates
+f	w32-distcheck.pl	9 named PE/CRT checks
+e	emacs-binary-dist-to-the-fleet	real infra, real users
+d	the-sweep-misses-QA	the problem the whole program serves
+c	claude-md-x2	edited and re-signed in-session
+b	signing-relaxation	STAGE -> canon
+a	agents-rules-for-life	the mp3 model
+g	concurrent-writer-collision	parallel sessions share ledgers
+f	zfs-nfsv4-acl-semantics	ALLOW accumulates, DENY short-circuits
+e	truenas-smb-guide-for-david	a real doc to a real person
+d	pinned-guess-vs-brier	score your own error predictions
+c	drift-budget	9% / 17% / 4.4% across sources
+b	m0ve-reality-dial	the ink/pencil instrument
+a	countable-gauge	found on the drift-dashboard read

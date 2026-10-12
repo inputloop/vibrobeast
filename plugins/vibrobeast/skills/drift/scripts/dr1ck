@@ -1,0 +1,91 @@
+#!/bin/sh
+# dr1ck -- DRIFT 1 CHECK: a drift page read a second time, in sh and awk.
+#
+# usage: dr1ck PAGE [--root ROOT --since YYYY-MM-DD [--until YYYY-MM-DD]] [--alto TAIL] [--capsule FILE]
+#   links     every [R#] in a paragraph resolves; each referent's "cited by" is exactly the
+#             paragraphs that cite it; no referent is left uncited; a paragraph with no [R#] must
+#             say NOT CHECKED
+#   coverage  (with --root) every commit git puts in the window is a referent, and no git referent
+#             falls outside it
+#   alto      (with --alto) the tail has a line naming the page's sha256
+#   capsule   (with --capsule) the capsule's sha256 is the one .drift/MUTATIONS recorded for the page;
+#             a capsule with bytes above 127 (minted before capsules were 7-bit ASCII) still reads
+#             by its hash, with a NOTE
+# Exit 0 all read OK; 1 a break; 2 could not look.  Disable: DR1CK=0.
+#
+# Unfolded from drift.org; edit that, not this.
+# Copyright 2026 Corwin Brust <corwin@bru.st> and Contributors; GPL-3.0-or-later.
+# Mentat (for Corwin; claude-opus-5-5)
+set -u
+[ "${DR1CK:-1}" = 0 ] && { echo "dr1ck: disabled (DR1CK=0); NOT CHECKED"; exit 0; }
+LC_ALL=C; export LC_ALL
+page=${1:-}; [ -r "$page" ] || { echo "dr1ck: NOT CHECKED: cannot read the page '${page}'"; exit 2; }
+shift
+root= since= until=$(date -u +%Y-%m-%d) alto= capsule=
+while [ $# -gt 0 ]; do
+  case $1 in
+    --root) root=$2; shift 2 ;; --since) since=$2; shift 2 ;; --until) until=$2; shift 2 ;;
+    --alto) alto=$2; shift 2 ;; --capsule) capsule=$2; shift 2 ;;
+    *) echo "dr1ck: unknown argument $1"; exit 2 ;;
+  esac
+done
+bad=0
+say() { printf '%-8s %s\n' "$1" "$2"; [ "$1" = BREAK ] && bad=1; return 0; }
+
+links=$(awk '
+  /^¶[0-9]+ / { p = $1; sub(/^¶/, "", p); p += 0; line = $0; n = 0
+    while (match(line, /\[R[0-9]+\]/)) { r = substr(line, RSTART + 2, RLENGTH - 3) + 0; cites[r] = cites[r] " " p; n++; line = substr(line, RSTART + RLENGTH) }
+    if (n == 0 && $0 !~ /NOT CHECKED/) print "BREAK\t¶" p " cites nothing and does not say NOT CHECKED"
+    next }
+  /^R[0-9]+ · / { r = substr($1, 2) + 0; ref[r] = 1
+    by = $0; sub(/.* · cited by /, "", by); gsub(/[¶,]/, " ", by); claimed[r] = by; next }
+  END {
+    for (r in cites) if (!(r in ref)) print "BREAK\t[R" r "] is cited but has no referent"
+    for (r in ref) {
+      split(claimed[r], c, " "); delete want; delete have
+      for (i in c) if (c[i] != "") want[c[i] + 0] = 1
+      split(cites[r], d, " "); for (i in d) if (d[i] != "") have[d[i] + 0] = 1
+      if (!(r in cites)) print "BREAK\tR" r " is cited by no paragraph"
+      for (k in want) if (!(k in have)) print "BREAK\tR" r " claims ¶" k ", which does not cite it"
+      for (k in have) if (!(k in want)) print "BREAK\t¶" k " cites R" r ", which does not list it"
+      nr++ }
+    printf "INFO\t%d referents read\n", nr }' "$page")
+printf '%s\n' "$links" | while IFS='	' read -r v w; do say "$v" "$w"; done
+printf '%s\n' "$links" | grep -q '^BREAK' && bad=1
+[ "$bad" = 0 ] && say OK "links: every citation resolves both ways"
+
+if [ -n "$root" ]; then
+  [ -n "$since" ] || { echo "dr1ck: --root needs --since"; exit 2; }
+  if git -C "$root" --no-optional-locks rev-parse -q --verify HEAD >/dev/null 2>&1; then
+    # every commit, filtered by its date here: git's own --since stops walking at the first commit
+    # older than the window, so a tree whose dates are out of order loses commits silently
+    at=$(sed -n 's/^- read at git HEAD \([0-9a-f]*\) .*/\1/p' "$page" | head -n 1)
+    git -C "$root" --no-optional-locks log --date=short --pretty='format:%h %cd' ${at:-HEAD} |
+      awk -v s="$since" -v u="$until" '$2 >= s && $2 <= u { print $1 }' > "${TMPDIR:-/tmp}/dr1ck.$$.git"
+    cov=$(awk -F' · ' 'NR == FNR { if ($0 != "") want[$0] = 1; next }
+      /^R[0-9]+ · git · / { h = $3; sub(/^git /, "", h); got[h] = 1 }
+      END { for (h in want) if (!(h in got)) print "BREAK\tcommit " h " is in the window but not on the page"
+            for (h in got) if (!(h in want)) print "BREAK\tgit referent " h " is not in the window"
+            n = 0; for (h in want) n++; printf "INFO\t%d commits in the window\n", n }' "${TMPDIR:-/tmp}/dr1ck.$$.git" "$page")
+    rm -f "${TMPDIR:-/tmp}/dr1ck.$$.git"
+    printf '%s\n' "$cov" | while IFS='	' read -r v w; do say "$v" "$w"; done
+    if printf '%s\n' "$cov" | grep -q '^BREAK'; then bad=1; else say OK "coverage: every commit in the window is cited"; fi
+  else say "NOT" "coverage NOT CHECKED: $root is not a git work tree"; fi
+fi
+
+psha=$(sha256sum < "$page" | cut -c1-64)
+if [ -n "$alto" ]; then
+  if [ -r "$alto" ] && grep -q "sha256 $psha" "$alto"; then say OK "alto: the tail names this page's hash"
+  else say BREAK "alto: no line in $alto names sha256 $psha"; bad=1; fi
+fi
+if [ -n "$capsule" ]; then
+  m="$(dirname "$page")/.drift/MUTATIONS"
+  rec=$( [ -r "$m" ] && grep " · sha256 $psha · " "$m" | tail -n 1 | sed -n 's/.* · capsule \([0-9a-f-]*\) · .*/\1/p')
+  csha=$( [ -r "$capsule" ] && sha256sum < "$capsule" | cut -c1-64)
+  if [ -n "$rec" ] && [ "$rec" = "$csha" ]; then say OK "capsule: its hash is the one recorded for this page"
+  else say BREAK "capsule: recorded '${rec:-none}', found '${csha:-unreadable}'"; bad=1; fi
+  hi=$( [ -r "$capsule" ] && tr -d '\000-\177' < "$capsule" | wc -c | tr -d ' ')
+  [ "${hi:-0}" -gt 0 ] && say NOTE "capsule: $hi byte(s) above 127, from before capsules were 7-bit ASCII; pull it again before it goes on the wire"
+fi
+[ "$bad" = 0 ] && { echo "dr1ck: the page reads true"; exit 0; }
+echo "dr1ck: the page has breaks"; exit 1

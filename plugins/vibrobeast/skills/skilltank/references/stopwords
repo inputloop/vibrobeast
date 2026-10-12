@@ -1,0 +1,83 @@
+# Copyright (C) 2026 Corwin Brust <corwin@bru.st>
+# Authored by Mentat (for Corwin).
+# SPDX-License-Identifier: GPL-3.0-or-later
+# This file is part of vibrobeast.  vibrobeast is free software: you can redistribute it and/or
+# modify it under the terms of the GNU General Public License as published by the Free Software
+# Foundation, either version 3 of the License, or (at your option) any later version.  It is
+# distributed WITHOUT ANY WARRANTY; see <https://www.gnu.org/licenses/>.
+# stopwords -- the shop's own vocabulary, which the scan must not mistake for a candidate skill.
+# One word per line; # comments; case-insensitive. Read by default from <skill>/references/stopwords;
+# --stopwords FILE adds more (a seat may keep its own). Named for its function, not for C4, so it
+# travels with skilltank when the skill is packed or unpacked (2026-09-11, his ask).
+# Function words the generic list misses
+related
+rule
+rules
+named
+names
+real
+three
+four
+two
+one
+write
+written
+ask
+asked
+open
+pass
+check
+hand
+bearing
+record
+records
+signed
+sign
+path
+paths
+# House words: people, seats, personas, places
+corwin
+keeper
+mentat
+vibrobeast
+bryant
+claude
+seat
+sandbox
+avalon
+giza
+savannah
+ghostwheel
+shop
+garden
+tree
+lab
+# House method words that are the method, not a candidate
+discipline
+gate
+consent
+project
+projects
+memory
+note
+notes
+# C4's name for a note, the container word of its facts/ folder (2026-09-27): 81 of 154 fact titles
+# carry it, so it ranked first in a --titles scan. Only container words belong here; the prose words
+# a body scan ranks (actually, status, carry, honest ...) do not: one round of them only surfaced the
+# next layer (design, context, minted, meaning). Use --titles for a prose corpus instead.
+fact
+facts
+skill
+skills
+tool
+tools
+receipt
+receipts
+falsifier
+observed
+judged
+mine
+his
+c4
+register
+registers

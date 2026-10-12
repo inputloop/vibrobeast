@@ -1,0 +1,11 @@
+# expected.tsv --- the oracle. The reusable asset is these fixtures and their verdicts, not
+# buckets.sh: rewrite the tool in any language and it must still produce these three verdicts.
+#
+# `violated` is the negative control, and it is the one that matters. Its FINAL COUNTS are
+# indistinguishable from a legitimate walk-in-progress -- only the arrival order shows that (g)
+# took a second entry while three groups stood empty. A tool checking end-state alone passes it
+# happily. If this fixture ever stops reporting VIOLATED, the invariant check has been lost.
+fixture	exit	invariant	stop
+real-crawl	0	held	MET
+in-progress	1	held	NOT MET
+violated	2	VIOLATED	NOT MET

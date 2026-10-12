@@ -1,0 +1,72 @@
+# SPDX-FileCopyrightText: 2026 Corwin Brust <corwin@bru.st> and Contributors
+# SPDX-License-Identifier: GPL-3.0-or-later OR LGPL-3.0-or-later
+# Written by Mentat (for Corwin; claude-opus-5-5), 2026-10-12.
+# Every push and pull request: the published tree checks itself (.github/ci/check.sh, which also
+# runs on a laptop), shows its checks can fail, and leaves the three installable files as artifacts
+# so a reviewer can install exactly what would be merged.
+name: check
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: check-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  check:
+    name: checks (Python ${{ matrix.python }})
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.10", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Lint, test and verify the published tree
+        run: sh .github/ci/check.sh
+  can-fail:
+    name: the checks can fail
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Plant one fault per check in a copy; each must go red
+        run: sh .github/ci/check.sh --prove-red
+  anthropic-validate:
+    name: Claude Code's own validator (advisory)
+    runs-on: ubuntu-24.04
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: claude plugin validate (marketplace and both plugins)
+        run: |
+          npm install -g @anthropic-ai/claude-code >/dev/null 2>&1 || { echo "NOT CHECKED: could not install Claude Code"; exit 0; }
+          claude plugin validate . && claude plugin validate ./plugins/vibrobeast && claude plugin validate ./plugins/vibrobeast-skills
+  package:
+    name: package
+    needs: check
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: The three installable files
+        run: |
+          mkdir -p out
+          cp extension/vibrobeast.mcpb out/
+          (cd plugins/vibrobeast && python3 -m zipfile -c ../../out/vibrobeast.plugin $(ls -A))
+          (cd plugins/vibrobeast-skills && python3 -m zipfile -c ../../out/vibrobeast-skills.plugin $(ls -A))
+          (cd out && sha256sum * > SHA256SUMS && cat SHA256SUMS)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vibrobeast-${{ github.sha }}
+          path: out/

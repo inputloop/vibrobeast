@@ -1,0 +1,9 @@
+# panel.conf.savannah — instrument-panel gauges for the SAVANNAH enclave (F:\SAVANNAH on the author's machine).
+# This file is SOURCED SHELL: review it, sign it, treat edits as seal-breaks.
+PIN_FPR=ECE77CF417C76C1ACFCE7C2B5B6135511580F007
+KEY_ASC=.signing-authority/ECE77CF417C76C1ACFCE7C2B5B6135511580F007.asc
+CANARY=PRINCIPLES.md
+SEAL_GLOB="sessions/*end-session*.md"
+MAX_SEAL_AGE_DAYS=4
+DEBT_PARTY_AT=5
+PRUNE="archive .git .eclipse-increments .saved-coms .transcripts Inbox outbox imported-2026-07-05-from-workspace PreVacationShutdown snap-verify seal-T3 incident crawlright deploy patches remediation"

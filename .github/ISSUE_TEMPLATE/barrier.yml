@@ -1,0 +1,16 @@
+name: Barrier
+description: Something takes more dexterity, sight, typing or jargon than it should.
+labels: ["barrier"]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What stopped you, or slowed you down
+      description: In your own words. You do not need to know the cause.
+    validations:
+      required: true
+  - type: textarea
+    id: how
+    attributes:
+      label: How you work, if you want to say
+      description: For example a screen reader, keyboard only, magnification, voice control, or a different language. Optional.

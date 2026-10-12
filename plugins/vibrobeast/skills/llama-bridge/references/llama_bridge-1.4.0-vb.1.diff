@@ -1,0 +1,668 @@
+--- llama_bridge.py (1.4.0, Bryant Frankford)
++++ llama_bridge.py (1.4.0-vb.1)
+@@ -15,6 +15,28 @@
+ 
+ The GUI process and the MCP process share the same SQLite database (WAL mode),
+ so the dashboard shows delegations made by Claude in real time.
++
++This copy is 1.4.0-vb.1: Bryant Frankford's Llama Bridge 1.4.0 with the changes
++below, made in Corwin Brust's vibrobeast garden for Bryant to see and merge back
++as he thinks best (NOTICE-llama_bridge has both hashes and the list). In short:
++  - think: delegate_task / delegate_async take `think` (true, false, or
++    "low"/"medium"/"high") and pass it to Ollama; it is only sent to a model
++    that reports the thinking capability. Config default: `think_default`.
++  - options: they take `options` (num_ctx, num_predict, temperature, ...),
++    passed through over a config default (`options`, a JSON object).
++  - num_ctx auto (config `num_ctx_auto`, on): a model whose own context is very
++    large (gemma4: 262,144) gets a window sized to the prompt instead, in
++    buckets from `num_ctx_floor` (8192) up, so it stays on the GPU. Measured on
++    an RTX 3080: 52.6 tok/s at 8,192 against 8.1 tok/s at the default.
++  - one at a time (config `max_parallel`, 1): generate calls queue in the
++    bridge, so a background job's time limit (`generate_timeout`, 600 s) counts
++    from when it starts, not from when it was queued; delegate_result says
++    "queued".
++  - warm_model warms at the same window the next call will use.
++  - the cache key includes think and options (unchanged when neither is set,
++    so an existing cache still hits).
++  - each result records whether the model thought, and how much; ollama_status
++    says when a loaded model has spilled out of GPU memory.
+ """
+ 
+ import argparse
+@@ -33,7 +55,7 @@
+ from datetime import datetime, timezone, timedelta
+ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+ 
+-VERSION = "1.4.0"
++VERSION = "1.4.0-vb.1"
+ DEFAULT_PORT = 8765
+ DEFAULT_OLLAMA = os.environ.get("OLLAMA_HOST", "http://127.0.0.1:11434").rstrip("/")
+ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+@@ -244,30 +266,225 @@
+ 
+ def ollama_ps():
+     """Names of currently loaded/running models."""
++    return [m["name"] for m in ollama_ps_detail()]
++
++
++def ollama_ps_detail():
++    """Loaded models with how much of each sits in GPU memory (vb.1).
++    Ollama reports size and size_vram; when size_vram is less than size, part
++    of the model runs on the CPU, and generation is several times slower."""
+     try:
+         obj = _http_json("GET", "/api/ps", timeout=5)
+-        return [m.get("name") or m.get("model") for m in obj.get("models", [])]
+     except OllamaError:
+         return []
++    out = []
++    for m in obj.get("models", []):
++        size, vram = m.get("size"), m.get("size_vram")
++        pct = None
++        if isinstance(size, int) and size > 0 and isinstance(vram, int):
++            pct = int(round(100.0 * vram / size))
++        out.append({"name": m.get("name") or m.get("model"), "size": size,
++                    "size_vram": vram, "gpu_pct": pct,
++                    "context_length": m.get("context_length")})
++    return out
++
++
++def describe_loaded(d):
++    """One loaded model in words, for ollama_status."""
++    bits = []
++    if d.get("gpu_pct") is not None:
++        if d["gpu_pct"] >= 100:
++            bits.append("all in GPU memory")
++        else:
++            bits.append("%d%% in GPU memory: the rest runs on the CPU, so it is "
++                        "slow; a smaller num_ctx or a smaller model fits" % d["gpu_pct"])
++    if d.get("context_length"):
++        bits.append("context %s" % d["context_length"])
++    return "%s (%s)" % (d["name"], ", ".join(bits)) if bits else d["name"]
++
++
++# --------------------------------------------------------------------------- #
++# vb.1: what a model can do, and the request body built from it               #
++# --------------------------------------------------------------------------- #
++_SHOW_CACHE = {}
++_SHOW_LOCK = threading.Lock()
++THINK_LEVELS = ("low", "medium", "high")
++
++
++def ollama_show(model, timeout=10):
++    """{thinking, context_length, num_ctx_param, capabilities} from /api/show,
++    cached per process; {} when Ollama cannot say (then nothing extra is sent)."""
++    with _SHOW_LOCK:
++        if model in _SHOW_CACHE:
++            return _SHOW_CACHE[model]
++    try:
++        obj = _http_json("POST", "/api/show", {"model": model}, timeout=timeout)
++    except OllamaError:
++        return {}
++    caps = obj.get("capabilities") or []
++    ctx = None
++    for k, v in (obj.get("model_info") or {}).items():
++        if str(k).endswith(".context_length") and isinstance(v, int):
++            ctx = v
++            break
++    param = None
++    for line in (obj.get("parameters") or "").splitlines():
++        parts = line.split()
++        if len(parts) >= 2 and parts[0] == "num_ctx":
++            try:
++                param = int(parts[1])
++            except ValueError:
++                pass
++    meta = {"thinking": "thinking" in caps, "context_length": ctx,
++            "num_ctx_param": param, "capabilities": list(caps)}
++    with _SHOW_LOCK:
++        _SHOW_CACHE[model] = meta
++    return meta
++
++
++def parse_think(v):
++    """None (not said), True, False, or a level. Raises ValueError on anything else."""
++    if v is None:
++        return None
++    if isinstance(v, bool):
++        return v
++    t = str(v).strip().lower()
++    if t == "":
++        return None
++    if t in ("true", "on", "yes", "1"):
++        return True
++    if t in ("false", "off", "no", "0"):
++        return False
++    if t in THINK_LEVELS:
++        return t
++    raise ValueError("think must be true, false, low, medium or high (got %r)" % v)
++
++
++def _cfg_int(key, dflt):
++    try:
++        return int(cfg_get(key, dflt))
++    except (TypeError, ValueError):
++        return dflt
+ 
+ 
+-def ollama_generate(model, prompt, system=None, timeout=600, fmt=None):
+-    body = {"model": model, "prompt": prompt, "stream": False,
++def cfg_options():
++    """The config default for Ollama options (a JSON object), or {}."""
++    raw = cfg_get("options")
++    if not raw:
++        return {}
++    try:
++        obj = json.loads(raw)
++    except Exception:
++        return {}
++    return obj if isinstance(obj, dict) else {}
++
++
++def caller_think(think):
++    """The caller's think, else the config default (think_default)."""
++    if think is not None:
++        return think
++    try:
++        return parse_think(cfg_get("think_default"))
++    except ValueError:
++        return None
++
++
++def caller_options(options):
++    """Config default options with the caller's on top."""
++    opts = cfg_options()
++    opts.update(options or {})
++    return opts
++
++
++def choose_num_ctx(meta, prompt, system=None, num_predict=None):
++    """A context window for a model whose own is very large, or None to leave
++    it to Ollama. Sized to the prompt plus room to answer, in buckets from
++    num_ctx_floor upward (doubling), so a change of size rarely reloads."""
++    if cfg_get("num_ctx_auto", "1") != "1":
++        return None
++    if not meta or meta.get("num_ctx_param"):
++        return None  # Ollama cannot say, or the Modelfile already sets one
++    native = meta.get("context_length")
++    if not native or native <= _cfg_int("num_ctx_auto_above", 32768):
++        return None
++    floor = _cfg_int("num_ctx_floor", 8192)
++    reserve = num_predict if isinstance(num_predict, int) and num_predict > 0 \
++        else _cfg_int("num_ctx_reserve", 4096)
++    need = int(est_claude_tokens((system or "") + "\n" + (prompt or "")) * 1.25) + reserve
++    n = floor
++    while n < need and n < native:
++        n *= 2
++    return min(n, native)
++
++
++def build_generate_body(model, prompt, system=None, fmt=None, think=None,
++                        options=None, stream=False):
++    """The /api/generate body, and what was decided: (body, info)."""
++    body = {"model": model, "prompt": prompt, "stream": stream,
+             "keep_alive": cfg_get("keep_alive", "30m")}
+     if system:
+         body["system"] = system
+     if fmt:
+         body["format"] = fmt
+-    return _http_json("POST", "/api/generate", body, timeout=timeout)
++    meta = ollama_show(model)
++    want = caller_think(think)
++    info = {"think": "unknown", "num_ctx": None, "num_ctx_auto": False}
++    if meta:
++        if not meta.get("thinking"):
++            info["think"] = "n/a"  # never sent: Ollama refuses think on such a model
++        elif want is None:
++            info["think"] = "default"  # Ollama's own default: it thinks
++        else:
++            body["think"] = want
++            info["think"] = "off" if want is False else ("on" if want is True else want)
++    elif think is not None:
++        body["think"] = think  # Ollama could not say; the caller asked, so send it
++        info["think"] = "sent"
++    opts = caller_options(options)
++    if "num_ctx" not in opts:
++        n = choose_num_ctx(meta, prompt, system, opts.get("num_predict"))
++        if n:
++            opts["num_ctx"] = n
++            info["num_ctx_auto"] = True
++    if opts:
++        body["options"] = opts
++    info["num_ctx"] = opts.get("num_ctx")
++    return body, info
++
++
++_GEN_SEM = None
++_GEN_SEM_LOCK = threading.Lock()
++
++
++def generate_slot():
++    """One generate call at a time (config max_parallel, read once per process):
++    on one GPU Ollama runs them in turn anyway, and a call waiting here has not
++    started its time limit."""
++    global _GEN_SEM
++    with _GEN_SEM_LOCK:
++        if _GEN_SEM is None:
++            _GEN_SEM = threading.BoundedSemaphore(max(1, _cfg_int("max_parallel", 1)))
++        return _GEN_SEM
++
++
++def ollama_generate(model, prompt, system=None, timeout=None, fmt=None,
++                    think=None, options=None, on_start=None):
++    body, info = build_generate_body(model, prompt, system=system, fmt=fmt,
++                                     think=think, options=options)
++    if timeout is None:
++        timeout = _cfg_int("generate_timeout", 600)
++    with generate_slot():
++        if on_start:
++            on_start()
++        res = _http_json("POST", "/api/generate", body, timeout=timeout)
++    res["_vb"] = info
++    return res
+ 
+ 
+ def ollama_generate_stream(model, prompt, system=None):
+     """Yield streaming chunks {response, done, ...} from /api/generate."""
+     url = ollama_host() + "/api/generate"
+-    body = {"model": model, "prompt": prompt, "stream": True,
+-            "keep_alive": cfg_get("keep_alive", "30m")}
+-    if system:
+-        body["system"] = system
++    body, _info = build_generate_body(model, prompt, system=system, stream=True)
+     data = json.dumps(body).encode()
+     req = urllib.request.Request(url, data=data, method="POST")
+     req.add_header("Content-Type", "application/json")
+@@ -287,8 +504,8 @@
+ 
+ def ollama_warm(model, timeout=300):
+     """Preload a model into memory (empty prompt) so later calls are fast."""
+-    body = {"model": model, "prompt": "", "stream": False,
+-            "keep_alive": cfg_get("keep_alive", "30m")}
++    body, _info = build_generate_body(model, "")
++    body.pop("think", None)  # nothing to think about; only the window matters
+     return _http_json("POST", "/api/generate", body, timeout=timeout)
+ 
+ 
+@@ -355,8 +572,13 @@
+     return None
+ 
+ 
+-def _cache_key(model, prompt, system, fmt):
++def _cache_key(model, prompt, system, fmt, think=None, options=None):
+     raw = "%s\x00%s\x00%s\x00%s" % (model, system or "", prompt, fmt or "")
++    if think is not None or options:
++        # vb.1: a thought-through answer is not the same answer; neither is one
++        # made with other options. Unchanged when neither is set.
++        raw += "\x00think=%s\x00options=%s" % (
++            json.dumps(think), json.dumps(options or {}, sort_keys=True))
+     return hashlib.sha256(raw.encode("utf-8")).hexdigest()
+ 
+ 
+@@ -596,14 +818,14 @@
+     return sorted(bigger, key=lambda m: m["size"])[0]["name"]
+ 
+ 
+-def job_create(model, task_type, prompt):
++def job_create(model, task_type, prompt, status="running"):
+     jid = uuid.uuid4().hex[:12]
+     with _DB_LOCK:
+         c = db_conn()
+         try:
+             c.execute("INSERT INTO jobs(id,status,model,task_type,prompt,created_ts)"
+                       " VALUES(?,?,?,?,?,?)",
+-                      (jid, "running", model, task_type, (prompt or "")[:2000],
++                      (jid, status, model, task_type, (prompt or "")[:2000],
+                        now_iso()))
+             c.commit()
+         finally:
+@@ -625,6 +847,28 @@
+             c.close()
+ 
+ 
++def job_mark(jid, status):
++    with _DB_LOCK:
++        c = db_conn()
++        try:
++            c.execute("UPDATE jobs SET status=? WHERE id=? AND status IN "
++                      "('queued','running')", (status, jid))
++            c.commit()
++        finally:
++            c.close()
++
++
++def jobs_ahead(job):
++    """How many jobs were queued or running before this one."""
++    c = db_conn()
++    try:
++        return c.execute("SELECT COUNT(*) FROM jobs WHERE status IN "
++                         "('queued','running') AND created_ts <= ? AND id != ?",
++                         (job["created_ts"], job["id"])).fetchone()[0]
++    finally:
++        c.close()
++
++
+ def job_get(jid):
+     c = db_conn()
+     try:
+@@ -648,11 +892,11 @@
+ def start_job(kwargs):
+     """Run a delegation in the background; return a job id immediately."""
+     jid = job_create(kwargs.get("model"), kwargs.get("task_type"),
+-                     kwargs.get("prompt"))
++                     kwargs.get("prompt"), status="queued")
+ 
+     def _worker():
+         try:
+-            r = do_delegate(**kwargs)
++            r = do_delegate(on_start=lambda: job_mark(jid, "running"), **kwargs)
+             job_finish(jid, result=r)
+         except Exception as e:  # pragma: no cover
+             job_finish(jid, error=str(e))
+@@ -662,7 +906,8 @@
+ 
+ 
+ def do_delegate(model, prompt, system=None, source="mcp", checks=None,
+-                escalate_to=None, no_cache=False, task_type=None, budget=None):
++                escalate_to=None, no_cache=False, task_type=None, budget=None,
++                think=None, options=None, on_start=None):
+     """Run a prompt on Ollama: auto-select if no model, check cache, optionally
+     verify and escalate, record cost/throughput, and cache verified results."""
+     if not prompt:
+@@ -679,7 +924,9 @@
+     checks = checks or {}
+     fmt = "json" if checks.get("require_json") else None
+     use_cache = (cfg_get("cache_enabled", "1") == "1") and not no_cache
+-    key = _cache_key(model, prompt, system, fmt) if use_cache else None
++    k_think = caller_think(think)
++    k_opts = caller_options(options)
++    key = _cache_key(model, prompt, system, fmt, k_think, k_opts) if use_cache else None
+     if key:
+         hit = cache_get(key)
+         if hit:
+@@ -705,7 +952,9 @@
+     for i, m in enumerate(chain):
+         t0 = time.time()
+         try:
+-            res = ollama_generate(m, prompt, system=system, fmt=fmt)
++            res = ollama_generate(m, prompt, system=system, fmt=fmt,
++                                  think=think, options=options,
++                                  on_start=on_start if i == 0 else None)
+         except OllamaError as e:
+             ms = int((time.time() - t0) * 1000)
+             log_event("ERROR", source, "delegate", message=str(e), model=m,
+@@ -733,7 +982,16 @@
+             reasons = reasons + [
+                 "prompt likely truncated (model evaluated ~%d of ~%d tokens)"
+                 % (p_tok, est_p)]
++        vb = res.get("_vb") or {}
++        thinking_chars = len(res.get("thinking") or "")
+         vmsg = "verified" if ok else ("unverified: " + "; ".join(reasons))
++        if not checks:
++            vmsg += ", no caller checks"
++        vmsg += "; think %s%s; ctx %s%s" % (
++            vb.get("think", "unknown"),
++            (" %d chars" % thinking_chars) if thinking_chars else "",
++            vb.get("num_ctx") or "model default",
++            " auto" if vb.get("num_ctx_auto") else "")
+         note = "escalated " if i > 0 else ("auto " if auto else "")
+         eid = log_event("INFO" if ok else "WARN", source, "delegate",
+                   message="%s~%d saved ($%.4f, %d offloaded) %dms [%s]"
+@@ -747,7 +1005,10 @@
+                 "tokens_offloaded": offloaded, "claude_saved": saved,
+                 "cost_saved": cost, "tok_per_sec": tps, "verified": ok,
+                 "checks_failed": reasons, "escalated": i > 0, "cached": False,
+-                "auto_selected": auto, "event_id": eid}
++                "auto_selected": auto, "event_id": eid,
++                "think": vb.get("think"), "thinking_chars": thinking_chars,
++                "num_ctx": vb.get("num_ctx"), "num_ctx_auto": vb.get("num_ctx_auto"),
++                "caller_checks": bool(checks)}
+         if ok:
+             if key:
+                 cache_put(key, m, text, p_tok, r_tok)
+@@ -900,6 +1161,10 @@
+                                "description": "If model is omitted, auto-pick for: code, json, extract, classify, summarize, vision, or general."},
+                     "budget": {"type": "string",
+                                "description": "Auto-pick budget: fast, balanced (default), or quality."},
++                    "think": {"type": "string",
++                               "description": "vb.1: true, false, low, medium or high. Sent only to a model that can think. Thinking can multiply the tokens a short answer costs (30x measured on gemma4:12b); false for drafting, extracting and classifying."},
++                    "options": {"type": "object",
++                               "description": "vb.1: Ollama options passed through, e.g. {\"num_ctx\": 8192, \"num_predict\": 400, \"temperature\": 0.2}. Without num_ctx, a model with a very large context gets one sized to the prompt."},
+                 },
+                 "required": ["prompt"],
+             },
+@@ -961,7 +1226,9 @@
+             "description": ("Start a delegation in the BACKGROUND and return a "
+                             "job id immediately. Use for long jobs (big models, "
+                             "large outputs) that would exceed the tool timeout. "
+-                            "Same options as delegate_task; poll delegate_result."),
++                            "Same options as delegate_task; poll delegate_result. "
++                            "Jobs run one at a time; a queued job's time limit "
++                            "starts when it runs."),
+             "inputSchema": {
+                 "type": "object",
+                 "properties": {
+@@ -976,6 +1243,10 @@
+                     "ignore_case": {"type": "boolean"},
+                     "escalate_to": {"type": "string"},
+                     "no_cache": {"type": "boolean"},
++                    "think": {"type": "string",
++                              "description": "vb.1: true, false, low, medium or high (see delegate_task)."},
++                    "options": {"type": "object",
++                                "description": "vb.1: Ollama options passed through (see delegate_task)."},
+                 },
+                 "required": ["prompt"],
+             },
+@@ -997,10 +1268,29 @@
+     return [{"type": "text", "text": s}]
+ 
+ 
++def _thinking_note(r):
++    """vb.1: one line when the model thought because nobody said not to."""
++    if r.get("think") == "default" and r.get("thinking_chars"):
++        return ("[%s thought first (~%d chars) because think was not set; "
++                "think=false skips that]\n\n" % (r.get("model"), r["thinking_chars"]))
++    return ""
++
++
+ def _delegate_result_text(r):
+     """Format a do_delegate result dict into (content, is_error) for MCP."""
+     if not r.get("ok"):
+         return _text("Delegation failed: %s" % r.get("error")), True
++    c, e = _delegate_result_text_upstream(r)
++    note = _thinking_note(r)
++    if note:
++        c = [{"type": "text", "text": note + c[0]["text"]}]
++    return c, e
++
++
++def _delegate_result_text_upstream(r):
++    """Bryant's 1.4.0 formatting, unchanged."""
++    if not r.get("ok"):
++        return _text("Delegation failed: %s" % r.get("error")), True
+     if not r.get("verified"):
+         warn = ("[UNVERIFIED on %s: %s] The output below may be unreliable - "
+                 "consider doing this yourself.\n\n---\n"
+@@ -1015,6 +1305,18 @@
+     return _text(r.get("response", "")), False
+ 
+ 
++def _vb_args(args):
++    """vb.1: think and options from a tool call: ({think, options}, error)."""
++    try:
++        think = parse_think(args.get("think"))
++    except ValueError as e:
++        return {}, str(e)
++    opts = args.get("options")
++    if opts is not None and not isinstance(opts, dict):
++        return {}, "options must be an object, e.g. {\"num_ctx\": 8192}"
++    return {"think": think, "options": opts}, None
++
++
+ def mcp_call_tool(name, args):
+     """Return (content_list, is_error)."""
+     try:
+@@ -1028,12 +1330,15 @@
+                 checks["min_length"] = args["min_length"]
+             if args.get("ignore_case"):
+                 checks["ignore_case"] = True
++            vb, err = _vb_args(args)
++            if err:
++                return _text(err), True
+             r = do_delegate(args.get("model"), args.get("prompt"),
+                             system=args.get("system"), source="mcp",
+                             checks=checks, escalate_to=args.get("escalate_to"),
+                             no_cache=bool(args.get("no_cache")),
+                             task_type=args.get("task_type"),
+-                            budget=args.get("budget"))
++                            budget=args.get("budget"), **vb)
+             return _delegate_result_text(r)
+ 
+         if name == "list_models":
+@@ -1053,9 +1358,9 @@
+             except OllamaError as e:
+                 return _text("Ollama is NOT reachable at %s (%s)."
+                              % (ollama_host(), e)), False
+-            running = ollama_ps()
++            running = [describe_loaded(d) for d in ollama_ps_detail()]
+             return _text("Ollama %s is up at %s. Loaded models: %s"
+-                         % (ver, ollama_host(), ", ".join(running) or "none")), False
++                         % (ver, ollama_host(), "; ".join(running) or "none")), False
+ 
+         if name == "recommend_model":
+             r = recommend_model(args.get("task", ""), args.get("budget"))
+@@ -1099,12 +1404,16 @@
+                 checks["ignore_case"] = True
+             if not args.get("prompt"):
+                 return _text("prompt is required"), True
++            vb, err = _vb_args(args)
++            if err:
++                return _text(err), True
+             kwargs = {"model": args.get("model"), "prompt": args.get("prompt"),
+                       "system": args.get("system"), "source": "mcp",
+                       "checks": checks, "escalate_to": args.get("escalate_to"),
+                       "no_cache": bool(args.get("no_cache")),
+                       "task_type": args.get("task_type"),
+                       "budget": args.get("budget")}
++            kwargs.update(vb)
+             jid = start_job(kwargs)
+             return _text("Started background job %s. Poll with "
+                          "delegate_result(job_id=\"%s\")." % (jid, jid)), False
+@@ -1113,6 +1422,10 @@
+             job = job_get(args.get("job_id"))
+             if not job:
+                 return _text("No such job: %s" % args.get("job_id")), True
++            if job["status"] == "queued":
++                return _text("Job %s queued (created %s): %d job(s) ahead of it. "
++                             "One runs at a time; its time limit starts when it runs."
++                             % (job["id"], job["created_ts"], jobs_ahead(job))), False
+             if job["status"] == "running":
+                 return _text("Job %s still running (started %s)."
+                              % (job["id"], job["created_ts"])), False
+@@ -1469,6 +1782,11 @@
+                     cfg_set(_k, body[_k])
+             if "cache_enabled" in body:
+                 cfg_set("cache_enabled", "1" if body["cache_enabled"] else "0")
++            for _k in VB_CONFIG:
++                if _k in body:
++                    _ok, _why = vb_config_set(_k, body[_k])
++                    if not _ok:
++                        return self._send({"ok": False, "error": _why}, 400)
+             return self._send({"ok": True})
+         if path == "/api/cache":
+             if body.get("clear"):
+@@ -1933,7 +2251,7 @@
+   document.getElementById('jobsCard').style.display = jobs.length? '' : 'none';
+   el.innerHTML = jobs.map(x=>'<tr>'+
+     '<td class="mono">'+esc(x.id)+'</td>'+
+-    '<td>'+(x.status==='running'?'<span class="lvl WARN">running</span>':(x.status==='error'?'<span class="lvl ERROR">error</span>':'<span class="lvl INFO">done</span>'))+'</td>'+
++    '<td>'+(x.status==='running'||x.status==='queued'?'<span class="lvl WARN">'+x.status+'</span>':(x.status==='error'?'<span class="lvl ERROR">error</span>':'<span class="lvl INFO">done</span>'))+'</td>'+
+     '<td class="mono">'+esc(x.model||'auto')+'</td>'+
+     '<td>'+esc(x.task_type||'-')+'</td>'+
+     '<td class="muted">'+esc(fmtTime(x.created_ts))+'</td>'+
+@@ -1973,12 +2291,74 @@
+     print('  "%s" "%s"' % (sys.executable or "python", os.path.abspath(__file__)))
+ 
+ 
++VB_CONFIG = {
++    "think_default": ("", "think when a call does not say: '' (Ollama's default), "
++                          "true, false, low, medium or high"),
++    "options": ("", "default Ollama options, a JSON object, e.g. {\"temperature\": 0.2}"),
++    "num_ctx_auto": ("1", "1: size the window for a model whose own context is very large; 0: never"),
++    "num_ctx_auto_above": ("32768", "a model's own context above this counts as very large"),
++    "num_ctx_floor": ("8192", "the smallest window num_ctx_auto chooses"),
++    "num_ctx_reserve": ("4096", "room left to answer, in tokens, when num_predict is not set"),
++    "max_parallel": ("1", "generate calls at once (read when the server starts)"),
++    "generate_timeout": ("600", "seconds one generate call may take once it starts"),
++}
++
++
++def vb_config_set(key, value):
++    """Check and store one vb.1 setting: (ok, why)."""
++    v = "" if value is None else str(value).strip()
++    if key == "think_default":
++        try:
++            parse_think(v)
++        except ValueError as e:
++            return False, str(e)
++    elif key == "options":
++        if v:
++            try:
++                if not isinstance(json.loads(v), dict):
++                    raise ValueError
++            except ValueError:
++                return False, "options must be a JSON object"
++    elif key == "num_ctx_auto":
++        if v not in ("0", "1"):
++            return False, "num_ctx_auto must be 0 or 1"
++    elif key in VB_CONFIG:
++        try:
++            if int(v) < 1:
++                raise ValueError
++        except ValueError:
++            return False, "%s must be a whole number above 0" % key
++    else:
++        return False, "unknown setting %s" % key
++    cfg_set(key, v)
++    log_event("INFO", "cli", "config", message="%s = %s" % (key, v or "(unset)"))
++    return True, ""
++
++
++def config_cli(rest):
++    if not rest:
++        for k, (dflt, what) in VB_CONFIG.items():
++            print("%-18s %-10s %s" % (k, cfg_get(k, dflt) or "''", what))
++        return 0
++    if rest[0] not in VB_CONFIG:
++        print("unknown setting %s; known: %s" % (rest[0], ", ".join(VB_CONFIG)))
++        return 2
++    if len(rest) == 1:
++        print(cfg_get(rest[0], VB_CONFIG[rest[0]][0]))
++        return 0
++    ok, why = vb_config_set(rest[0], " ".join(rest[1:]))
++    print("%s = %s" % (rest[0], cfg_get(rest[0])) if ok else why)
++    return 0 if ok else 1
++
++
+ def main():
+     p = argparse.ArgumentParser(
+         description="Llama Bridge - delegate small tasks from Claude to local Ollama.")
+     p.add_argument("mode", nargs="?", default="gui",
+-                   choices=["gui", "mcp", "install"],
+-                   help="gui (default), mcp (stdio server), or install (print config)")
++                   choices=["gui", "mcp", "install", "config"],
++                   help="gui (default), mcp (stdio server), install (print config), "
++                        "or config [KEY [VALUE]] (vb.1: show or set a setting)")
++    p.add_argument("rest", nargs="*", help="for config: KEY and VALUE")
+     p.add_argument("--port", type=int, default=DEFAULT_PORT, help="dashboard port")
+     p.add_argument("--ollama-host", default=None, help="override Ollama base URL")
+     p.add_argument("--db", default=None, help="path to the log database")
+@@ -1991,6 +2371,9 @@
+         CFG["ollama"] = args.ollama_host.rstrip("/")
+     CFG["port"] = args.port
+ 
++    if args.mode == "config":
++        init_db()
++        raise SystemExit(config_cli(args.rest))
+     if args.mode == "install":
+         print_install()
+     elif args.mode == "mcp":

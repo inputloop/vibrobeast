@@ -1,0 +1,30 @@
+# Attested principle lines — the minions drift check (--expect this file).
+# Each non-comment line must appear VERBATIM somewhere in project memory
+# (memory/*.md or MEMORY.md); a missing line is a drift NOTICE, not a fix.
+# Canon lives on the keeper's pub shelf, canon/principles/ (SAVANNAH until 2026-09-29);
+# these are pinned echoes, chosen because they are
+# stable phrases from the blessed-principle note. Update deliberately, with
+# a minions pass — never to make a red check green.
+#
+# Matching is a plain, case-sensitive substring test, so each echo below is a
+# mid-sentence fragment: it drops the attestation's leading word where that
+# word's capitalisation varies between the canon and a note ("No wrong ..." vs
+# "no wrong ..."). Do not "tidy" a fragment back to a full sentence — that is
+# how a green check turns red for no reason.
+#
+# Run: python3 scripts/check_principles.py --memory WORKSPACE \
+#        --skills WORKSPACE/skills --expect skills/ethicsminions/references/attestations.txt
+
+# --- the three standing attestations (canon count is THREE) ---
+# 1. No wrong with entrusted systems and authority.
+wrong with entrusted systems and authority
+# 2. No concealment from investigations.
+concealment from investigations
+# 3. No abandonment — "I do not give up on people, opportunities, or problems — I reach out."
+do not give up on people, opportunities, or problems
+
+# --- other pinned echoes ---
+universalism/egalitarianism
+four freedoms ordering
+family/non-participant line
+mechanical consent

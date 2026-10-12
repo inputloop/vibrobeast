@@ -1,0 +1,26 @@
+# expected.tsv --- the oracle. Per oracle-transfers, the reusable asset is the fixtures and their
+# expected counts, NOT gauge.sh: rewrite the tool in any language and it must still produce these
+# numbers from these three documents.
+#
+# Two kinds of check ride on this file and they catch different things:
+#   COUNTS       exact num/den/ratio per doc per gauge -- catches a regression in any pattern.
+#   ORDERING     jacket >= middling >= rebuilt on every gauge -- catches a change that keeps the
+#                numbers stable-looking but destroys the gauge's power to discriminate. A gauge
+#                whose ordering collapses is decoration, even if its counts still "pass".
+#
+# The three fixtures are deliberately spread: jacket affords nothing (every denominator 0, so
+# every ratio is INF), rebuilt affords plenty, and middling exists so the DIVISION path and the
+# numeric DELTA path are actually exercised -- with only the two extremes, ratio() never divides.
+doc	gauge	num	den	ratio
+jacket	framework-per-affordance	23	0	INF
+jacket	claim-per-citation	15	0	INF
+jacket	believed-per-observed	5	0	INF
+jacket	unwitnessed-claim	3	0	INF
+middling	framework-per-affordance	7	6	1.17
+middling	claim-per-citation	7	3	2.33
+middling	believed-per-observed	2	3	0.67
+middling	unwitnessed-claim	2	1	2.00
+rebuilt	framework-per-affordance	0	18	0.00
+rebuilt	claim-per-citation	1	9	0.11
+rebuilt	believed-per-observed	0	9	0.00
+rebuilt	unwitnessed-claim	0	9	0.00

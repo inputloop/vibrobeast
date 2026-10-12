@@ -1,0 +1,116 @@
+#!/bin/sh
+# rc1rn -- RUNCARD 1 RUN: run a card one safe step at a time, on the machine it is meant for.
+#
+# Copyright (C) 2026 Corwin Brust <corwin@bru.st>.  Authored by Mentat (for Corwin).
+# This program is free software: you can redistribute it and/or modify it under the terms of the
+# GNU General Public License as published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.  See <https://www.gnu.org/licenses/>.
+# SPDX-License-Identifier: GPL-3.0-or-later
+# ##  PROVISIONAL name (R RUNCARD · C CARD · 1 run-level: it runs what the card says · R RUN · N NEXT) ##
+#
+# WHY (c4/h/RESEARCH-2026-09-25-run-cards.md): cards failed where they ASSERTED the machine instead
+# of observing it, where a step was not safe to run twice and nothing kept the place, where scope
+# grew, where paste mangled a command, and where the result never came home. This runner fixes each:
+#   - FACTS are probed on the driver's machine and shown FIRST; a NEED that does not hold stops the
+#     run with what was seen and what was needed.
+#   - every STEP has a DONE test that runs before it; a done step is skipped, so running again is
+#     always safe, and `status` shows exactly where you are.
+#   - nothing is pasted: the card is a file this runner sources.
+#   - every run appends a RECEIPT to <card>.log beside the card, so the author reads what happened.
+#
+# usage:  rc1rn CARD.rc            status: the facts, then every step as [x] done / [>] next / [ ] later
+#         rc1rn CARD.rc next       run the next step that is not done (asks first if the step says so)
+#         rc1rn CARD.rc run        keep running `next` until every step is done or one stops
+#         rc1rn CARD.rc log        the receipt log
+#         rc1rn --help
+# exit: 0 ok (status printed, or a step done, or all done) · 1 a step stopped (failed, need not met,
+#       declined, or ran but its DONE test still fails) · 2 usage / no such card
+#
+# A CARD is a POSIX sh file that sets and defines (only CARD and STEPS are required):
+#   CARD='RUNCARD-...'          PURPOSE='one sentence'        WORKDIR=/f/...   (cd here for every step)
+#   facts() { fact 'label' "value"; need 'label' "have" "want"; }    shown first, every time
+#   STEPS='one two three'
+#   one_about='what this step does, in plain words'
+#   one_done() { ...exit 0 when this step's effect is already true... }
+#   one_run()  { ...the commands... }
+#   one_confirm='a question to answer yes to, for anything that cannot be undone'   (optional)
+set -u
+me=rc1rn
+die() { printf '%s: %s\n' "$me" "$*" >&2; exit 2; }
+case ${1:-} in -h|--help|'') sed -n '2,38p' "$0" | sed 's/^# \{0,1\}//'; [ -n "${1:-}" ] && exit 0; exit 2 ;; esac
+CARDFILE=$1; MODE=${2:-status}
+[ -f "$CARDFILE" ] || die "no such card: $CARDFILE"
+case $CARDFILE in /*) ;; *) CARDFILE=$(CDPATH= cd -- "$(dirname -- "$CARDFILE")" && pwd)/$(basename -- "$CARDFILE") ;; esac
+LOG=${RC_LOG:-${CARDFILE%.*}.log}
+CARD=''; PURPOSE=''; WORKDIR=''; STEPS=''; RAN=' '
+facts() { :; }
+NEEDFAIL=0
+fact() { printf '  %-28s %s\n' "$1" "$2"; }
+need() { if [ "$2" = "$3" ]; then printf '  %-28s %s\n' "$1" "$2"
+         else printf '  %-28s %s   STOP: needed %s\n' "$1" "$2" "$3"; NEEDFAIL=1; fi; }
+. "$CARDFILE" || die "the card did not load: $CARDFILE"
+[ -n "$CARD" ] && [ -n "$STEPS" ] || die "a card sets CARD and STEPS"
+stamp() { date -u +%Y-%m-%dT%H:%M:%SZ; }
+say_log() { printf '%s %s\n' "$(stamp)" "$*" >> "$LOG" 2>/dev/null || :; }
+# 2026-09-25: a run that stopped at the facts or at a yes-question left NO line in the log, so the
+# author could not tell where it ended. Every invocation, every question and its answer, and an
+# interrupt are now written down.
+AT='(before any step)'
+trap 'say_log "INTERRUPTED at $AT"; printf "\ninterrupted -- noted in %s\n" "$LOG"; exit 130' INT TERM
+inwd() { if [ -n "$WORKDIR" ]; then cd "$WORKDIR" 2>/dev/null || return 3; fi; }
+isdone() ( inwd || exit 3; "${1}_done" >/dev/null 2>&1 )
+about() { eval "printf '%s' \"\${${1}_about:-}\""; }
+confirmq() { eval "printf '%s' \"\${${1}_confirm:-}\""; }
+show_facts() {
+  printf '== %s ==\n' "$CARD"; [ -n "$PURPOSE" ] && printf '%s\n' "$PURPOSE"
+  printf -- '-- what this machine shows (read first) --\n'
+  NEEDFAIL=0
+  if [ -n "$WORKDIR" ] && [ ! -d "$WORKDIR" ]; then printf '  %-28s %s   STOP: no such folder on this machine\n' workdir "$WORKDIR"; NEEDFAIL=1
+  else ( inwd; facts ) > "${TMPDIR:-/tmp}/rc1rn.$$" 2>&1; cat "${TMPDIR:-/tmp}/rc1rn.$$"
+       grep -q '   STOP: ' "${TMPDIR:-/tmp}/rc1rn.$$" && NEEDFAIL=1; rm -f "${TMPDIR:-/tmp}/rc1rn.$$"; fi
+}
+first_todo() { for s in $STEPS; do isdone "$s" || { printf '%s' "$s"; return 0; }; done; return 1; }
+show_steps() {
+  printf -- '-- steps --\n'; nxt=$(first_todo) || nxt=''
+  for s in $STEPS; do
+    if isdone "$s"; then m='[x]'; elif [ "$s" = "$nxt" ]; then m='[>]'; else m='[ ]'; fi
+    printf '  %s %-10s %s\n' "$m" "$s" "$(about "$s")"
+  done
+  if [ -z "$nxt" ]; then printf 'ALL DONE.\n'; else printf 'next: sh %s %s next\n' "$0" "$CARDFILE"; fi
+}
+do_next() {
+  show_facts
+  [ "$NEEDFAIL" = 0 ] || { printf 'STOPPED before any step: a line above says STOP. Nothing was run.\n'; say_log "STOP need-not-met"; return 1; }
+  s=$(first_todo) || { printf 'ALL DONE. Nothing to run.\n'; say_log "ALL-DONE"; return 0; }
+  case $RAN in *" $s "*)   # 2026-09-28: a card whose last step undid its first looped under `run`,
+    # re-asking two hosts 160 times each in 150 seconds. One `run` runs each step at most once.
+    printf 'STOPPED: step %s would run a second time in this run -- a later step undid it. That is the card being wrong, not you. Nothing more was run.\n' "$s"
+    say_log "$s WOULD-RUN-TWICE"; return 1 ;; esac
+  AT="$s (asking)"
+  printf -- '-- step %s: %s --\n' "$s" "$(about "$s")"
+  q=$(confirmq "$s")
+  if [ -n "$q" ]; then
+    printf '%s\nType yes to go on (anything else stops, nothing is run): ' "$q"
+    say_log "$s ASKED"
+    read -r ans || ans=''
+    [ "$ans" = yes ] || { printf 'Not run. Nothing changed.\n'; say_log "$s DECLINED (answer: ${ans:-nothing})"; return 1; }
+    say_log "$s CONFIRMED"
+  fi
+  AT="$s (running)"; say_log "$s START"
+  rcf="${TMPDIR:-/tmp}/rc1rn.rc.$$"
+  { ( inwd || { echo "cannot cd to $WORKDIR"; exit 3; }; "${s}_run" ); echo $? > "$rcf"; } 2>&1 | tee -a "$LOG" 2>/dev/null
+  rc=$(cat "$rcf" 2>/dev/null || echo 9); rm -f "$rcf"
+  if [ "$rc" != 0 ]; then printf 'STOPPED: step %s failed (exit %s). The receipt is in %s.\n' "$s" "$rc" "$LOG"; say_log "$s FAILED exit=$rc"; return 1; fi
+  RAN="$RAN$s "
+  if isdone "$s"; then printf 'DONE: %s\n' "$s"; say_log "$s DONE"
+  else printf 'STOPPED: step %s ran without error, but its done-test still says not done. Tell whoever wrote the card: that is the card being wrong, not you.\n' "$s"; say_log "$s RAN-NOT-DONE"; return 1; fi
+  return 0
+}
+say_log "OPEN $MODE ($(uname -s 2>/dev/null) $(id -un 2>/dev/null))"
+case $MODE in
+  status) show_facts; show_steps; exit 0 ;;
+  next) do_next; r=$?; show_steps; exit $r ;;
+  run) while :; do do_next || { show_steps; exit 1; }; first_todo >/dev/null || { show_steps; exit 0; }; done ;;
+  log) [ -f "$LOG" ] && cat "$LOG" || echo "no receipts yet ($LOG)"; exit 0 ;;
+  *) die "unknown mode $MODE (status, next, run, log)" ;;
+esac

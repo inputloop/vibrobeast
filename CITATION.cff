@@ -1,0 +1,16 @@
+cff-version: 1.2.0
+message: "If you use or describe vibrobeast, please cite it as below."
+title: "vibrobeast"
+abstract: "A memory Claude keeps on your own computer, in plain files, with skills, persona sheets and shared rooms for people and agents."
+type: software
+authors:
+  - family-names: Brust
+    given-names: Corwin
+    email: corwin@bru.st
+  - family-names: Frankford
+    given-names: Bryant
+license: GPL-3.0-or-later
+repository-code: "https://github.com/inputloop/vibrobeast"
+url: "https://vibrobeast.bru.st"
+version: "1.1.9"
+date-released: "2026-10-12"

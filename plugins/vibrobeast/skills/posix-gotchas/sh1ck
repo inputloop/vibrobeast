@@ -1,0 +1,235 @@
+#!/bin/sh
+# sh1ck -- SHELL 1 CHECK. Find the POSIX-sh footguns that a normal test run cannot see, and do it
+#          without crying wolf on the embedded awk that every tool in this shop is made of.
+#
+# Copyright 2026 Corwin Brust <corwin@bru.st>.  GPLv3 or later.
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
+# This file is part of vibrobeast.  vibrobeast is free software: you can redistribute it and/or
+# modify it under the terms of the GNU General Public License as published by the Free Software
+# Foundation, either version 3 of the License, or (at your option) any later version.  It is
+# distributed WITHOUT ANY WARRANTY; see <https://www.gnu.org/licenses/>.
+#
+# ---------------------------------------------------------------------------------------------
+# WHY THIS EXISTS. Prototype for the `posix` skill's ENHANCE (queue Q5, "the gotchas ledger").
+# Measured 2026-09-07 against four freshly written POSIX tools (h/dt1js, h/tf1gr, h/sp1wv,
+# h/sg1pl): the skill's current tool.py reported **14 findings, all 14 false positives** -- every
+# one inside an embedded awk program -- and caught **none** of the three real bugs that were
+# actually in the code, one of which is Q5's own named example.
+#
+# So this checks two things at once:
+#   (a) the three footguns, and
+#   (b) the suppression that makes (a) readable -- because a checker with a 100% false-positive
+#       rate is worse than no checker: it teaches the author to skim past it.
+#
+# THE THREE FOOTGUNS, all three seen in one session by someone who knew better:
+#
+#   FN-COLLIDE   POSIX sh has NO local variables. A name assigned inside a function is the SAME
+#                name as the caller's. `got` was a digest inside pull_one and an integer counter
+#                outside it; a 64-char hex landed in the counter and $((got+dropped)) died with
+#                "Illegal number". Silent until arithmetic touches it.
+#
+#   PIPE-STATUS  POSIX sh has NO `pipefail`. `awk ... | sort` reports SORT's status, so a refusal
+#                inside awk is swallowed and `set -e` never fires. tf1gr's own --prove-red
+#                reported PASS while the tool was accepting input it had just refused.
+#
+#   GREP-C-ZERO  `grep -c PAT F || echo 0` prints TWO lines on no match (grep -c prints its own
+#                "0" and exits 1), so `[ "$(...)" -eq 0 ]` sees "0\n0" -> "Illegal number".
+#                Q5's original entry. Use n=$(grep -c ...); n=${n:-0}  -- or count with wc -l.
+#
+# usage: sh1ck FILE...        report findings, one per line
+#        sh1ck --prove-red    each check must fire on a planted bug and stay quiet on clean code
+#
+# exit 0 no findings (or --prove-red passed) · 1 findings reported · 2 usage
+set -eu
+
+usage() { echo "usage: sh1ck FILE... | sh1ck --prove-red" >&2; exit 2; }
+
+scan() {
+	awk -v FNAME="$1" '
+	# -----------------------------------------------------------------------------------------
+	# SUPPRESSION FIRST. Everything below only looks at SHELL. A single-quoted block that opens
+	# and does not close on the same line is an embedded program (awk, sed, perl); a <<EOF or
+	# <<-EOF opens a heredoc. Both are other languages, and linting them as shell is exactly the
+	# noise that got the previous checker ignored.
+	function shell_only(line,   n) {
+		if (inheredoc) { if (line ~ heredoc_end) inheredoc = 0; return "" }
+		# A WHOLE-LINE COMMENT IS NOT SHELL, and must be dropped BEFORE quote analysis. An
+		# apostrophe in prose -- "P\x27s col3", "the caller\x27s name" -- otherwise opens a
+		# phantom single-quoted region that swallows every following line until the next
+		# apostrophe. That is not hypothetical: it hid the real FN-COLLIDE in sg1pl (whose
+		# header says "P\x27s col3"), and the identical mistake in THIS file\x27s own comment
+		# terminated the awk block and made it unparseable. Same root cause, twice, in an hour.
+		if (line ~ /^[ \t]*#/) return ""
+		if (inquote)   { n = index(line, "\x27"); if (n) { inquote = 0; return substr(line, n+1) } return "" }
+		if (match(line, /<<-?[ \t]*[\x27"]?[A-Za-z_][A-Za-z0-9_]*/)) {
+			heredoc_end = substr(line, RSTART, RLENGTH)
+			gsub(/^<<-?[ \t]*[\x27"]?/, "", heredoc_end)
+			heredoc_end = "^[ \t]*" heredoc_end "[ \t]*$"
+			inheredoc = 1
+			return substr(line, 1, RSTART - 1)
+		}
+		# an odd number of single quotes means one is still open at end of line
+		n = gsub(/\x27/, "\x27", line)
+		if (n % 2) { inquote = 1; sub(/\x27[^\x27]*$/, "", line) }
+		return line
+	}
+	function strip(line) { sub(/#.*$/, "", line); return line }
+
+	BEGIN { depth = 0 }
+	{
+		raw = $0
+		s = shell_only(raw)
+		if (s == "") next
+		s = strip(s)
+
+		# ---- track shell function bodies (name() { ... }) -----------------------------------
+		# Do NOT `next` here. A one-line body -- f() { got=$(...); } -- carries its assignment
+		# on the SAME line as the opener, and skipping the line missed exactly the collision
+		# this checker exists to find. Take the opener off and keep scanning the remainder.
+		if (s ~ /^[ \t]*[A-Za-z_][A-Za-z0-9_]*[ \t]*\([ \t]*\)[ \t]*\{/) {
+			fn = s; sub(/[ \t]*\(.*/, "", fn); gsub(/^[ \t]+/, "", fn)
+			# NESTED FUNCTIONS ARE NORMAL HERE. Corwin: a sub-shell or function boundary is
+			# C4\x27s efficient wrapping for places where assignment happens after the first
+			# rollout -- so a helper defined inside another function is idiom, not accident.
+			# Keep a stack; closing the inner one must not forget the outer.
+			fstack[++fdepth] = infn; dstack[fdepth] = depth
+			infn = fn
+			sub(/^[^{]*\{/, "", s)
+			depth = 1
+		}
+		if (infn != "") {
+			depth += gsub(/\{/, "{", s)
+			depth -= gsub(/\}/, "}", s)
+		}
+
+		# ---- collect assignments, inside vs outside ------------------------------------------
+		# ONLY at the head of a simple command. `awk -v b="$x"` and a `b=path` ARGUMENT are not
+		# shell assignments, and treating any word=value as one gave this checker its own false
+		# positives on the first real run. Split the line into commands and look only at heads.
+		# (A `VAR=x cmd` prefix is deliberately excluded too: in POSIX it does not persist, so
+		# it cannot collide with a name in the caller.)
+		nseg = split(s, seg, /;|&&|\|\||\|/)
+		for (q = 1; q <= nseg; q++) {
+			t2 = seg[q]
+			gsub(/^[ \t]*(then|do|else|\{|\()?[ \t]*/, "", t2)
+			if (match(t2, /^[A-Za-z_][A-Za-z0-9_]*=/)) {
+				v = substr(t2, RSTART, RLENGTH - 1)
+				if (infn != "") {
+					inside[v] = inside[v] (inside[v] ? "," : "") infn ":" FNR
+					# a STRING out of a command is the half that bites
+					# $( but NOT $(( -- arithmetic expansion is not command substitution, and
+					# conflating them kept every `fail=$((fail+1))` harness line in the report.
+					if (t2 ~ /=[^=]*\$\([^(]/) fromcmd[v] = FNR
+				}
+				else            { outside[v] = outside[v] ? outside[v] : FNR }
+			}
+		}
+		# ---- does the TOP LEVEL treat this name as a NUMBER? --------------------------------
+		# Narrowing found by running on 167 real shop files: the broad "assigned in both scopes"
+		# rule produced 66 hits, almost all of them the DELIBERATE harness idiom
+		#   pass=0; ok() { pass=$((pass+1)); }
+		# A function setting a global on purpose is not a bug, and reporting it is the same
+		# noise that got the previous linter ignored. What actually bites is narrower: a
+		# COMMAND SUBSTITUTION lands in a name the top level does arithmetic on.
+		if (infn == "") {
+			if (match(s, /\$\(\([^)]*\)\)/)) { a = substr(s, RSTART, RLENGTH)
+				while (match(a, /[A-Za-z_][A-Za-z0-9_]*/)) {
+					arith[substr(a, RSTART, RLENGTH)] = FNR; a = substr(a, RSTART + RLENGTH) } }
+			if (s ~ /-(eq|ne|lt|gt|le|ge)[ \t]/) { a = s
+				while (match(a, /\$\{?[A-Za-z_][A-Za-z0-9_]*/)) {
+					w = substr(a, RSTART, RLENGTH); gsub(/[^A-Za-z0-9_]/, "", w)
+					arith[w] = FNR; a = substr(a, RSTART + RLENGTH) } } }
+		if (infn != "" && depth <= 0) {
+			infn = fdepth > 0 ? fstack[fdepth] : ""
+			depth = fdepth > 0 ? dstack[fdepth] : 0
+			if (fdepth > 0) fdepth--
+		}
+
+		# ---- PIPE-STATUS: a pipeline whose exit status is being consumed ---------------------
+		# Only when the pipeline IS the tested expression. `if have x; then a | b` puts the pipe
+		# in the branch, not the condition -- flagging that was a false positive on run one.
+		nseg2 = split(s, seg2, /;/)
+		for (q = 1; q <= nseg2; q++) {
+			if (seg2[q] ~ /^[ \t]*(if|while|until)[ \t]/ && seg2[q] ~ /\|/ && seg2[q] !~ /\|\|/)
+				finding("PIPE-STATUS", FNR, "the pipeline status is the LAST command only; sh has no pipefail")
+		}
+
+		# ---- GREP-C-ZERO ---------------------------------------------------------------------
+		if (s ~ /grep[^|;]*-[A-Za-z]*c/ && s ~ /\|\|[ \t]*echo[ \t]*0/)
+			finding("GREP-C-ZERO", FNR, "grep -c prints 0 AND exits 1 on no match -> two lines -> Illegal number")
+	}
+	function finding(code, ln, msg) {
+		printf "%s:%d: [%s] %s\n", FNAME, ln, code, msg
+		hits++
+	}
+	END {
+		for (v in inside) {
+			if ((v in outside) && (v in fromcmd) && (v in arith))
+				printf "%s:%s: [FN-COLLIDE] %s takes a COMMAND-SUBSTITUTION value inside a function, and the top level does arithmetic on it (line %d) -- sh has no locals\n",
+				       FNAME, inside[v], v, arith[v]
+		}
+		exit 0
+	}
+	' "$1"
+}
+
+if [ "${1-}" = "--prove-red" ]; then
+	tmp=$(mktemp -d) || exit 1
+	trap 'rm -rf "$tmp"' EXIT
+	fails=0
+	t() { if [ "$2" = "$3" ]; then printf '  RED OK   %s\n' "$1"
+	      else printf '  RED MISS %s (got %s want %s)\n' "$1" "$2" "$3"; fails=$((fails+1)); fi; }
+
+	# 1. FN-COLLIDE must fire on the exact bug that bit sg1pl
+	cat > "$tmp/collide" <<'XEOF'
+#!/bin/sh
+got=0
+pull() { got=$(sha256sum "$1" | cut -d' ' -f1); printf '%s' "$got"; }
+pull x
+echo $((got + 1))
+XEOF
+	n=$(scan "$tmp/collide" | grep -c 'FN-COLLIDE' || true)
+	t "FN-COLLIDE fires on a function/caller name collision" "$n" "1"
+
+	# 2. PIPE-STATUS must fire where a pipeline's status is consumed
+	printf '#!/bin/sh\nif awk "{print}" f | sort; then echo ok; fi\n' > "$tmp/pipe"
+	n=$(scan "$tmp/pipe" | grep -c 'PIPE-STATUS' || true)
+	t "PIPE-STATUS fires on a consumed pipeline status" "$n" "1"
+
+	# 3. GREP-C-ZERO must fire on Q5's original example
+	printf '#!/bin/sh\nn=$(grep -c foo bar || echo 0)\n[ "$n" -eq 0 ] && echo none\n' > "$tmp/grepc"
+	n=$(scan "$tmp/grepc" | grep -c 'GREP-C-ZERO' || true)
+	t "GREP-C-ZERO fires on Q5's own example" "$n" "1"
+
+	# 4. THE SUPPRESSION. Clean code that embeds awk must produce ZERO findings -- this is the
+	#    check the previous tool failed 14 times out of 14.
+	cat > "$tmp/clean" <<'XEOF'
+#!/bin/sh
+names=x
+esc() { printf '%s' "$1"; }
+awk -v n="$names" '
+	function esc(s,   t) { t = s; gsub(/x/, "y", t); return t }
+	BEGIN { while ((getline line < n) > 0) { c = split(line, a, " "); break } }
+	{ for (i = 1; i <= NF; i++) if ($i == "z") print esc($i) }
+' file
+XEOF
+	n=$(scan "$tmp/clean" | wc -l)
+	t "embedded awk produces ZERO findings (the false-positive fix)" "$n" "0"
+
+	# 5. a heredoc must not be linted either
+	printf '#!/bin/sh\ncat <<EOF\nif a | b; then got=1; fi\nEOF\n' > "$tmp/hd"
+	n=$(scan "$tmp/hd" | wc -l)
+	t "heredoc content is not linted as shell" "$n" "0"
+
+	[ "$fails" -eq 0 ] && { echo "prove-red OK: three checks fire on planted bugs; embedded languages stay quiet"; exit 0; }
+	echo "prove-red FAILED: $fails" >&2; exit 1
+fi
+
+[ $# -gt 0 ] || usage
+found=0
+for f in "$@"; do
+	out=$(scan "$f") || true
+	[ -z "$out" ] || { printf '%s\n' "$out"; found=1; }
+done
+exit "$found"

@@ -1,0 +1,14 @@
+# expected.tsv --- the oracle. Fixtures + verdicts are the reusable asset, not pmnotes.sh.
+#
+# Every verdict the checker can reach appears exactly once, so a change that quietly stops
+# checking a field shows up as one row flipping to OK rather than as a silent pass. The row that
+# earns its keep is UNNAMED-SOURCE: it caught a real parsing bug on first run, where the From:
+# capture ran past the em-dash separator into Would-change: and the case read as OK.
+verdict	seam
+OK	Deploys on Fridays
+OK	one area to start
+GUESS	Throughput is about 40 requests a second (triggers: "throughput", "capacity")
+UNSOURCED	The release cadence is fortnightly (triggers: "cadence", "release")
+UNFALSIFIABLE	Deploys are risky on Fridays (triggers: "Friday", "risk")
+UNNAMED-SOURCE	The retry limit is three (triggers: "retry", "limit")
+NO-TRIGGERS	The build takes about nine minutes
