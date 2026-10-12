@@ -64,6 +64,22 @@ def env_switch(var: str):
     return None
 
 
+def utf8_stdio() -> None:
+    """Speak UTF-8 on stdin and stdout, whatever the platform's default is.
+
+    MCP clients send UTF-8. Python opens stdio in the locale's encoding, which on Windows is
+    usually cp1252, so a text-mode read turned every non-ASCII argument into mojibake before any
+    tool saw it (inputloop/tavern#6: Tavern stored "\u00e9" as "\u00c3\u00a9"). Bad bytes are replaced
+    rather than allowed to stop the loop. Called before the first read; harmless when stdio is
+    already UTF-8, and a stream that cannot be reconfigured is left as it is.
+    """
+    for stream, errors in ((sys.stdin, "replace"), (sys.stdout, "strict")):
+        try:
+            stream.reconfigure(encoding="utf-8", errors=errors)
+        except (AttributeError, ValueError, OSError):
+            pass
+
+
 class ToolError(RuntimeError):
     """A tool refused.  The message is shown to the caller verbatim."""
 
@@ -185,6 +201,8 @@ class Server:
         })
 
     def serve(self, stdin=None, stdout=None) -> None:
+        if stdin is None:
+            utf8_stdio()
         stdin = stdin or sys.stdin
         stdout = stdout or sys.stdout
         for line in stdin:

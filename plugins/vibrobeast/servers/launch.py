@@ -45,6 +45,15 @@ import sys
 # not mint as hostile -- which it cannot do if we leave one lying about.
 sys.dont_write_bytecode = True
 
+# SECOND, before any server reads a line: stdio speaks UTF-8, as MCP clients do. Windows opens it
+# in cp1252, which turned every non-ASCII argument into mojibake (inputloop/tavern#6). This covers
+# every server this file starts, the vendored llama_bridge included, without editing them.
+for _stream, _errors in ((sys.stdin, "replace"), (sys.stdout, "strict")):
+    try:
+        _stream.reconfigure(encoding="utf-8", errors=_errors)
+    except (AttributeError, ValueError, OSError):
+        pass
+
 _HERE = os.path.dirname(os.path.realpath(__file__))
 if _HERE not in sys.path:
     sys.path.insert(0, _HERE)

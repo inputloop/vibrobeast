@@ -15,7 +15,7 @@ de5f94f4d20925363d872ce9850dc3da394e29e317873916204ec9a7d89fb2c7  ./servers/bin/
 f8c399f2e1b39ccfb1ebef896737b64cfd3b626fdc110da375b39a81d732cd23  ./servers/bin/mentcached.pl
 39f99f08c324dec293df567038f04cc2809e8c05ae5a3214c7971108ef932fe4  ./servers/bin/witness-signature.sh
 de1b199f318896662051391e2beef37f62a2c5af53fd81e25df186f23a03e53a  ./servers/launch.cmd
-6e4160157e0c3b7f44a3517eb36c6b962f2f35e517f77a6112244f695a9ee5b0  ./servers/launch.py
+75ed9090b351e9f960d677150f9d41a3ed8e540326c9ddacdf79b970c2cd39c0  ./servers/launch.py
 1d29b8b6796ba176aeed332575f21b31b57e825177f02c6cea62f8b4ef525f6d  ./servers/polygram/__init__.py
 88842fdab07cc1d8014062fd24a347523c2b893caf8d68874e583f109e0af4d0  ./servers/polygram/mcp/NOTICE-llama_bridge
 15dc90d22b531572ea22ff83d5b6bb269cd7a1dda4b2c41a3e3c024cf12ad09f  ./servers/polygram/mcp/NOTICE-tavern
@@ -29,14 +29,14 @@ f4b0acd2bb0244f7f9dcddd201b7beaad94fbddc0913b9b762596dd833593c65  ./servers/poly
 e36fec2ba0f9cf7845d99056553df6573c2b97485a4159f88dfbb950784a1563  ./servers/polygram/mcp/gwicon.js
 35155de24cba0c7808b3650f576c3b716c34b2873f715a296e834434f82c8b63  ./servers/polygram/mcp/gwicon.py
 8a2af7b88c2e98f7eb7915baf814f8165fb9061fb4867577dffd3d6bd70d2074  ./servers/polygram/mcp/gwstatus.py
-6e339d887a1134406b2b379edd96e38bbe0e65920633430c15887e06281cca75  ./servers/polygram/mcp/hub.py
+7d251770389294b9a85a4b5fb1f490767dc350d9ac2982e02e0d1689865bde2a  ./servers/polygram/mcp/hub.py
 2f796c915fe96c0fda1676fb99d11b2e6c29749edb14ef6447c9926f6ee987c7  ./servers/polygram/mcp/llama_bridge.py
 bdcf4cfe609c84bd1cab202a43cb91502f7a1512ba872222043eafa167770a9d  ./servers/polygram/mcp/llamabridge.py
 276b32f966bb074d667f39b892c90ff5e50b42f54870828366849cb4f835c936  ./servers/polygram/mcp/mentcached.py
 6a8f64b9bb26d1dd568aa05d6e9dac467d524ff921f6f9efe237d14cdbb17c55  ./servers/polygram/mcp/metrics.py
 fd5faa00403d6889196e59f98fdca32cb8aa6c2a22476a8ea00a4b9ea33e085f  ./servers/polygram/mcp/persona.py
 4a9616e8926236d97b96fa608241388a9cc8f98d11308a5aeacdd1edb6a3f51c  ./servers/polygram/mcp/prefs.py
-7be2c6dc0db3565f1893551c9ff91d2089109a3adb206f011c9465ffde6a49e3  ./servers/polygram/mcp/rpc.py
+f4cfd09cd21c53f6bdce3c86157d07b33dd62f2f025fab8f907582961c1073e1  ./servers/polygram/mcp/rpc.py
 2b172220bf01a64689e87b5fe79339f948b07d84b3564e68c9601a333087814b  ./servers/polygram/mcp/seatnote.py
 63eb44fe0fe5bb91e8259f42f00374ef9fbf272e034aef179fe5e94a465e91d4  ./servers/polygram/mcp/shipdate.py
 0455f79fa601230740f8ad2995100a9c8bae367971c62572da46f06a55b03342  ./servers/polygram/mcp/skillx.py

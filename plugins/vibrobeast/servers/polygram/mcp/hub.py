@@ -41,7 +41,7 @@ import threading
 from pathlib import Path
 
 from . import SERVERS
-from .rpc import PROTOCOL_VERSION
+from .rpc import PROTOCOL_VERSION, utf8_stdio
 
 VERSION = "1.0"
 #: Settings-page variables the hub cleans before a server sees them.
@@ -254,6 +254,8 @@ class Hub:
         return {"jsonrpc": "2.0", "id": mid, "error": {"code": -32601, "message": f"method not found: {method}"}}
 
     def serve(self, stdin=None, stdout=None) -> None:
+        if stdin is None:
+            utf8_stdio()   # the Desktop extension's door: its arguments arrive as UTF-8 (tavern#6)
         stdin, stdout = stdin or sys.stdin, stdout or sys.stdout
         lock = threading.Lock()
 
