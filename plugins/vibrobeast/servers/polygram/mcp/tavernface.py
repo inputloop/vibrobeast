@@ -54,12 +54,11 @@ MEANS = ("Turning the Tavern on lets Claude read and post in your Tavern rooms a
          "machine of that Tavern; treat it as public to the members.")
 #: Which Tavern this is, said in every tavern_status answer (QA1 row 18): the shop also builds a
 #: patched one, and a person should not think they have it.
-CARRIES = ("This plugin carries Bryant's stock Tavern 2.3.1, byte for byte as he published it. It "
-           "does not have the garden-pony changes: no tool registry (tavern_tools), and no marking "
-           "of receipt lines an agent typed itself (\"typed by the agent, not a Tavern receipt\"). "
-           "That patched build, 2.3.1+gp.1, is offered to Bryant as patches; it lives in "
-           "projects/garden-pony on the author's machine now, and will be at "
-           "github.com/inputloop/tavern once published.")
+CARRIES = ("This plugin carries Bryant's stock Tavern 2.3.1, byte for byte as he published it. When "
+           "the Tavern on this computer runs the garden-pony build (2.3.1+gp.N, github.com/inputloop/"
+           "tavern), the plugin speaks through that Tavern's own tavern.py instead, so Claude gets the "
+           "same tools the room has (the tool registry, tavern_tools, among them); the preference "
+           "tavern.face=bundled keeps the stock copy.")
 HOW_ON = ("Ask Claude: \"turn the Tavern on\". Claude sets the preference tavern.on to on with the "
           "plugin's pref_set tool; then restart Claude (or the vibrobeast plugin). Nothing to edit "
           "by hand. To turn it off again, ask Claude to set tavern.on to off.")
@@ -86,7 +85,7 @@ ROADS_STOCK = ("Wire acts go direct (by recipe), not through a Tavern room. The 
                "which this Tavern does not run: the room road for Wire acts, the tool registry "
                "(tavern_tools), Tavern-written receipts, board-claimed local-model jobs and Tavern drops "
                "as a road for files.")
-ROADS_GP = ("This Tavern runs gp.1 (garden-pony), so the tool registry and Tavern-written receipts are "
+ROADS_GP = ("This Tavern runs the garden-pony build, so the tool registry and Tavern-written receipts are "
             "there. Wire acts still go direct (by recipe): the room road for Wire acts, board-claimed "
             "local-model jobs and drops as a road wait for a later edition of this plugin, which will "
             "need gp.1 for them.")
@@ -170,10 +169,10 @@ def build_of(data) -> str:
         return "stock 2.3.1 (Bryant's bytes, pinned)"
     m = re.search(rb'^VERSION = "([^"]+)"', b, re.M)
     ver = m.group(1).decode("ascii", "replace") if m else ""
-    if "gp.1" in ver:
+    if "+gp." in ver:     # any garden-pony build (gp.1, gp.8, ...); "gp.1" alone missed gp.2 and later
         return ver + " (the garden-pony build)"
     if ver:
-        return ver + " (not the pinned stock bytes, not gp.1)"
+        return ver + " (not the pinned stock bytes, not garden-pony)"
     return "not known: tavern.py has no VERSION line"
 
 
@@ -265,9 +264,36 @@ def status() -> dict:
     say = (("Tavern \u201c%s\u201d, at %s" % (name, where)) if name else ("an unnamed Tavern, at " + where))
     say += ". Build: %s. Claude would join it as %s (%s)." % (bld, who, who_from)
     return {"state": "ON", "say": say, "tavern": name, "build": bld,
-            "roads": ROADS_GP if "gp.1" in bld else ROADS_STOCK, "carries": CARRIES,
+            "roads": ROADS_GP if "garden-pony" in bld else ROADS_STOCK, "carries": CARRIES,
+            "face": face_of(f["dir"])[1],
             "data": str(f["dir"]), "found_by": f["from"], "running": f["running"],
             "as": who, "as_from": who_from}
+
+
+def face_of(data):
+    """Which tavern.py speaks for Claude, and that in words (inputloop/tavern#8). The Tavern's own, when the
+    tavern.py beside the data folder is a garden-pony build: then Claude's tools are the room's tools
+    (tavern_tools, error ids, tavern-wide limits). Otherwise, or with the preference tavern.face=bundled,
+    the stock 2.3.1 this plugin carries. Returns (path or None, words)."""
+    if _pref("tavern.face").lower() == "bundled":
+        return None, "the stock 2.3.1 this plugin carries (preference tavern.face=bundled)"
+    bld = build_of(data)
+    if data is not None and "garden-pony" in bld:
+        py = Path(data).parent / "tavern.py"
+        import hashlib
+        return py, "this Tavern's own tavern.py, %s, sha256 %s" % (bld.split(" (")[0],
+                                                                     hashlib.sha256(py.read_bytes()).hexdigest()[:16])
+    return None, "the stock 2.3.1 this plugin carries (this Tavern is %s)" % bld
+
+
+def _load_face(py):
+    """Import a Tavern's own tavern.py by path, under a name of its own, writing no bytecode beside it."""
+    import importlib.util
+    sys.dont_write_bytecode = True
+    spec = importlib.util.spec_from_file_location("tavern_local_face", str(py))
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
 
 
 def build():
@@ -291,9 +317,12 @@ def main(argv=None) -> int:
     if st["state"] != "ON":
         build().serve()
         return 0
-    from . import tavern_upstream
-    return int(tavern_upstream.main(["mcp", "--as", st["as"], "--model", "claude",
-                                     "--data", st["data"]] + argv) or 0)
+    py, _words = face_of(st["data"])
+    if py is not None:
+        face = _load_face(py)
+    else:
+        from . import tavern_upstream as face
+    return int(face.main(["mcp", "--as", st["as"], "--model", "claude", "--data", st["data"]] + argv) or 0)
 
 
 if __name__ == "__main__":

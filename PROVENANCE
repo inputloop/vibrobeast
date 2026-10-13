@@ -1,6 +1,7 @@
 version	1.1.9
 built	2026-10-12
 source	919a770+uncommitted
+changed	pull request fix/stdio-utf8 (inputloop/tavern#6): plugins/vibrobeast/servers/launch.py, polygram/mcp/rpc.py, polygram/mcp/hub.py; and pull request feat/tavern-own-face (inputloop/tavern#8): polygram/mcp/tavernface.py; and pull request feat/sandboxer-git: skills/sandboxer/SKILL.md in both plugins (signatures to be renewed by the keeper; vibrobeast-skills.plugin re-minted by the next build); not yet in source until gh1in carries it
 sha256	281e3bd5efa7a79ebae4d7036ebf700281d7d1fb067870fee83e440707e311df	extension/vibrobeast.mcpb
-sha256	4dc15b60426c14eded71020d14e8f22b5c7109e5f81f3d2352e36fbc6c32b211	plugins/vibrobeast/MANIFEST
+sha256	3e1cc1baae258c9c523357888e11193f55ba66ffde401d40347bd662f8962659	plugins/vibrobeast/MANIFEST
 sha256	77e3cba74fbb796ba7a41c20a15921c2d6832ab0ec0efc0af6e39dfb143218b1	vibrobeast-skills.plugin (as minted; unpacked in plugins/vibrobeast-skills)
