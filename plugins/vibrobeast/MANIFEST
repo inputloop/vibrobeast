@@ -262,8 +262,8 @@ e5a3061026ee1ade92cf8d4e178699c7143cbb0f552c6bd91f73e9132c0fe472  ./skills/run-c
 fae05fddcd8248ee64741e5ad6ac0b5cd3efad4a2ffa64f66b12c13cc204733a  ./skills/run-card/scripts/rc1rn
 e12c05e90e7bfc08e36f368b18c1cef575c9406b9c6bb8eb83d0aa073e4038f4  ./skills/run-card/tests.sh
 cb7fb8c1bbf80f735dbd38b6e2de3f22e4599a7ef46ba798236404d41d6a971b  ./skills/sandboxer/.signature.asc
-e0fa5125ee6273d0cccb839b71e590011f4a24d72005f577e6e6478fb4a3254a  ./skills/sandboxer/.skill-manifest
-cf05d5e3f8be1a7d585957efab76506f8a5975182752a6ec004a6a70633e39f9  ./skills/sandboxer/SKILL.md
+981e021c06c6259e9153e7d0e36de36e6669016cca613162ea12321a2d15edfc  ./skills/sandboxer/.skill-manifest
+d1ff31a5a4bdcc9e46547e1aaeba935ea201f30e99c89b294a8d6ab608d36f34  ./skills/sandboxer/SKILL.md
 75f39503e97716b2775aaf1df3a347bd7343a091a678b9a510acaac6bfec6f09  ./skills/sandboxer/scripts/landing.sh
 b58f26cdab2bdfc6cd0565526b6f421768dd4757645aeaa939f54c2307619032  ./skills/sandboxer/scripts/safe_write.py
 1367532bce54bcc0aa42405785c67da108c00403d70a3d4de5c77a7552617602  ./skills/sandboxer/scripts/sig-fresh.sh

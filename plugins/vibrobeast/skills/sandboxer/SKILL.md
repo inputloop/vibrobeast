@@ -439,6 +439,10 @@ Learned on 2026-10-12, landing pull requests from avalon (inputloop/tavern#10..#
 - **No key on the VM? Land the repository as a bundle.** `git bundle create` makes one file. Stage it,
   hash both sides, `git fetch` it into the workspace clone, and push with the session's own rights. Then
   delete the bundle from his folder.
+- **Never `git worktree prune` in a folder other sessions use.** Each session mounts his folder at its
+  own path, so another session's worktrees look missing from yours, and prune unregisters them; their
+  files stay, orphaned. `git worktree list` showing `prunable` for a path under another session's mount
+  means "not yours", not "gone".
 - **`patch` leaves `FILE.orig`** when a hunk applies with fuzz, and `git add -A` commits it. Read
   `git status --short` before every commit.
 
@@ -506,6 +510,10 @@ Facts about this sandbox that were learned by running into them. Date each; neve
 - **2026-10-12 · a shelved tavern's `tavern.json` holds its join code.** A helper printed two join codes
   with `cat` before it noticed. Read only the fields you need from a data file you did not write.
 
+- **2026-10-12 · `git worktree prune` from one session orphaned another's worktree.** The Sonnet
+  session's `.wt-limits` in `F:\claude\projects\tavern` lost its `.git/worktrees` entry to the Opus
+  session's prunes (its TAVERN-ERATA, section 2a); `.wt-k8` was listed `prunable` from the Opus side
+  while it was live. Rule above.
 ## Memory stores — what a session can and cannot reach
 
 Same discipline as the fingerprints above, pointed at the one tree everyone assumes is simple.
