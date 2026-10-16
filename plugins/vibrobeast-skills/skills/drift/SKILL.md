@@ -39,6 +39,9 @@ one recorded.  Exit 1 on any break, 2 when it could not look.
   entry, a checkpoint line) and pull the page again.  The old edition is kept in `.drift/archive/`
   and the change is a line in `.drift/MUTATIONS`.
 - Say NOT CHECKED for a source that was not read.  Never let silence read as a clean bill.
+- When the page says the work is done, close the prompt's strings (`pg1lv close`, reformat-prompt's
+  glove); when it says bail, `pg1lv bail` with the reason.  `pg1lv drift LEDGER...` gives the line the
+  page cites for each prompt in its window.
 - Put the page's checkpoint line in the hand-back; put its capsule on the wire when a peer should
   see it; let alto carry the one-line notice.
 - The capsule is 7-bit ASCII (the page's pilcrow becomes P, so P1 is the page's first paragraph;

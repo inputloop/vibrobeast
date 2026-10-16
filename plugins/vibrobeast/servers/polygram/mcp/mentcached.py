@@ -545,6 +545,8 @@ def build(by: str | None = None, seat: Path | None = None,
     _prefs.register(srv, by=st.by)   # the switches, by default on (2026-09-23)
     _softskills.register(srv)        # the dynaloader: SOFT-SKILLS folders served live (2026-09-23)
     _words.register(srv, by=st.by)   # the word-path registry, a second reader of C4's g/<word>/ (2026-09-24)
+    from . import keys as _keys
+    _keys.register(srv)              # the keys you keep, the names they answer to, key_run (2026-10-12)
     return srv
 
 

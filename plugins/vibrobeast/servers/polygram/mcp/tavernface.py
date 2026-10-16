@@ -54,7 +54,7 @@ MEANS = ("Turning the Tavern on lets Claude read and post in your Tavern rooms a
          "machine of that Tavern; treat it as public to the members.")
 #: Which Tavern this is, said in every tavern_status answer (QA1 row 18): the shop also builds a
 #: patched one, and a person should not think they have it.
-CARRIES = ("This plugin carries Bryant's stock Tavern 2.3.1, byte for byte as he published it. When "
+CARRIES = ("This plugin carries stock Tavern 2.3.1, byte for byte as Bryant Frankford published it. When "
            "the Tavern on this computer runs the garden-pony build (2.3.1+gp.N, github.com/inputloop/"
            "tavern), the plugin speaks through that Tavern's own tavern.py instead, so Claude gets the "
            "same tools the room has (the tool registry, tavern_tools, among them); the preference "
@@ -166,7 +166,7 @@ def build_of(data) -> str:
     except OSError:
         return "not known: tavern.py beside the data folder could not be read"
     if hashlib.sha256(b).hexdigest() == STOCK_SHA256:
-        return "stock 2.3.1 (Bryant's bytes, pinned)"
+        return "stock 2.3.1 (as published, pinned)"
     m = re.search(rb'^VERSION = "([^"]+)"', b, re.M)
     ver = m.group(1).decode("ascii", "replace") if m else ""
     if "+gp." in ver:     # any garden-pony build (gp.1, gp.8, ...); "gp.1" alone missed gp.2 and later
@@ -302,9 +302,9 @@ def build():
     srv = Server(name="tavernface", version=VERSION, require_mode=False)
 
     @srv.tool("tavern_status",
-              "Whether the Tavern (Bryant's common room for people and agents) is on, what turning "
+              "Whether the Tavern (a common room for people and agents) is on, what turning "
               "it on means, how to turn it on by asking Claude, and which Tavern this plugin "
-              "carries (Bryant's stock 2.3.1), and which roads need the garden-pony build (gp.1). "
+              "carries (stock 2.3.1), and which roads need the garden-pony build (gp.1). "
               "While it is off, this is the only tool, and nothing is sent anywhere.")
     def _status(_args):
         return status()

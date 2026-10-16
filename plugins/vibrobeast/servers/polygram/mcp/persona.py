@@ -62,7 +62,8 @@ VERSION = "0.1.0"
 #: reads citer identity the same way seat_append's does.
 DEFAULT_BY = "claude"
 
-# The refusals.  bin/mt1pl states three in its own words (never creates a sheet,
+# The refusals.  bin/mt1pl states all five (`sh bin/mt1pl --refusals`, since 2026-10-16; tests/test_mcp_persona.py
+# RefusalsParity holds the two copies word for word).  Before that it stated three (never creates a sheet,
 # never edits one, never chooses a persona when no layer declared one); they are
 # 1 and 3 here.  2, 4 and 5 come from the persona-link design
 # (c4/h/PERSONA-LINK-2026-09-13.md).  Where the two overlap and differ, mt1pl
@@ -612,7 +613,7 @@ def ledger(proposed: list | None = None, today: str | None = None) -> dict:
     rb += (f"{Cnt(len(with_section), 'sheet has', 'sheets have')} a \"Whose inverse I carry\" "
            f"section, and the sheets name {cnt(len(edges), 'edge', 'edges')} between them. ")
     if not with_section:
-        rb += "No sheet has that section yet: writing it is persona-writing, which is Corwin's pen. "
+        rb += "No sheet has that section yet: writing it is persona-writing, which is the keeper's own pen. "
     rb += (f"{Cnt(raw_n, 'proposed edge row was', 'proposed edge rows were')} read (raw, before dedupe); "
            f"{cnt(len(prop), 'is a distinct (from, to, claim) edge', 'are distinct (from, to, claim) edges')}, "
            f"between {cnt(pairs_n, 'distinct (from, to) pair', 'distinct (from, to) pairs')}, from "
@@ -622,7 +623,7 @@ def ledger(proposed: list | None = None, today: str | None = None) -> dict:
            f"{Cnt(len(faults), 'fault was', 'faults were')} found. ")
     if diverged:
         rb += (f"{Cnt(len(diverged), 'sheet has', 'sheets have')} a second copy whose bytes differ "
-               f"({', '.join(diverged)}); which copy is the master is Corwin's to say.")
+               f"({', '.join(diverged)}); which copy is the master is the keeper's to say.")
     else:
         rb += "Every second copy of a sheet has the same bytes."
     md += [rb, ""]
@@ -920,7 +921,18 @@ def build(by: str | None = None, root: Path | None = None,
         store_say = ("the generation store is empty -- it is created on the first persona_mutate"
                      if st.mode() == _store.NOTVISIBLE else f"store {st.mode()}")
         n_shelf = sum(1 for r in rows if str(r.get("source", "")).startswith("shelf"))
-        return {"count": len(rows), "personas": rows, "shelf_roots": roots,
+        # 2026-10-14: the threshold switch (prefs KNOWN persona.on_threshold), read here so the key has a
+        # reader.  off: nothing.  propose / draft: the crossings would be named here; the counter that
+        # finds a crossing is not built yet, so until it is this block says so in words rather than
+        # listing nothing in silence.  No value of the switch mints a sheet.
+        on_th = (_prefs.get("persona.on_threshold") or "off").strip().lower() or "off"
+        threshold = {"setting": on_th,
+                     "means": {"off": "no crossing is looked for; sheets are made only at his instruction",
+                               "propose": "a crossing is named here and asked about, in words; nothing is written",
+                               "draft": "a crossing is named here; a draft may go to the holding shelf, marked not-his-instruction, out of the index"}.get(on_th, "unknown value: read as off"),
+                     "crossings": [],
+                     "counter": "not built: the three thresholds (used twice outside a test run; cited twice; shipped through a cut with credit) have no counter yet, so no crossing can be reported" if on_th in ("propose", "draft") else ""}
+        return {"count": len(rows), "personas": rows, "shelf_roots": roots, "threshold": threshold,
                 "shadowed": shadowed, "copies": copies, "drift": drift, "split": split,
                 "store_root": str(st.root),
                 "say": f"{len(rows)} persona(s): {len(rows) - n_shelf} chained, "

@@ -90,8 +90,13 @@ KNOWN: dict[str, tuple[str, str]] = {
     "usage.capture": ("off", "usage capture: off until set to on; when on, span_start writes the token count at start and each new prompt writes the count after it, as rows in the frame (~/.mentcached/stats/fr; FRAME.md, beside this README, says each column in words). Those start and prompt rows hold two counts and a date, nothing else: no labels, no notes, no content. While it is on, the frame also mirrors each preference you set (key and value) and each question logged with question_log (its words); PRIVACY.md lists all of it. What the AI vendor sees is unchanged: the counts are ones the model already reports"),
     "tone.dial": ("0/0, 0/0", "tone: where the voice sits on two axes, answer length and narration, as signals seen / signals total on each; the default is the origin (no signals yet), which is plain voice"),
     "tone.show": ("words", "tone: how the tone reading is shown to you: words (a plain sentence, no numbers) or numbers"),
+    "persona.on_threshold": ("off", "persona: what happens when someone crosses a threshold (used twice outside a test run; cited twice in seat notes; shipped through a cut with their credit): off (nothing; the default, his standing rule), propose (persona_list names the crossing and asks, in words), draft (persona_list names it and a draft may be written to the holding shelf ~/.mentcached/seat/persona/drafts, marked not-his-instruction and kept out of the index). No value mints a sheet: saying yes to a proposal or a draft is the instruction his rule asks for (2026-10-14)"),
+    "keys.standing": ("", "key_run: standing yeses, so routine runs on the keeper's own hosts need no confirmation each time. Entries KEY PROGRAM TARGET, separated by ';' (e.g. 'ssh ssh vibrobeast@gw33.bru.st; ssh scp vibrobeast@gw33.bru.st'). ssh: the host argument is exactly TARGET. scp: pushes to TARGET only (a pull could write this computer's files). Any argument starting with - still asks. Every standing run says so in its result. Only the keeper's own turn changes it"),
     "people.named": ("corwin", "the people whose person.<name>.* rows this server keeps: the keeper and the participants he named, comma-separated. Only the keeper's own turn changes it"),
 }
+
+#: keys only the keeper's own turn writes; a row in the file that another turn wrote is not read
+KEEPER_ONLY = ("people.named", "keys.standing")
 
 #: prefix -> the key's shape, who reads it, and the name check.  A key under a prefix is read by
 #: that reader; a key under no prefix and not in KNOWN needs a skill that declares it.
@@ -214,8 +219,8 @@ def writer(key: str, turn: str, consent: str, names: list[str] | None = None,
     """"" when this turn may write the key, else why not, in words (the person and room writer
     rules)."""
     t = (turn or "").strip().lower()
-    if key == "people.named" and t != keeper():
-        return (f"people.named is changed only on the keeper's ({keeper()}) own turn; this turn is "
+    if key in KEEPER_ONLY and t != keeper():
+        return (f"{key} is changed only on the keeper's ({keeper()}) own turn; this turn is "
                 f"{t or 'unnamed'}")
     sp = _split(key)
     if sp and sp[0] == "room.":
@@ -314,7 +319,7 @@ def current(p: Path | None = None) -> dict[str, dict]:
         p, _ = path()
     got = {}
     for f in _rows(p):
-        if f[1] in KNOWN and not (f[1] == "people.named" and writer(f[1], f[5], f[6], [])):
+        if f[1] in KNOWN and not (f[1] in KEEPER_ONLY and writer(f[1], f[5], f[6], [])):
             got[f[1]] = {"value": f[2], "by": f[3], "ts": f[0], "turn": f[5]}
     out = {}
     for k, (default, _what) in KNOWN.items():

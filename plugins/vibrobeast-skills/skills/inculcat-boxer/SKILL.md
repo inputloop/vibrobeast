@@ -156,6 +156,23 @@ reset would clearly have used it. Building it needs the card discipline (a caref
 without you) and the memory discipline (the trample is remembered). With both, it is a build. With
 either missing, it is still only a card or a sentence.
 
+## 6 · AT THE HAND-BACK — the glove asks, the tree answers (2026-10-16)
+
+This skill says *that* a disposition is owed; the powerglove frame (`pg1lv`) asks it at the hand-back,
+as one of its default strings:
+
+    Did you leave anything behind for someone else to ask about?   @inculcat-boxer  @run-card
+        !debris   a lock or temp file left in .git since the prompt opened      FAULT
+        !strays   untracked files written since the prompt opened                ASK (may be another session's)
+        !layout   a file written off the project's map (bin/hb1ck --layout)      FAULT
+        !home     an ENHANCE queue in a not-home (bin/eh1dx --check)             FAULT
+
+`sh scripts/pg1lv check LEDGER` in powerglove (or `c4/bin/pg1lv`) runs them. An ASK is this skill's
+ladder in miniature: turn it (commit, or `aw2ri retire`), card it, or say it. Never nothing.
+The night it was wired, the keeper was asked by another session what to do with files a session
+had abandoned: seven git temp files and a gc lock (debris), and queues filed in h/ (home). Both
+checks fire on those cases in the glove's tests (P20, and eh1dx's own `--prove-red`).
+
 ## What is deliberately NOT here
 
 - **No SECOND archiver.** The one that exists grew a verb; that is the whole of what was built.
@@ -173,7 +190,8 @@ either missing, it is still only a card or a sentence.
 - **A second archiver.** fails if a change moves files into `archive/` by any path other than `aw2ri`; check: grep the change for `mv` or `cp` into `archive/`.
 
 <!-- footer: minted by bin/ft1mt from conventions/house.env and conventions/FOOTERS.org; edit those, not this -->
-*Version 1.1.2: edition revised from 1.1.0 on 2026-10-10; spine: 2026-07-01.*
+*Version 1.2: edition revised from 1.1.2 on 2026-10-16; spine: 2026-07-01.*
 
 Copyright 2026 Corwin Brust <corwin@bru.st> and Contributors; CC-BY-SA4: https://creativecommons.org/licenses/by-sa/4.0/ (scripts GPL-3.0-or-later); Mentat (for Corwin; claude-opus-5-5)
+From the collection Corwin Brust and Bryant Frankford keep together, with K Smith as editor of the works she edited; thanks in ACKNOWLEDGEMENTS; home: https://github.com/inputloop
 <!-- /footer -->

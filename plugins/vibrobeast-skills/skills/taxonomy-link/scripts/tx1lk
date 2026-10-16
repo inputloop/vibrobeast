@@ -1,0 +1,140 @@
+#!/bin/sh
+# tx1lk -- TAXONOMY 1 LINK: words through C4's taxonomy, palace entries linked to their words, and a
+# setting named in words resolved by what the words mean.  Reads; never writes a setting.
+# His 14:00 (2026-10-15): "refine the configuration by word meaning parsing backed analysis instead of
+# simple key/value parameters".
+#
+# usage:  tx1lk where PHRASE           each word: m/t, the g/ registry's meanings, terms-of-art, d/dict;
+#                                      a word found in none of them is a proper gap
+#         tx1lk link ENTRY             fill a palace entry's "## The words" table from those places
+#                                      (a sense is quoted with its source, never written here)
+#         tx1lk config PHRASE VOCAB    which setting the phrase means, in the binder's verdicts:
+#                                      BOUND, GUESS, TIE (ask, never pick) or NONE, with the parse shown
+#         tx1lk coverage VOCAB         each setting: do the words of its name resolve in the taxonomy?
+#
+# VOCAB is one of:  --vocab FILE     (KEY<TAB>description lines)
+#                   --elect DIR      (C4's s/elect: each ceremony and the line that says what it is)
+#                   --prefs FILE     (polygram's prefs.py: its KNOWN keys and their descriptions)
+# The C4 root is $C4_ROOT, else the folder above this script.
+# Copyright (C) 2026 Corwin Brust <corwin@bru.st>.  Mentat (for Corwin; claude-opus-5-5).
+# SPDX-License-Identifier: GPL-3.0-or-later
+set -u
+usage() { sed -n '2,22p' "$0" | sed 's/^# \{0,1\}//'; exit 2; }
+C4=${C4_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}
+STOP=" a an the of to for and in at by with is be it its this that as or from into my our your i we "
+VALUES=" on off auto manual yes no true false words numbers draft propose "
+words() { printf '%s\n' "$*" | tr 'A-Z' 'a-z' | tr -c 'a-z0-9.\n-' ' ' | tr ' ' '\n' | grep . | while IFS= read -r w; do
+  case "$STOP" in *" $w "*) ;; *) printf '%s\n' "$w";; esac; done; }
+stem() { printf '%s\n' "$1" | sed 's/ies$/y/; s/ing$//; s/ed$//; s/s$//'; }
+look() {  # look WORD -> lines "PLACE<TAB>what it says"
+  w=$1; W=$(printf '%s' "$w" | tr 'a-z' 'A-Z'); SW=$(stem "$w" | tr 'a-z' 'A-Z')   # a stem resolves everywhere, not only in g/
+  awk -v W="$W" -v SW="$SW" '{ for (i = 2; i <= NF; i++) if ($i == W || $i == SW) printf "m/t\tregister %s, %s facet\n", $1, (i == 2 ? "scalar" : i == 3 ? "group" : i == 4 ? "command" : "tag") }' "$C4/m/t" 2>/dev/null
+  for c in "$w" "$(stem "$w")"; do
+    if [ -d "$C4/g/$c" ]; then for l in "$C4/g/$c"/*; do [ -f "$l" ] || continue
+      printf 'g/%s/%s\t%s\n' "$c" "$(basename "$l")" "$(sed -n 's/^meaning\t//p' "$l" | cut -c1-140)"; done; break; fi
+  done
+  awk -F'\t' -v w="$w" -v sw="$(stem "$w")" 'tolower($1) == w || tolower($1) == sw { printf "terms-of-art\t%s (%s): %s\n", $3, $2, substr($5, 1, 120) }' "$C4/evidence/terms-of-art.tsv" 2>/dev/null
+  for c in "$w" "$(stem "$w")"; do [ -f "$C4/d/dict/$c.md" ] && { printf 'd/dict/%s.md\t%s\n' "$c" "$(grep -m1 -v '^#\|^$' "$C4/d/dict/$c.md" | cut -c1-120)"; break; }; done
+  :; }
+vocab() {
+  case "${1:-}" in
+    --vocab) cat "$2";;
+    --elect) for f in "$2"/*; do [ -f "$f" ] || continue; n=$(basename "$f")
+               printf '%s\t%s\n' "$n" "$(sed -n "2s/^# *$n *-- *//p" "$f")"; done;;
+    --prefs) python3 - "$2" <<'P'
+import importlib, sys
+from pathlib import Path
+f = Path(sys.argv[1]).resolve()
+# prefs.py sits in a package (polygram/mcp) and imports its siblings relatively: load it as one
+pkg = []; d = f.parent
+while (d / "__init__.py").exists(): pkg.insert(0, d.name); d = d.parent
+sys.path.insert(0, str(d))
+m = importlib.import_module(".".join(pkg + [f.stem]) if pkg else f.stem)
+for k, (default, desc) in m.KNOWN.items(): print(f"{k}\t{desc}\t{default}")
+P
+    ;;
+    *) usage;;
+  esac; }
+
+case "${1:-}" in
+  where)
+    shift; [ $# -gt 0 ] || usage; slug=$(printf '%s' "$*" | tr 'A-Z ' 'a-z-')
+    [ -d "$C4/g/$slug" ] && { echo "\"$*\" as one term:"; look "$slug" | sed 's/^/  /'; }
+    gaps=0; for w in $(words "$*"); do
+      r=$(look "$w"); if [ -n "$r" ]; then echo "$w:"; printf '%s\n' "$r" | sed 's/\t/  /; s/^/  /'
+      else echo "$w: a proper gap (in none of m/t, g/, terms-of-art, d/dict)"; gaps=$((gaps + 1)); fi
+    done; echo "tx1lk: $gaps proper gap(s)";;
+  link)
+    E=${2:-}; [ -f "$E" ] || usage; grep -q '^## The words' "$E" || { echo "tx1lk: $E has no '## The words' section"; exit 2; }
+    ph=$(sed -n 's/^phrase: //p' "$E" | head -1); [ -n "$ph" ] || { echo "tx1lk: $E has no phrase:"; exit 2; }
+    rows=""; for w in $(words "$ph"); do
+      grep -q "^| $w |" "$E" && continue
+      r=$(look "$w"); mt=$(printf '%s\n' "$r" | awk -F'\t' '$1 == "m/t" { print $2; exit }'); [ -n "$mt" ] || mt="not in \`m/t\`"
+      src=$(printf '%s\n' "$r" | awk -F'\t' '$1 != "m/t" { print; exit }')
+      if [ -n "$src" ]; then place=${src%%	*}; sense=${src#*	}; rows="$rows| $w | $mt | \"$(printf '%s' "$sense" | sed 's/|/\\|/g')\" | \`$place\` |
+"
+      else rows="$rows| $w | $mt | a proper gap | none of m/t, g/, terms-of-art, d/dict |
+"; fi
+    done
+    [ -n "$rows" ] || { echo "tx1lk: every word of \"$ph\" already has its row"; exit 0; }
+    t=$(mktemp); printf '%s' "$rows" > "$t.rows"
+    awk -v rf="$t.rows" '{ print } /^## The words/ { inw = 1 } inw && /^\|---/ { while ((getline l < rf) > 0) print l; inw = 0 }' "$E" > "$t" && cat "$t" > "$E"
+    rm -f "$t" "$t.rows"; echo "tx1lk: $(printf '%s' "$rows" | grep -c '^|') word row(s) added to $E";;
+  config)
+    shift; PH=${1:-}; shift || usage; [ -n "$PH" ] || usage; V=$(vocab "$@") || exit 2
+    TAB=$(printf '\t')
+    isval() { v=$(printf '%s' "$1" | sed 's/ly$//'); case "$VALUES" in *" $v "*) printf '%s\n' "$v";; esac; }
+    val=""; for w in $(words "$PH"); do v=$(isval "$w"); [ -n "$v" ] && val=$v; done
+    echo "the phrase: \"$PH\""
+    for w in $(words "$PH"); do [ -n "$(isval "$w")" ] && { echo "  $w: a value ($(isval "$w"))"; continue; }
+      r=$(look "$w" | head -2 | cut -c1-110 | tr '\t' ' '); echo "  $w: ${r:-a proper gap}" | head -2; done
+    # A vocab line may carry a third column, the setting's default.  It says what KIND of value the setting
+    # takes, and a value named in the phrase must fit it (2026-10-16): a default that is itself a value word
+    # (on, off, auto ...) marks a switch, and a switch fits "on" (+5); a setting described as a folder, path
+    # or file, or whose default is a name, cannot take "on" and is not read as meant.  No third column: no
+    # change (the kind is unknown).  So "turn the tavern on" binds tavern.on, not tavern.as or tavern.data.
+    printf '%s\n' "$V" | while IFS= read -r line; do
+      k=${line%%"$TAB"*}; rest=${line#"$k"}; rest=${rest#"$TAB"}; d=${rest%%"$TAB"*}; dflt=""
+      case "$rest" in *"$TAB"*) dflt=${rest#*"$TAB"};; esac
+      kind=unknown
+      if [ -n "$dflt" ] && [ -n "$(isval "$dflt")" ]; then kind=switch
+      elif printf '%s' "$d" | grep -q -i -E '(^| )(folder|path|file|directory)( |,|;|$)'; then kind=path
+      elif [ -n "$dflt" ]; then kind=name; fi
+      s=0; hits=""
+      for w in $(words "$PH"); do [ -n "$(isval "$w")" ] && continue; sw=$(stem "$w")
+        for p in $(printf '%s' "$k" | tr '._-' '   '); do
+          if [ "$p" = "$w" ] || [ "$(stem "$p")" = "$sw" ]; then s=$((s + 10)); hits="$hits $w(name)"
+          elif [ ${#w} -ge 4 ]; then case "$p" in "$w"*) s=$((s + 5)); hits="$hits $w(begins $p)";; esac; fi; done
+        for p in $(words "$d"); do [ "$(stem "$p")" = "$sw" ] && { s=$((s + 1)); hits="$hits $w(said)"; break; }; done
+      done
+      if [ "$s" -gt 0 ] && [ -n "$val" ]; then   # the value named in the phrase is part of this key's own name
+        for p in $(printf '%s' "$k" | tr '._-' '   '); do [ "$p" = "$val" ] && { s=$((s + 5)); hits="$hits $val(name)"; }; done; fi
+      if [ "$s" -gt 0 ] && [ -n "$val" ] && { [ "$kind" = path ] || [ "$kind" = name ]; }; then
+        printf '0\t%s\t would match, but does not take %s (it takes a %s)\n' "$k" "$val" "$kind"; continue; fi
+      [ "$s" -gt 0 ] && [ -n "$val" ] && [ "$kind" = switch ] && { s=$((s + 5)); hits="$hits $val(fits a switch)"; }
+      [ "$s" -gt 0 ] && printf '%s\t%s\t%s\n' "$s" "$k" "$hits"
+    done | sort -t"$TAB" -k1,1nr > "${TMPDIR:-/tmp}/tx1lk.$$"
+    top=$(sed -n 1p "${TMPDIR:-/tmp}/tx1lk.$$"); second=$(sed -n 2p "${TMPDIR:-/tmp}/tx1lk.$$")
+    s1=${top%%	*}; s2=${second%%	*}; [ -n "$top" ] || s1=0; [ -n "$second" ] || s2=0
+    awk -F'\t' '$1 == 0 { printf "  %s:%s\n", $2, $3 }' "${TMPDIR:-/tmp}/tx1lk.$$"
+    grep -v "^0$TAB" "${TMPDIR:-/tmp}/tx1lk.$$" > "${TMPDIR:-/tmp}/tx1lk.$$.r"; mv "${TMPDIR:-/tmp}/tx1lk.$$.r" "${TMPDIR:-/tmp}/tx1lk.$$"
+    top=$(sed -n 1p "${TMPDIR:-/tmp}/tx1lk.$$"); second=$(sed -n 2p "${TMPDIR:-/tmp}/tx1lk.$$")
+    s1=${top%%	*}; s2=${second%%	*}; [ -n "$top" ] || s1=0; [ -n "$second" ] || s2=0
+    sed -n 1,4p "${TMPDIR:-/tmp}/tx1lk.$$" | awk -F'\t' '{ printf "  scored %s  %s  (%s )\n", $1, $2, $3 }'; rm -f "${TMPDIR:-/tmp}/tx1lk.$$"
+    k1=$(printf '%s' "$top" | cut -f2)
+    if [ "$s1" -eq 0 ]; then echo "NONE: no setting's name or description shares a word with the phrase"
+    elif [ "$s1" -eq "$s2" ]; then echo "TIE: two settings read the same; ask which is meant, never pick"
+    elif [ "$s1" -ge 10 ] && [ "$s1" -ge $((s2 * 2)) ]; then echo "BOUND: $k1${val:+ = $val}"
+    else echo "GUESS: $k1${val:+ = $val} (its name or description shares the most words; say yes before it is set)"; fi
+    [ -n "$k1" ] && [ "$s1" -gt 0 ] && [ "$s1" -ne "$s2" ] && echo "  nothing was set.  To set it: $k1 ${val:-VALUE} (pref_set for prefs; sh bin/el1ct NAME MODE for a ceremony)";;
+  coverage)
+    shift; V=$(vocab "$@") || exit 2; TAB=$(printf '\t'); n=0; g=0
+    printf '%s\n' "$V" | { while IFS="$TAB" read -r k d; do n=$((n + 1)); miss=""
+      for p in $(printf '%s' "$k" | tr '._-' '   '); do
+        case "$STOP$VALUES" in *" $p "*) continue;; esac   # a value or a small word is not a word to define
+        [ -n "$(look "$p")" ] || miss="$miss $p"; done
+      if [ -n "$miss" ]; then g=$((g + 1)); echo "  $k: not in the taxonomy:$miss"; else echo "  $k: every word resolves"; fi
+    done; echo "tx1lk coverage: $((n - g)) of $n setting name(s) resolve word by word; $g carry a proper gap"
+    [ "$g" -gt $((n / 2)) ] && echo "  the taxonomy is too thin to carry these settings by meaning yet: the words above are the ones to define first"; };;
+  *) usage;;
+esac

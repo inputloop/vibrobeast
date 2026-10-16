@@ -209,6 +209,21 @@ def declared() -> dict[str, dict]:
     return out
 
 
+def _files_under(d: Path) -> list[str]:
+    """The visible files under d, as sorted POSIX paths relative to it (no dot-file, no dot-folder).
+
+    Walks with os.walk and cuts the prefix by length rather than calling Path.relative_to: under
+    MSYS2's Python a path can print one separator and join with the other ('X\\a/SKILL.md' against
+    'X\\a'), and relative_to then refuses a file that is plainly inside (make check, 2026-10-15)."""
+    base = str(d)
+    out: list[str] = []
+    for top, dirs, names in os.walk(base):
+        dirs[:] = [x for x in dirs if not x.startswith(".")]
+        rel = top[len(base):].lstrip("/\\").replace("\\", "/")
+        out += [f"{rel}/{n}" if rel else n for n in names if not n.startswith(".")]
+    return sorted(out)
+
+
 def scan() -> dict:
     seen: dict[str, dict] = {}
     shadowed: list[str] = []
@@ -228,7 +243,7 @@ def scan() -> dict:
                 fm = _frontmatter(sk.read_text(encoding="utf-8", errors="replace"))
             except OSError:
                 fm = {}
-            files = [p for p in d.rglob("*") if p.is_file() and not any(x.startswith(".") for x in p.relative_to(d).parts)]
+            files = _files_under(d)
             seen[d.name] = {"name": d.name, "root": str(root), "dir": str(d),
                             "description": fm.get("description", ""), "declared_name": fm.get("name", ""),
                             "files": len(files), "mtime": int(sk.stat().st_mtime)}
@@ -301,8 +316,7 @@ def read(args: dict) -> dict:
         raise ToolError(f"{rel!r} is {size} bytes; over the {MAX_BYTES} byte limit -- read it on the host")
     text = p.read_text(encoding="utf-8", errors="replace")
     _note_use(name, hit["root"], rel)
-    others = sorted(str(q.relative_to(d)).replace("\\", "/") for q in d.rglob("*")
-                    if q.is_file() and q != d / "SKILL.md" and not any(x.startswith(".") for x in q.relative_to(d).parts))
+    others = [x for x in _files_under(d) if x != "SKILL.md"]
     return {"name": name, "file": rel, "dir": str(d), "root": hit["root"], "bytes": size,
             "description": hit["description"], "text": text,
             "files": others if rel == "SKILL.md" else [],
@@ -310,14 +324,58 @@ def read(args: dict) -> dict:
                    + (f"; {len(others)} other file(s) beside it" if rel == "SKILL.md" and others else "")}
 
 
+BRIEF_CHARS = 160   # the description is cut at its first sentence, and never past this
+
+
+def _first_sentence(text: str) -> str:
+    t = " ".join((text or "").split())
+    for stop in (". ", ": use ", " Use "):
+        i = t.find(stop)
+        if 0 < i < BRIEF_CHARS:
+            return t[: i + 1].rstrip()
+    return t if len(t) <= BRIEF_CHARS else t[: BRIEF_CHARS - 1].rstrip() + "\u2026"
+
+
+def listing(args: dict) -> dict:
+    """soft_skills_list's answer.  Until 2026-10-16 it was always the full scan: 100 skills, 121 KB of
+    JSON, more than a session's tool-result window holds, so the list meant to save a session a read
+    had to be spilled to a file and read in chunks.  Brief is now the default; full is one word away."""
+    s = scan()
+    detail = (args.get("detail") or "brief").lower()
+    if detail not in ("brief", "full"):
+        raise ToolError("detail is brief or full")
+    words = [w.lower() for w in (args.get("q") or "").split()]
+    rootq = (args.get("root") or "").lower()
+    rows = s["skills"]
+    if rootq:
+        rows = [r for r in rows if rootq in r["root"].lower()]
+    if words:
+        rows = [r for r in rows if all(w in (r["name"] + " " + r["description"]).lower() for w in words)]
+    out = {"roots": [{"n": i, **r} for i, r in enumerate(s["roots"])], "shadowed": s["shadowed"],
+           "say": summary(), "total": len(s["skills"]), "shown": len(rows), "detail": detail}
+    if detail == "full":
+        out["skills"] = rows
+    else:
+        num = {r["root"]: i for i, r in enumerate(s["roots"])}
+        out["skills"] = [{"name": r["name"], "root": num.get(r["root"], -1),
+                          "description": _first_sentence(r["description"])} for r in rows]
+        out["more"] = "soft_skill_read NAME for one; detail=full for every field"
+    return out
+
+
 def register(srv) -> None:
     @srv.tool("soft_skills_list",
               "Every soft skill loadable RIGHT NOW: a folder with a SKILL.md under a SOFT-SKILLS root, "
               "same format as installed skills, nothing installed. Scans on every call; a folder "
-              "dropped in is listed on the next one. Says which roots it looked in.")
-    def _list(_args):
-        s = scan()
-        return {**s, "say": summary()}
+              "dropped in is listed on the next one. Says which roots it looked in. Brief by default "
+              "(name, root number, the description's first sentence); detail=full for everything; "
+              "q filters by words in the name or description; root filters by words in the root.",
+              {"type": "object",
+               "properties": {"q": {"type": "string", "description": "words that must all appear in name or description"},
+                              "root": {"type": "string", "description": "a piece of the root path, e.g. SOFT-SKILLS"},
+                              "detail": {"type": "string", "enum": ["brief", "full"], "description": "default brief"}}})
+    def _list(args):
+        return listing(args or {})
 
     @srv.tool("soft_skill_read",
               "The SKILL.md of a soft skill (or one file beside it, by relative path) as text, read "

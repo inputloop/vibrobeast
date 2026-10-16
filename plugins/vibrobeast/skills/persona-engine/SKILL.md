@@ -59,7 +59,7 @@ The answers:
 5. **Change a sheet only by appending.**  `persona_mutate NAME entry evidence would_change`: the
    entry is the persona's own (from its session or its principal), the evidence is what happened,
    and would_change says what it changes.  All three, or no generation.  Never overwrite.
-6. **Gauge before hand-back.**  If a sheet changed: `sh bin/cs1gk SHEET.md` (sections, guards,
+6. **Gauge before hand-back.**  If a sheet changed: `python3 bin/cs1gk SHEET.md` (sections, guards,
    evidence and story together, the NEWS mark, the sidecar, the corpus listing, the twin copy, the
    break-character watch, the system actor's bad-guy stage).  `persona_chain NAME` for chained
    generations.  A gauge you could not run is NOT CHECKED, said aloud.
@@ -74,8 +74,8 @@ The answers:
 5. A persona's voice may not be the place a defect is explained.  Fix the thing first; then the
    persona may say what it likes about it.
 
-(`bin/mt1pl` states 1 and 3 in its own words; the MCP server states all five.  `sh scripts/pe1gt
-refusals` prints them.)
+(`sh bin/mt1pl --refusals` and the MCP server's `persona_refusals` state the same five, held word for word
+by a test; `sh scripts/pe1gt refusals` prints them too.)
 
 ## Curating a new persona, and noting an authorial voice
 

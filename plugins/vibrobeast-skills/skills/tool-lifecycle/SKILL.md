@@ -41,6 +41,13 @@ One capability can reach different people through different doors:
 - **Bespoke UI** — for people for whom this may be a first taste of non-vendor-demanded UI and of
   collaborative governance at all. This tier is the freedom-broadening opening, not an afterthought.
 
+**A build says what it made, on the machine that made it.** Whatever mints a deliverable also writes a
+small ignored record beside the tree — when, which host, which version, the hash of each thing made, and
+the validator's word — so "is what's on the shelf the last thing built here?" is answered by reading, not
+remembering. The tracked history (a release record) and this untracked note are different things: one
+belongs to the version, the other to the machine. In this garden: `.last-build`, written by
+`polygram/mcpb.py`, read by `sh bin/lb1ld` (2026-10-14).
+
 ## 3. Test is not optimization
 
 When a tool doubles as a cross-check, guard its *lifeline*. You may swing the axe hard on the
@@ -65,7 +72,8 @@ candidate once the pieces are proven, not as a framework minted ahead of the pro
 the exact canon version). Interlocks with hooks-to-knowledge, magic-words-persona, and the guard-floor.*
 
 <!-- footer: minted by bin/ft1mt from conventions/house.env and conventions/FOOTERS.org; edit those, not this -->
-*Version 1.0.1: edition revised from 1.0.0 on 2026-10-04; spine: 2026-07-27.*
+*Version 1.2: edition revised from 1.0.1 on 2026-10-15; spine: 2026-07-27.*
 
 Copyright 2026 Corwin Brust <corwin@bru.st> and Contributors; CC-BY-SA4: https://creativecommons.org/licenses/by-sa/4.0/ (scripts GPL-3.0-or-later); Mentat (for Corwin; claude-opus-5-5)
+From the collection Corwin Brust and Bryant Frankford keep together, with K Smith as editor of the works she edited; thanks in ACKNOWLEDGEMENTS; home: https://github.com/inputloop
 <!-- /footer -->

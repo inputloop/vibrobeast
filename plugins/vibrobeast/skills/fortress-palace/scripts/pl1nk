@@ -1,0 +1,97 @@
+#!/bin/sh
+# pl1nk -- PALACE 1 LINK: a palace's entries, and whether their meaning runs both ways.
+# His 14:00 (2026-10-15): character sheets and tool work "from narrower (e.g. two and four, for
+# indexed data and doubly linked data)".  The PALACE form (c/wf) already carries four link fields:
+#   width 2 (indexed):        1st-ref, last-ref          -- where it was first and last cited
+#   width 4 (doubly linked):  came-from, leads-to too    -- each link answered by one pointing back
+#
+# usage:  pl1nk check PALACE           every entry: its width, and each link BOTH ways, ONE-WAY
+#                                      (the entry's semaphore is raised) or DANGLING; prose in a link
+#                                      field (an origin outside the palace, a promise) is SAID, not a
+#                                      fault; a link to a real file outside the palace is OUTSIDE (its
+#                                      origin, no back-link owed).  Exit 1 on a ONE-WAY or DANGLING link.
+#         pl1nk new PALACE PHRASE [--width 2|4] [--in DIR] [--came-from ENTRY]
+#                                      write the entry, a character sheet for the phrase (S/P/T, the
+#                                      words, journal, bookkeeping), named by meaning; at width 4 with
+#                                      --came-from, the parent's leads-to gains this entry in the same act
+#         pl1nk cite PALACE ENTRY       last-ref becomes today (the index column moves; nothing else)
+#
+# A link names an entry by a path ending in .md, relative to PALACE, to the entry's folder, or to C4
+# (d/C4/PALACE/... or c4/d/C4/PALACE/...).  Several links in a field are separated by " · " or ",".
+# Copyright (C) 2026 Corwin Brust <corwin@bru.st>.  Mentat (for Corwin; claude-opus-5-5).
+# SPDX-License-Identifier: GPL-3.0-or-later
+set -u
+usage() { sed -n '2,24p' "$0" | sed 's/^# \{0,1\}//'; exit 2; }
+cmd=${1:-}; P=${2:-}; [ -n "$cmd" ] && [ -n "$P" ] && [ -d "$P" ] || usage; shift 2
+P=$(cd "$P" && pwd)
+field() { awk -v k="$2" 'NR == 1 && $0 != "---" { exit } NR > 1 && $0 == "---" { exit }
+  { line = $0; while (match(line, k ": ")) { v = substr(line, RSTART + RLENGTH); sub(/ · [0-9a-z-]+: .*/, "", v); print v; exit } }' "$1"; }
+links() { printf '%s\n' "$1" | tr ',' '\n' | sed 's/ · /\n/g' | grep -oE '[A-Za-z0-9_./-]+\.md' ; }
+resolve() {  # resolve LINK ENTRY -> a palace-relative path, or nothing
+  l=$1; e=$2
+  for c in "$P/$l" "$(dirname "$e")/$l" "$P/${l#d/C4/PALACE/}" "$P/${l#c4/d/C4/PALACE/}"; do
+    [ -f "$c" ] && { (cd "$(dirname "$c")" && printf '%s/%s\n' "$(pwd)" "$(basename "$c")") | sed "s|^$P/||"; return; }
+  done; }
+outside() {  # outside LINK -> the path of a real file outside the palace (the C4 root holds C4.md), or nothing
+  r=$P; while [ "$r" != / ] && [ ! -f "$r/C4.md" ]; do r=$(dirname "$r"); done
+  for c in "$r/$1" "$r/${1#c4/}"; do [ -f "$c" ] && { printf '%s\n' "$1"; return; }; done; }
+entries() { find "$P" -name '*.md' ! -name 'README.md' | while IFS= read -r f; do [ "$(head -1 "$f")" = "---" ] && printf '%s\n' "${f#$P/}"; done | sort; }
+names() {  # names ENTRY FIELD -> the palace-relative entries a field links to
+  v=$(field "$P/$1" "$2"); links "$v" | while IFS= read -r l; do resolve "$l" "$P/$1"; done; }
+
+case "$cmd" in
+  check)
+    bad=0; n=0
+    for e in $(entries); do n=$((n + 1))
+      w=0; [ -n "$(field "$P/$e" 1st-ref)" ] && [ -n "$(field "$P/$e" last-ref)" ] && w=2
+      [ "$w" = 2 ] && [ -n "$(field "$P/$e" came-from)" ] && [ -n "$(field "$P/$e" leads-to)" ] && w=4
+      echo "$e  (width $w)"
+      for f in came-from leads-to; do
+        other=leads-to; [ "$f" = leads-to ] && other=came-from
+        v=$(field "$P/$e" "$f"); [ -n "$v" ] || continue
+        ls=$(links "$v")
+        if [ -z "$ls" ]; then echo "  SAID      $f: $(printf '%s' "$v" | cut -c1-90)"; continue; fi
+        printf '%s\n' "$ls" | while IFS= read -r l; do
+          t=$(resolve "$l" "$P/$e")
+          if [ -z "$t" ]; then
+            if [ -n "$(outside "$l")" ]; then echo "  OUTSIDE   $f $l: a file outside the palace (its origin; no back-link is owed)"
+            else echo "  DANGLING  $f $l: no such entry or file"; fi; continue; fi
+          if names "$t" "$other" | grep -qx "$e"; then echo "  BOTH      $f $t"
+          else echo "  ONE-WAY   $f $t: its $other does not name $e (semaphore raised)"; fi
+        done
+      done
+    done > "${TMPDIR:-/tmp}/pl1nk.$$"
+    cat "${TMPDIR:-/tmp}/pl1nk.$$"; grep -qE '^  (ONE-WAY|DANGLING) ' "${TMPDIR:-/tmp}/pl1nk.$$" && bad=1
+    o=$(grep -c '^  ONE-WAY ' "${TMPDIR:-/tmp}/pl1nk.$$"); d=$(grep -c '^  DANGLING ' "${TMPDIR:-/tmp}/pl1nk.$$"); b=$(grep -c '^  BOTH ' "${TMPDIR:-/tmp}/pl1nk.$$")
+    rm -f "${TMPDIR:-/tmp}/pl1nk.$$"
+    echo "pl1nk: $(entries | wc -l | tr -d ' ') entr(ies); $b link(s) both ways, $o one-way, $d dangling"; exit $bad;;
+  new)
+    PH=${1:-}; [ -n "$PH" ] || usage; shift; W=4; IN=i; CF=
+    while [ $# -gt 0 ]; do case "$1" in --width) W=${2:-}; shift 2;; --in) IN=${2:-}; shift 2;; --came-from) CF=${2:-}; shift 2;; *) usage;; esac; done
+    case "$W" in 2|4) ;; *) echo "pl1nk: --width is 2 (indexed) or 4 (doubly linked)"; exit 2;; esac
+    [ "$W" = 2 ] && [ -n "$CF" ] && { echo "pl1nk: a width-2 entry is indexed only; --came-from needs --width 4"; exit 2; }
+    slug=$(printf '%s' "$PH" | tr 'A-Z' 'a-z' | sed 's/[^a-z0-9]\{1,\}/-/g; s/^-//; s/-$//')
+    rel=$IN/$slug.md; f=$P/$rel
+    [ -e "$f" ] && { echo "pl1nk: $rel already exists; nothing written"; exit 2; }
+    if [ -n "$CF" ]; then cf=$(resolve "$CF" "$P/x"); [ -n "$cf" ] || { echo "pl1nk: no entry $CF to come from"; exit 2; }; fi
+    today=$(date +%Y-%m-%d); mkdir -p "$P/$IN"
+    { echo "---"; echo "phrase: $PH"; echo "group: ($IN)"; echo "FORT: $(sed -n 's/^FORT: //p' "$P"/0/FORTRESS/*.md 2>/dev/null | head -1 | sed 's/ (.*//')"
+      if [ "$W" = 4 ]; then echo "came-from: ${cf:-(to be linked)}"; echo "leads-to: (to come)"; fi
+      echo "1st-ref: $today · last-ref: $today"; echo "form: PALACE (c/wf), width $W"; echo "---"; echo
+      echo "# $PH"; echo; echo "## The passage"; echo; echo "(written from where its concepts still meet)"; echo
+      echo "## S / P / T"; echo; echo "| SEAM | PIN (meaning · triggers) | SEMAPHORE (T) |"; echo "|---|---|---|"; echo "|  |  |  |"; echo
+      echo "## The words"; echo; echo "| word | in \`m/t\` | sense | source |"; echo "|---|---|---|---|"; echo
+      echo "## Journal"; echo; echo "$today. Written by pl1nk new (width $W)."; echo
+      echo "## Bookkeeping"; echo; echo "CANDIDATE."; } > "$f"
+    echo "pl1nk: wrote $rel (width $W)"
+    if [ -n "$CF" ]; then
+      t=$(mktemp); awk -v add="$rel" 'BEGIN { fm = 0 } $0 == "---" { fm++ }
+        fm == 1 && /^leads-to: / { if ($0 ~ /\(.*to come.*\)/ && $0 !~ /\.md/) $0 = "leads-to: " add; else $0 = $0 " · " add } { print }' "$P/$cf" > "$t" && cat "$t" > "$P/$cf"; rm -f "$t"
+      echo "pl1nk: $cf leads-to now names $rel (the link runs both ways)"
+    fi;;
+  cite)
+    E=${1:-}; [ -n "$E" ] || usage; e=$(resolve "$E" "$P/x"); [ -n "$e" ] || { echo "pl1nk: no entry $E"; exit 2; }
+    today=$(date +%Y-%m-%d); t=$(mktemp)
+    sed "s/\(last-ref: \)[^·]*$/\1$today/" "$P/$e" > "$t" && cat "$t" > "$P/$e"; rm -f "$t"; echo "pl1nk: $e last-ref $today";;
+  *) usage;;
+esac

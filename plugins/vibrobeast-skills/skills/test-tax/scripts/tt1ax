@@ -1,0 +1,127 @@
+#!/bin/sh
+# tt1ax -- TEST TAXONOMY 1 AXES: which categories each test belongs to, from one table, for tests
+# written in any language.  POSIX sh + awk.
+#
+# usage:  RUNNER --list | tt1ax [--table FILE] MODE
+#   input   test names, one per line, as the runner names them: "file.Group.name" (Python's
+#           unittest), "file.name", or a bare name (ERT, shell).  Blank lines and #-lines skipped.
+#   --table the tag table (default: the first of t/CATEGORIES.tsv, .t/CATEGORIES.tsv,
+#           tests/CATEGORIES.tsv under the current folder).  One row: PATTERN<TAB>TAG [TAG...];
+#           PATTERN is a shell glob (* ? [...]) matched against the WHOLE test name.
+#   MODE    --of        each test, a tab, then its categories: its file (the first dotted part),
+#                       its group (the first two, when the name has three parts), then #TAG for
+#                       each tag a row gives it, in table order, each once
+#           --counts    how many tests each category holds (tags first, then files)
+#           --untagged  the tests no row tags (not a fault: their file and group still hold them)
+#           --dead      the rows that tag no test (a fault: a dead row is a promise about nothing)
+#           --check     malformed rows and dead rows, in words; exit 1 if any
+#           --prove-red plant faults in a copy of this reader and show each one caught
+# Exit: 0; 1 a fault (--check, --dead with a dead row); 2 usage.
+#
+# Copyright (C) 2026 Corwin Brust <corwin@bru.st> and Contributors.  GPL-3.0-or-later.
+# Mentat (for Corwin; claude-opus-5-5).
+set -u
+me=tt1ax
+TABLE='' MODE=''
+while [ $# -gt 0 ]; do
+  case $1 in
+    --table) [ $# -ge 2 ] || { echo "$me: --table needs a file" >&2; exit 2; }; TABLE=$2; shift ;;
+    --of|--counts|--untagged|--dead|--check|--prove-red) MODE=$1 ;;
+    -h|--help) sed -n '/^# usage:/,/^# Exit:/p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    *) echo "$me: unknown argument $1" >&2; exit 2 ;;
+  esac; shift
+done
+[ -n "$MODE" ] || { echo "$me: name a MODE (--of, --counts, --untagged, --dead, --check)" >&2; exit 2; }
+
+if [ "$MODE" = --prove-red ]; then
+  t=$(mktemp -d) || exit 1; trap 'rm -rf "$t"' EXIT INT TERM
+  printf 'a.B.test_one\na.B.test_two\nc.test_x\nc.test_xy\nd.E.test_star\naXB.test_one\n' > "$t/ids"
+  printf '# a comment\n*.B.*\tbee\nc.test_?\tsee\na.B.test_one\tbee solo\nnone.*\tghost\nd.E.test_[st]tar\tbracket\n' > "$t/tab"
+  want_of=$(printf 'a.B.test_one\ta a.B #bee #solo\na.B.test_two\ta a.B #bee\nc.test_x\tc #see\nc.test_xy\tc\nd.E.test_star\td d.E #bracket\naXB.test_one\taXB\n')
+  got=$(sh "$0" --table "$t/tab" --of < "$t/ids")
+  [ "$got" = "$want_of" ] || { echo "$me: the reader itself is wrong before any plant:"; printf '%s\n' "$got"; exit 1; }
+  caught=0 n=0
+  plant() {   # NAME SED-EXPR: the fault must change --of or --dead
+    n=$((n + 1))
+    sed "$2" "$0" > "$t/p.sh"
+    if cmp -s "$0" "$t/p.sh"; then echo "  NOT PLANTED  $1 (this reader changed shape)"; return; fi
+    o=$(sh "$t/p.sh" --table "$t/tab" --of < "$t/ids" 2>&1); d=$(sh "$t/p.sh" --table "$t/tab" --dead < "$t/ids" 2>&1)
+    if [ "$o" != "$want_of" ] || [ "$d" != "none.*	ghost" ]; then caught=$((caught + 1)); echo "  caught  $1"
+    else echo "  MISSED  $1"; fi
+  }
+  plant 'the glob is not anchored at its end'   's/re = re "\$"/re = re ""/'
+  plant 'a star matches only one character'     's/re = re "\.\*"/re = re "."/'
+  plant 'a question mark is taken literally'    's/re = re "\."; continue/re = re "\\\\?"; continue/'
+  plant 'a dot in the name is a wildcard'       's/if (index("\.^\$+(){}|\\\\", c)) c = "\\\\" c/if (0) c = c/'
+  plant 'a tag given twice is said twice'       's/if (!(tg in has)) { has\[tg\] = 1; line = line " #" tg }/line = line " #" tg/'
+  plant 'the group is never named'              's/if (k == 3) line = line " " p\[1\] "\." p\[2\]/if (0) line = line/'
+  echo "$me --prove-red: $caught of $n planted faults caught"
+  [ "$caught" -eq "$n" ]; exit $?
+fi
+
+if [ -z "$TABLE" ]; then
+  for d in t .t tests; do [ -f "$d/CATEGORIES.tsv" ] && { TABLE=$d/CATEGORIES.tsv; break; }; done
+  [ -n "$TABLE" ] || { echo "$me: no t/CATEGORIES.tsv here (nor .t/ nor tests/); name one with --table" >&2; exit 2; }
+fi
+[ -r "$TABLE" ] || { echo "$me: cannot read $TABLE" >&2; exit 2; }
+
+awk -v mode="$MODE" -v table="$TABLE" '
+function glob2re(g,    i, c, re, inb) {   # a shell glob, as an anchored ERE
+  re = "^"
+  for (i = 1; i <= length(g); i++) {
+    c = substr(g, i, 1)
+    if (inb) { if (c == "]") inb = 0; re = re c; continue }
+    if (c == "*") { re = re ".*"; continue }
+    if (c == "?") { re = re "."; continue }
+    if (c == "[") { inb = 1; re = re c; if (substr(g, i + 1, 1) == "!") { re = re "^"; i++ } continue }
+    if (index(".^$+(){}|\\", c)) c = "\\" c
+    re = re c
+  }
+  re = re "$"
+  return re
+}
+BEGIN {
+  FS = "\t"; nrow = 0; bad = 0
+  while ((getline ln < table) > 0) {
+    lineno++
+    if (ln ~ /^[ \t]*(#|$)/) continue
+    k = split(ln, f, "\t")
+    if (k < 2 || f[1] == "" || f[2] ~ /^[ \t]*$/) { badrow[++bad] = lineno ": " ln; continue }
+    nrow++; pat[nrow] = f[1]; rx[nrow] = glob2re(f[1]); tags[nrow] = f[2]; hits[nrow] = 0; at[nrow] = lineno
+  }
+}
+/^[ \t]*(#|$)/ { next }
+{
+  id = $0; sub(/[ \t]+$/, "", id)
+  k = split(id, p, ".")
+  line = id "\t" p[1]
+  if (k == 3) line = line " " p[1] "." p[2]
+  cnt[p[1]]++; if (k == 3) cnt[p[1] "." p[2]]++
+  split("", has); tagged = 0
+  for (r = 1; r <= nrow; r++) if (id ~ rx[r]) {
+    hits[r]++
+    m = split(tags[r], tt, /[ \t]+/)
+    for (j = 1; j <= m; j++) { tg = tt[j]; if (tg == "") continue
+      if (!(tg in has)) { has[tg] = 1; line = line " #" tg }
+    }
+  }
+  for (tg in has) { cnt["#" tg]++; tagged = 1 }
+  if (mode == "--of") print line
+  if (mode == "--untagged" && !tagged) print id
+}
+END {
+  if (mode == "--counts") {   # tags first, then files and groups; each part in name order
+    nk = 0; for (c in cnt) key[++nk] = (c ~ /^#/ ? "0" : "1") c
+    for (i = 2; i <= nk; i++) { v = key[i]; for (j = i - 1; j >= 1 && key[j] > v; j--) key[j + 1] = key[j]; key[j + 1] = v }
+    for (i = 1; i <= nk; i++) { c = substr(key[i], 2); printf "%d\t%s\n", cnt[c], c }
+  }
+  dead = 0
+  for (r = 1; r <= nrow; r++) if (!hits[r]) dead++
+  if (mode == "--dead") { for (r = 1; r <= nrow; r++) if (!hits[r]) print pat[r] "\t" tags[r]; exit (dead ? 1 : 0) }
+  if (mode == "--check") {
+    for (b = 1; b <= bad; b++) print "malformed row, line " badrow[b] " (want PATTERN<TAB>TAG [TAG...])"
+    for (r = 1; r <= nrow; r++) if (!hits[r]) print "dead row, line " at[r] ": " pat[r] " tags no test (" tags[r] ")"
+    if (bad + dead == 0) print "tt1ax: " nrow " row(s), every one tags at least one test"
+    exit ((bad + dead) ? 1 : 0)
+  }
+}' -

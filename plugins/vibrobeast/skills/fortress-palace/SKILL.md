@@ -99,9 +99,34 @@ Then plan the work. Park material concerns on the shelf as you go, grounded in s
 be traced context-to-context. Link the ideation as SEAM / PIN / SEMAPHORE doubly-linked lists — see
 [[pocket-mentat]] for the portable form of those three and their `came-from` / `leads-to` links.
 
+## Entries and their links: `pl1nk`, at widths 2 and 4
+
+Each palace entry is a character sheet for the phrase that names it (C4's PALACE form, `c/wf`). The
+form carries four link fields, and that gives two widths (his 2026-10-15: "narrower (e.g. two and four,
+for indexed data and doubly linked data)"):
+
+- **width 2, indexed:** `1st-ref`, `last-ref` -- where the phrase was first and last cited;
+- **width 4, doubly linked:** `came-from` and `leads-to` too -- each answered by a link pointing back.
+
+```
+sh scripts/pl1nk new PALACE "meaning runs both ways" --width 4 --came-from i/meaning-both-ways.md
+sh scripts/pl1nk new PALACE "seam" --width 2                    an index entry, no links
+sh scripts/pl1nk cite PALACE i/seam.md                          last-ref becomes today
+sh scripts/pl1nk check PALACE                                   every link BOTH ways, ONE-WAY, DANGLING
+```
+
+`new` writes the sheet's sections (the passage, S / P / T, the words, journal, bookkeeping) and, at
+width 4, adds the entry to its parent's `leads-to` in the same act, so the link is born running both
+ways. `check` raises an entry's semaphore for every one-way link (the floor's own journal asked for
+this gauge); a link to a real file outside the palace is the entry's origin, and prose in a link field
+(a promise, "to come") is said, not a fault. The words table is filled by taxonomy-link
+(`tx1lk link ENTRY`). `pl1nk` is homed in C4 (`bin/pl1nk`) and dropped here by `bin/dp1rc`;
+`sh tests-pl1nk.sh` runs C4's spec (15 cases, five plants) against this copy.
+
 ## Interlocks
 
 - [[pocket-mentat]] — the SEAM/PIN/SEMAPHORE note shape the palace's tables are built from.
+- [[taxonomy-link]] — fills an entry's words table; [[context-stack]] — the fort and floor of the moment.
 - [[skilltank]] — receives what the walk surfaces as possibly skill-shaped; the palace notices, it
   does not author.
 - [[pencil-your-own]] — the walk generates a lot of *your* inference; this is what stops it from
@@ -126,7 +151,8 @@ keeper's own condition, and the tool here is what will make its verdict checkabl
 - **A stop with no corpus.** fails if the verdict does not list what was walked; check: the files and sessions read sit beside the STOP line.
 
 <!-- footer: minted by bin/ft1mt from conventions/house.env and conventions/FOOTERS.org; edit those, not this -->
-*Version 1.1.0: edition revised from 1.0.1 on 2026-10-10; spine: 2026-09-03.*
+*Version 1.2: edition revised from 1.1.0 on 2026-10-15; spine: 2026-09-03.*
 
 Copyright 2026 Corwin Brust <corwin@bru.st> and Contributors; CC-BY-SA4: https://creativecommons.org/licenses/by-sa/4.0/ (scripts GPL-3.0-or-later); Mentat (for Corwin; claude-opus-5-5)
+From the collection Corwin Brust and Bryant Frankford keep together, with K Smith as editor of the works she edited; thanks in ACKNOWLEDGEMENTS; home: https://github.com/inputloop
 <!-- /footer -->

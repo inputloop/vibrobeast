@@ -12,7 +12,7 @@
 # c/names), the skills installed beside this one, and C4 entities under Z/ (first lines).
 # C4 is found at $C4_ROOT, else /f/claude/c4, else ~/mnt/c4; without it, only installed skills.
 # A skill that is SOFT here (a folder under a SOFT-SKILLS root, not installed) is answered with the
-# line that reads it: soft_skill_read NAME.  Soft roots: $GARDEN_SOFT (colon-separated), else
+# line that reads it: soft_skill_read NAME.  Soft roots: $GARDEN_SOFT (os.pathsep-separated: ";" on Windows, else ":"), else
 # $SOFT_SKILLS, ~/.mentcached/SOFT-SKILLS, <$MENTCACHED_SEAT>/../SOFT-SKILLS and the SOFT-SKILLS
 # folder beside the skills (ERRATA E3).  The softskills.roots preference is the server's to read.
 # A NAME with two meanings prints both, marked SEAM; nothing is picked on the reader's behalf.
@@ -23,12 +23,23 @@ here=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 SKILLS=${GARDEN_SKILLS:-$(CDPATH= cd -- "$here/../.." && pwd)}
 C4=${C4_ROOT:-}
 [ -n "$C4" ] || for c in /f/claude/c4 "$HOME/mnt/c4"; do [ -d "$c/c" ] && { C4=$c; break; }; done
-SEATSOFT=''; [ -n "${MENTCACHED_SEAT:-}" ] && SEATSOFT=$(dirname -- "$MENTCACHED_SEAT")/SOFT-SKILLS:
-SOFT=${GARDEN_SOFT:-${SOFT_SKILLS:+$SOFT_SKILLS:}$HOME/.mentcached/SOFT-SKILLS:$SEATSOFT$SKILLS/../SOFT-SKILLS}
+roots_nl() {   # an os.pathsep list -> one root a line: ';' when there is one (Windows), else ':', but
+  # never the colon of a drive letter ("C:/x", "C:\x"), which tr ':;' cut in two (make check, 2026-10-15)
+  printf '%s\n' "$1" | awk '{ n = 0; if (index($0, ";")) n = split($0, a, ";")
+    else { cur = ""; for (i = 1; i <= length($0); i++) { c = substr($0, i, 1)
+        if (c == ":" && !(cur ~ /^[A-Za-z]$/ && substr($0, i + 1, 1) ~ /[\/\\]/)) { a[++n] = cur; cur = "" } else cur = cur c }
+      a[++n] = cur }
+    for (i = 1; i <= n; i++) if (a[i] != "") print a[i] }'
+}
+nl='
+'
+SEATSOFT=''; [ -n "${MENTCACHED_SEAT:-}" ] && SEATSOFT=$(dirname -- "$MENTCACHED_SEAT")/SOFT-SKILLS$nl
+if [ -n "${GARDEN_SOFT:-}" ]; then SOFT=$(roots_nl "$GARDEN_SOFT")
+else SOFT=${SOFT_SKILLS:+$(roots_nl "$SOFT_SKILLS")$nl}$HOME/.mentcached/SOFT-SKILLS$nl$SEATSOFT$SKILLS/../SOFT-SKILLS; fi
 
 soft_dir() {   # NAME -> the first soft root's folder for it, if any (and only if not installed)
   [ -f "$SKILLS/$1/SKILL.md" ] && return 1
-  _ifs=$IFS; IFS=:
+  _ifs=$IFS; IFS=$nl
   for r in $SOFT; do [ -n "$r" ] && [ -f "$r/$1/SKILL.md" ] && { IFS=$_ifs; printf '%s\n' "$r/$1"; return 0; }; done
   IFS=$_ifs; return 1
 }
@@ -91,7 +102,7 @@ lookup() {
 case ${1:-} in
   ''|-h|--help) sed -n '2,/^$/p' "$0" | sed 's/^# \{0,1\}//'; exit 2 ;;
   --list) for d in "$SKILLS"/*/; do [ -f "$d/SKILL.md" ] && printf '%-28s %s\n' "$(basename "$d")" "$(first_sentence "$d/SKILL.md")"; done
-          IFS=:; for r in $SOFT; do IFS=' '; for d in "$r"/*/; do n=$(basename "$d"); [ -f "$d/SKILL.md" ] && [ ! -f "$SKILLS/$n/SKILL.md" ] && printf '%-28s (soft) %s\n' "$n" "$(first_sentence "$d/SKILL.md")"; done; IFS=:; done; exit 0 ;;
+          IFS=$nl; for r in $SOFT; do IFS=' '; for d in "$r"/*/; do n=$(basename "$d"); [ -f "$d/SKILL.md" ] && [ ! -f "$SKILLS/$n/SKILL.md" ] && printf '%-28s (soft) %s\n' "$n" "$(first_sentence "$d/SKILL.md")"; done; IFS=$nl; done; exit 0 ;;
 esac
 lookup "$1"
 if [ "${2:-}" = --json ]; then printf '{"name":"%s","meanings":[%s]}\n' "$1" "$json"; [ $hits -gt 0 ]; exit $?; fi

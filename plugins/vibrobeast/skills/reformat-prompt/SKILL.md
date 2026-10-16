@@ -1,7 +1,7 @@
 ---
 name: reformat-prompt
 description: >
-  Land Corwin's (reformat-prompt) / (rewrite-prompt) pairs the C4 way — verbatim + bettered reading into h/REFORMAT-*, HEAL named not smoothed, taxonomy hand-turn check, stingy pinning. Trigger on either marker in a prompt, or "reformat my prompt", "rewrite this prompt the C4 way", "land this in the vein".
+  Land Corwin's (reformat-prompt) / (rewrite-prompt) pairs the C4 way — verbatim + bettered reading into h/REFORMAT-*, HEAL named not smoothed, taxonomy hand-turn check, stingy pinning. Trigger on either marker in a prompt, or "reformat my prompt", "rewrite this prompt the C4 way", "land this in the vein". Also the glove: hold what a prompt still owes, coming in (reads, tool and MCP calls) and going out (writes, commits, pushes), until each string is pulled with a receipt or relaxed with a reason; on "powerglove", "the strings", "what does this prompt still owe", "close the prompt", or when drift says done or bail.
 ---
 
 # reformat-prompt — land the pair in the vein
@@ -56,6 +56,36 @@ Four parts, in order, every time:
   instrument) vs Corwin (the man) kept distinct.
 - Files are DRAFT-unsigned at mint; signing is Corwin's ritual, never prompted.
 
+## The glove: every string pulled or relaxed
+
+Landing the pair is half the job. The other half is everything the prompt leaves owed: the reads and
+calls it needs coming in, the writes, commits and pushes it needs going out. Missed, each one is a
+tangle the next session trips on (2026-10-15: a rule sat unread in the project's own memory for days,
+because only the account's preferences load by themselves). The glove holds them as **strings**:
+
+```
+sh scripts/pg1lv open q/<date>-<slug>/STRINGS q/PROMPT-<date>-<slug>.md   the defaults, all taut
+sh scripts/pg1lv owe   LEDGER out "tell Bryant"                          a string this prompt adds
+sh scripts/pg1lv pull  LEDGER 5 file:h/REFORMAT-<date>-<slug>.md         done, and where it shows
+sh scripts/pg1lv relax LEDGER 9 "c4 has no remote"                       let go, and why
+sh scripts/pg1lv state LEDGER                                            what is taut; the next one
+sh scripts/pg1lv close LEDGER                                            only when nothing is taut
+sh scripts/pg1lv bail  LEDGER "the session ran out"                      the honest other ending
+```
+
+A receipt is `file:PATH`, `git:REPO@SHA`, `q:SLUG` (checked when the ledger closes) or `said:TEXT`
+(counted, never claimed as checked). `close` succeeds only when no string is taut and every checkable
+receipt holds: nothing further to write or read for this prompt. `bail` marks each string still owed,
+with the reason, so a stop is never silent. The defaults (`assets/strings.default`) are the strings any
+prompt owes; edit them for your shop. Without C4, keep the ledger beside the pair in the project's `h/`
+and write `# root: .` at its top.
+
+**Drift reports here.** When a drift page says the work is done, `close` the prompt's ledger; when it
+says bail, `bail` it. `pg1lv drift LEDGER...` gives the line a page cites for each prompt in its window.
+
+Names he offered for the glove (2026-10-15): powerglove, `prompt-recycler`, `speedboxer`. The skill
+keeps its name until he chooses (Q601), since a rename changes what every user types.
+
 ## Refusals
 
 Never paraphrase-then-discard the original. Never smooth silently. Never pin on his behalf.
@@ -69,8 +99,15 @@ When in doubt whether a prompt is load-bearing, land it.
 - **A pin taken on his behalf.** fails if a term is PINNED with no cited ruling; check: every PINNED term cites a RULING Qnnn you can find in the bank.
 - **A pair not landed.** fails if a marked prompt has no `h/REFORMAT-<date>-*.md` entry that day; check: `ls h/REFORMAT-$(date +%F)-*` and grep for the prompt's first words.
 
+- **A string left taut.** fails if a prompt's work is reported finished while its ledger is open or
+  holds a taut string; check: `pg1lv drift q/*/STRINGS` and read every line that is not closed or bailed.
+- **A receipt that does not hold.** fails if a pulled string names a file, commit or capture that is
+  not there; check: `pg1lv close`, which re-reads every checkable receipt; `sh tests.sh --prove-red`
+  plants six faults and catches each.
+
 <!-- footer: minted by bin/ft1mt from conventions/house.env and conventions/FOOTERS.org; edit those, not this -->
-*Version 1.1.2: edition revised from 1.1.0 on 2026-10-10; spine: 2026-08-06.*
+*Version 1.2: edition revised from 1.1.2 on 2026-10-15; spine: 2026-08-06.*
 
 Copyright 2026 Corwin Brust <corwin@bru.st> and Contributors; CC-BY-SA4: https://creativecommons.org/licenses/by-sa/4.0/ (scripts GPL-3.0-or-later); Mentat (for Corwin; claude-opus-5-5)
+From the collection Corwin Brust and Bryant Frankford keep together, with K Smith as editor of the works she edited; thanks in ACKNOWLEDGEMENTS; home: https://github.com/inputloop
 <!-- /footer -->

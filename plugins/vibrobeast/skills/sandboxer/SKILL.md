@@ -488,6 +488,10 @@ Facts about this sandbox that were learned by running into them. Date each; neve
   the magic-number-theory work of 2026-09-26. The device read `115a4d9a`, `b0ef4a46` and
   `cd03d62a` where the cloud copies read `22ca407d`, `ef0417d3` and `ff78d8c9`, each checked with
   `sha256sum`.
+  Last seen true 2026-10-15, twice (`bin/tg1rn`, `c4/bin/ar1ve`): the first commit after an edit to
+  an already-committed outputs file landed the old bytes (Windows-side size 5,729 against 5,783);
+  a second identical commit cured both.  The fresh-name cure above was not used: this skill was
+  not loaded that turn, and the both-sides hash is what caught it.
 - **2026-09-26 · a check that wrote `t.$$` into a mount folder left five strays.** The recipe check
   `sweep-walks-the-curve` wrote its fixture beside itself and then ran `rm -f t.$$`. The `rm` was
   refused, silently, so each run left one file behind (`t.3 t.5 t.12 t.24 t.126`). The check still
@@ -629,7 +633,8 @@ need is *occasional*; never merge what is only *sometimes* shared.
 - **A check stopped checking.** fails if `sh tests-validators.sh --prove-red` or `python3 tests-sig-fresh.py --prove-red` (skill root) does not end `PROVE-RED OK`; each plants broken files in a temp dir and breaks its script in a temp copy.
 
 <!-- footer: minted by bin/ft1mt from conventions/house.env and conventions/FOOTERS.org; edit those, not this -->
-*Version 1.1.2: edition revised from 1.1.0 on 2026-10-10; spine: 2026-07-07.*
+*Version 1.2: edition revised from 1.1.2 on 2026-10-15; spine: 2026-07-07.*
 
 Copyright 2026 Corwin Brust <corwin@bru.st> and Contributors; CC-BY-SA4: https://creativecommons.org/licenses/by-sa/4.0/ (scripts GPL-3.0-or-later); Mentat (for Corwin; claude-opus-5-5)
+From the collection Corwin Brust and Bryant Frankford keep together, with K Smith as editor of the works she edited; thanks in ACKNOWLEDGEMENTS; home: https://github.com/inputloop
 <!-- /footer -->

@@ -1,0 +1,102 @@
+#!/bin/sh
+# mn1sk -- MONOCLE STACK 1 KEEPER: keeps the count and the honesty of a stack of questions ground from
+# one block of input; never asks, ranks or answers a question itself.
+#
+# usage:  mn1sk check STACK        the invariants, in words; exit 1 on a fault
+#         mn1sk state STACK        each layer: how many questions, how many the block raised and how
+#                                  many only their parent did, how many set aside; where it ran dry
+#         mn1sk layer STACK N      layer N's questions as a plain list (for countboxer's cb1ox)
+#         mn1sk gaps STACK         first-layer questions with no answered, partly or opening cell (a
+#                                  question dropped without anyone deciding to); exit 1 when any
+#         mn1sk grid STACK         the grid, as a markdown table: one row per question, one column
+#                                  per cell name the stack uses (> name: text)
+#         mn1sk --prove-red        is in tests.py, which plants faults in copies of this file
+#
+# A STACK is plain text:
+#   # block: PATH            the input; every quote is checked against it (relative to the STACK)
+#   # seed: QUESTION         the question that seeks questions
+#   ? QUESTION?  « QUOTE »   (or << QUOTE >>) a question; two spaces of indent per layer below the first; QUOTE is
+#                            words from the block that raised it, or ^ when only its parent did
+#   > NAME: TEXT             a grid cell for the question above (opening, falsifier, view, ...)
+#   x QUESTION -- WHY        a question set aside, kept with its reason
+# Copyright (C) 2026 Corwin Brust <corwin@bru.st>.  Mentat (for Corwin; claude-opus-5-5).
+# SPDX-License-Identifier: GPL-3.0-or-later
+set -u
+cmd=${1:-}; S=${2:-}
+[ -n "$cmd" ] && [ -n "$S" ] && [ -f "$S" ] || { sed -n '2,26p' "$0" | sed 's/^# \{0,1\}//'; exit 2; }
+B=$(sed -n 's/^# block: *//p' "$S" | head -1)
+case "$B" in ''|/*) ;; *) B="$(dirname "$S")/$B";; esac
+
+parse() {   # one record per meaningful line: KIND<US>DEPTH<US>TEXT<US>QUOTE<US>LINENO (US = \037)
+  awk -v blockf="$B" '
+    function norm(s) { s = tolower(s); gsub(/[^a-z0-9]+/, " ", s); gsub(/^ +| +$/, "", s); return s }
+    BEGIN { US = "\037"; if (blockf != "") { while ((getline l < blockf) > 0) blk = blk " " l; close(blockf) }; NB = norm(blk) }
+    /^#/ || /^[ \t]*$/ { next }
+    { m = match($0, /[^ ]/); ind = m - 1; d = int(ind / 2) + 1; line = substr($0, m); k = substr(line, 1, 1)
+      rest = substr(line, 3)
+      if (k == "?") { q = rest; quote = ""
+        gsub(/<</, "«", rest); gsub(/>>/, "»", rest)          # << >> for anyone who cannot type « »
+        a = index(rest, "«"); e = index(rest, "»")
+        if (a && e > a) { quote = substr(rest, a + length("«"), e - a - length("«")); q = substr(rest, 1, a - 1)
+          gsub(/^ +| +$/, "", quote) }
+        gsub(/[ \t]+$/, "", q)
+        inb = (quote == "^") ? "parent" : (quote == "" ? "none" : (index(NB, norm(quote)) ? "block" : "missing"))
+        print "Q" US d US q US quote US NR US ind US inb }
+      else if (k == ">") print "C" US d US rest US "" US NR US ind US ""
+      else if (k == "x") print "X" US d US rest US "" US NR US ind US ""
+      else print "?" US d US line US "" US NR US ind US "" }' "$S"
+}
+
+case "$cmd" in
+  check)
+    [ -n "$B" ] && [ -f "$B" ] || { echo "mn1sk: the stack names no block it can read (# block: PATH); nothing can be checked"; exit 1; }
+    parse | awk -F '\037' '
+      function norm(s) { s = tolower(s); gsub(/[^a-z0-9]+/, " ", s); gsub(/^ +| +$/, "", s); return s }
+      { k = $1; d = $2; t = $3; q = $4; n = $5; ind = $6; inb = $7 }
+      k == "?" { f++; print "FAULT line " n ": not a question, a cell or a set-aside line: " t; next }
+      ind % 2 { f++; print "FAULT line " n ": indent is not a whole layer (two spaces each)" }
+      k == "Q" {
+        if (d > last + 1) { f++; print "FAULT line " n ": jumps from layer " last " to layer " d " (no parent)" }
+        last = d; nq++
+        if (t !~ /\?$/) { f++; print "FAULT line " n ": a question ends with a question mark: " t }
+        if (inb == "none") { f++; print "FAULT line " n ": no « quote »: say which words of the block raised it, or « ^ » for its parent" }
+        if (inb == "missing") { f++; print "FAULT line " n ": the quote is not in the block: « " q " »" }
+        if (inb == "parent" && d == 1) { f++; print "FAULT line " n ": a first-layer question has no parent; quote the block" }
+        key = norm(t); if (key in seen) { f++; print "FAULT line " n ": the same question as line " seen[key] } else seen[key] = n
+        next }
+      k == "C" { if (!nq) { f++; print "FAULT line " n ": a cell before any question" }
+                 if ($3 !~ /^[A-Za-z][A-Za-z -]*:/) { f++; print "FAULT line " n ": a cell is > name: text" } next }
+      k == "X" { if ($3 !~ / -- [^ ]/) { f++; print "FAULT line " n ": a question set aside keeps its reason (QUESTION -- WHY)" } next }
+      END { if (!nq) { f++; print "FAULT: no questions yet" }
+            if (f) { print "mn1sk check: " f " fault(s)"; exit 1 } print "mn1sk check: holds (" nq " questions, every quote found in the block)" }';;
+  state)
+    parse | awk -F '\037' '
+      $1 == "Q" { n[$2]++; if ($7 == "block") b[$2]++; else if ($7 == "parent") p[$2]++; if ($2 > max) max = $2; kids[$2 - 1]++ }
+      $1 == "X" { x[$2]++ }
+      END { if (!max) { print "no questions yet"; exit }
+            for (d = 1; d <= max; d++)
+              printf "layer %d: %d question(s); %d raised by the block, %d by their parent alone; %d set aside\n", d, n[d], b[d]+0, p[d]+0, x[d]+0
+            printf "the stack ran dry below layer %d: no question there raised another\n", max
+            t = 0; for (d = 1; d <= max; d++) t += n[d]; printf "in all: %d question(s) ground from the block\n", t }';;
+  layer)
+    N=${3:-1}; parse | awk -F '\037' -v N="$N" '$1 == "Q" && $2 == N { print $3 }';;
+  gaps)
+    parse | awk -F '\037' '
+      $1 == "Q" { if ($2 == 1) { q = $3; line[q] = $5; order[++n] = q } cur = ($2 == 1 ? $3 : cur); top = ($2 == 1) }
+      $1 == "C" && top && $3 ~ /^(answered|partly|opening):/ { had[cur] = 1 }
+      END { for (i = 1; i <= n; i++) if (!(order[i] in had)) { g++; print "GAP line " line[order[i]] ": " order[i] }
+            if (g) { print "mn1sk gaps: " g " first-layer question(s) with no answered, partly or opening cell"; exit 1 }
+            print "mn1sk gaps: none; every first-layer question is answered, partly answered or opened" }';;
+  grid)
+    parse | awk -F '\037' '
+      function esc(s) { gsub(/\|/, "\\|", s); return s }
+      $1 == "Q" { r++; lay[r] = $2; q[r] = $3; src[r] = ($4 == "^" ? "(its parent)" : "« " $4 " »") }
+      $1 == "C" && r { c = $3; i = index(c, ":"); name = substr(c, 1, i - 1); val = substr(c, i + 1); sub(/^ +/, "", val)
+                       if (!(name in col)) { col[name] = ++nc; cname[nc] = name }
+                       cell[r, col[name]] = (cell[r, col[name]] == "" ? val : cell[r, col[name]] "; " val) }
+      END { printf "| layer | question | raised by |"; for (j = 1; j <= nc; j++) printf " %s |", cname[j]; print ""
+            printf "|---|---|---|"; for (j = 1; j <= nc; j++) printf "---|"; print ""
+            for (i = 1; i <= r; i++) { printf "| %d | %s | %s |", lay[i], esc(q[i]), esc(src[i])
+              for (j = 1; j <= nc; j++) printf " %s |", esc(cell[i, j]); print "" } }';;
+  *) sed -n '2,26p' "$0" | sed 's/^# \{0,1\}//'; exit 2;;
+esac

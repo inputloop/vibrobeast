@@ -1,0 +1,8 @@
+# CLASS<TAB>AFTER<TAB>PATTERN (an awk ERE).  First matching row wins.
+# AFTER: lines kept after a match, or "fold": counted, but folded with the dull lines (known noise).
+# ln1fd never folds a line a shown class matches; edit this table to suit the program you watch.
+noise	fold	ResourceWarning|Enable tracemalloc
+failrun	0	[.][.][.] (FAIL|ERROR)$
+fail	12	^(FAIL|ERROR|BROKEN|MISSED|OWED)[: ]|Traceback|AssertionError|^fatal:|^not ok
+warn	1	[Ww]arning|WARN|deprecated
+mark	0	^Ran [0-9]+ tests?|^OK( |$)|^FAILED [(]|^GREEN|^RED|^[a-z0-9-]+: [0-9]+/[0-9]+ hold|every claim holds

@@ -1,0 +1,187 @@
+#!/bin/sh
+# pg1lv -- POWERGLOVE 1 LEDGER: the strings one prompt leaves owed, coming in (reads, tool and MCP
+# calls) and going out (writes, commits, pushes), each held until it is pulled with a receipt or
+# relaxed with a reason.  A prompt is finished when no string is taut: nothing further to write or read.
+#
+# usage:  pg1lv open LEDGER [PROMPT]       start a ledger from assets/strings.default (PROMPT: the capture)
+#         pg1lv owe LEDGER in|out WHAT     add a string
+#         pg1lv pull LEDGER N RECEIPT      string N is done; RECEIPT says where it shows:
+#                                            file:PATH   a file (relative to the ledger's root)
+#                                            git:REPO@SHA  a commit in REPO (a path, or a name
+#                                                        found beside the root or one folder over)
+#                                            q:SLUG      a prompt filed in q/INDEX-captures.tsv
+#                                            said:TEXT   anything else; counted, never checked
+#         pg1lv relax LEDGER N WHY         let string N go, on purpose, with the reason
+#         pg1lv state LEDGER               in words: what is taut, pulled, relaxed; the next taut string
+#         pg1lv close LEDGER               exit 0 only when nothing is taut and every checkable receipt holds
+#         pg1lv bail LEDGER WHY            stop here: taut strings are marked bailed with the reason
+#         pg1lv drift LEDGER...            one line per ledger for a drift page: open, closed or bailed
+#         pg1lv resume [LEDGER...]         after a compaction: every open ledger and its next taut string
+#                                          (default: q/*/STRINGS here)
+#         pg1lv ask LEDGER                 the hand-back as questions: "Did you ...?" for each taut string,
+#                                          the skills it delegates to, and the checks that can answer it
+#         pg1lv check LEDGER [--pull]      run each taut string's named checks; --pull pulls a string
+#                                          whose checks all say OK, with the receipt check:NAME[,NAME]
+#
+# A string may carry, after what it owes:  "  ? Did you ...?"  (its question at hand-back),
+# "  @skill" (a skill that holds it; any number) and "  !check" (a named check from
+# assets/handback-checks.sh; any number).  A ledger can name a check; it cannot bring one.
+# A receipt check:NAME[,NAME] is re-run at close and holds only if every named check says OK.
+#
+# The egg (after Bryant's caterpillar, the cuff of his power-glove): open records a hash of the
+# captured prompt; close refuses if the capture changed after intake, so what was asked stays what
+# was asked, across any compaction.
+#
+# Did-you questions and the checks, 2026-10-16: wired from inculcat-boxer after one session left git
+# debris and stray queues that another found and asked him about.
+#
+# A LEDGER is plain text: "# root: DIR" (default: the folder two above it, a C4 tree for q/ITEM/STRINGS),
+# then one string per line:  [ ] taut   [x] pulled -- RECEIPT   [~] relaxed -- WHY   [!] bailed -- WHY
+# Copyright (C) 2026 Corwin Brust <corwin@bru.st>.  Mentat (for Corwin; claude-opus-5-5).
+# SPDX-License-Identifier: GPL-3.0-or-later
+set -u
+here=$(cd "$(dirname "$0")/.." && pwd)
+cmd=${1:-}; L=${2:-}
+if [ "$cmd" = resume ]; then
+  shift; [ $# -gt 0 ] || set -- q/*/STRINGS; n=0
+  for f in "$@"; do [ -f "$f" ] || continue; grep -q '^# closed:\|^# bailed:' "$f" && continue; n=$((n + 1))
+    t=$(grep -c '^\[ \] ' "$f"); nx=$(grep -m1 '^\[ \] ' "$f" | sed 's/^\[ \] //')
+    echo "$f: $t taut; next: $nx"; done
+  [ "$n" -gt 0 ] || echo "pg1lv: no open ledger; nothing is owed"; exit 0; fi
+usage() { sed -n '2,30p' "$0" | sed 's/^# \{0,1\}//'; exit 2; }
+[ -n "$cmd" ] && [ -n "$L" ] || usage
+now() { date -u +%Y-%m-%dT%H:%MZ; }
+sha() { if command -v sha256sum >/dev/null 2>&1; then sha256sum; else shasum -a 256; fi | cut -c1-16; }
+root() { r=$(sed -n 's/^# root: *//p' "$L" | head -1); [ -n "$r" ] || r=../..
+         case "$r" in /*) printf '%s\n' "$r";; *) (cd "$(dirname "$L")/$r" 2>/dev/null && pwd);; esac; }
+need() { [ -f "$L" ] || { echo "pg1lv: no ledger at $L (pg1lv open $L)"; exit 2; }; }
+closed() { grep -q '^# closed:\|^# bailed:' "$L"; }
+nstr() { grep -c '^\[.\] ' "$L"; }
+setline() {   # setline N NEWLINE -- replace the Nth string line
+  t=$(mktemp) || exit 2
+  awk -v n="$1" -v new="$2" '/^\[.\] / { i++; if (i == n) { print new; next } } { print }' "$L" > "$t" && cat "$t" > "$L"; rm -f "$t"; }
+strn() { awk -v n="$1" '/^\[.\] / { i++; if (i == n) { print; exit } }' "$L"; }
+US=$(printf '\037')   # the field separator: a tab is IFS whitespace, so an empty field would collapse
+# parse a string line into WHAT, its question, its skills and its checks (tab-separated), for ask and check
+fields() { awk -v n="${1:-0}" '
+  function parse(s,   i, j, rest, tok, m) {
+    sub(/^\[.\] /, "", s); sub(/ -- .*/, "", s); W = s; Q = ""; S = ""; C = ""
+    i = match(s, /  [?@!]/); if (!i) return; W = substr(s, 1, i - 1); rest = substr(s, i)
+    while (match(rest, /  [?@!]/)) {
+      rest = substr(rest, RSTART + 2); m = substr(rest, 1, 1); rest = substr(rest, 2)
+      j = match(rest, /  [?@!]/); tok = j ? substr(rest, 1, j - 1) : rest; rest = j ? substr(rest, j) : ""
+      gsub(/^ +| +$/, "", tok)
+      if (m == "?") Q = tok; else if (m == "@") S = S (S ? " " : "") tok; else C = C (C ? " " : "") tok } }
+  /^\[.\] / { k++; if (n && k != n) next; st = substr($0, 2, 1); parse($0)
+    printf "%d\037%s\037%s\037%s\037%s\037%s\n", k, st, W, Q, S, C }' "$L"; }
+# the repositories a ledger touches: its root, and each repository a git: receipt names
+repos() { R=$(root); { printf '%s\n' "$R"
+  sed -n 's/.* -- git:\([^@]*\)@.*/\1/p' "$L" | sort -u | while IFS= read -r name; do
+    case "$name" in /*) [ -d "$name" ] && printf '%s\n' "$name"; continue;; esac
+    for c in "$R/$name" "$R/../$name" "$R"/../*/"$name"; do [ -d "$c" ] && { (cd "$c" && pwd); break; }; done; done; } | awk '!seen[$0]++'; }
+# run named checks; prints one verdict line per check; returns 0 only when every one says OK
+CHECKS=${PG1LV_CHECKS:-$here/assets/handback-checks.sh}
+runchecks() {   # runchecks NAME...
+  [ -f "$CHECKS" ] || { echo "  ASK    (no checks file at $CHECKS)"; return 3; }
+  since=$(mktemp) || exit 2; o=$(sed -n 's/^# opened: *//p' "$L" | head -1 | sed 's/T/ /; s/Z$//')
+  [ -n "$o" ] && TZ=UTC touch -d "$o" "$since" 2>/dev/null || : > "$since"
+  rw=0
+  for _c in "$@"; do
+    case "$_c" in *[!a-z0-9-]*|'') echo "  FAULT  !$_c (a check name is lowercase letters, digits and dashes)"; rw=1; continue;; esac
+    _fn=hb_$(printf '%s' "$_c" | tr - _)
+    _res=$(HB_ROOT=$(root) HB_REPOS=$(repos) HB_SINCE=$since HB_LEDGER=$L sh -c ". \"\$0\"; type $_fn >/dev/null 2>&1 || { echo 'no such check'; exit 1; }; $_fn" "$CHECKS" 2>&1); _rc=$?
+    case $_rc in 0) _v=OK;; 3) _v=ASK; [ $rw = 1 ] || rw=3;; *) _v=FAULT; rw=1;; esac
+    printf '  %-6s !%s  %s\n' "$_v" "$_c" "$_res"
+  done; rm -f "$since"; return $rw; }
+
+case "$cmd" in
+  open)
+    [ -f "$L" ] && { echo "pg1lv: $L is already open; nothing changed"; exit 0; }
+    mkdir -p "$(dirname "$L")"
+    { printf '# strings for: %s\n' "$(basename "$(dirname "$L")")"
+      if [ -n "${3:-}" ]; then printf '# prompt: %s\n' "$3"
+        pf=$(root)/$3; case "$3" in /*) pf=$3;; esac
+        if [ -f "$pf" ]; then printf '# egg: %s %s\n' "$(sha < "$pf")" "$3"; else printf '# egg: none (%s was not found: captured late?)\n' "$3"; fi; fi
+      printf '# opened: %s\n' "$(now)"
+      grep -v '^#' "$here/assets/strings.default" | grep . | sed 's/^/[ ] /'; } > "$L"
+    echo "pg1lv: opened $L with $(nstr) string(s), all taut";;
+  owe)
+    need; d=${3:-}; w=${4:-}
+    case "$d" in in|out) ;; *) echo "pg1lv: owe needs in or out, then what"; exit 2;; esac
+    [ -n "$w" ] || { echo "pg1lv: owe needs what is owed"; exit 2; }
+    closed && { echo "pg1lv: $L is closed; open a new ledger for new work"; exit 2; }
+    printf '[ ] %-4s %s\n' "$d" "$w" >> "$L"; echo "pg1lv: string $(nstr) taut: $d $w";;
+  pull|relax)
+    need; n=${3:-}; x=${4:-}
+    case "$n" in ''|*[!0-9]*) echo "pg1lv: $cmd needs a string number"; exit 2;; esac
+    closed && { echo "pg1lv: $L is closed; its strings stay as they were"; exit 2; }
+    s=$(strn "$n"); [ -n "$s" ] || { echo "pg1lv: there is no string $n (the ledger has $(nstr))"; exit 2; }
+    [ -n "$x" ] || { [ "$cmd" = pull ] && echo "pg1lv: a pull needs its receipt (file:, git:, q: or said:)" || echo "pg1lv: a string is relaxed only with its reason"; exit 2; }
+    if [ "$cmd" = pull ]; then case "$x" in file:?*|git:?*@?*|q:?*|said:?*) ;; *) echo "pg1lv: a receipt is file:PATH, git:REPO@SHA, q:SLUG or said:TEXT"; exit 2;; esac; m='[x]'; else m='[~]'; fi
+    body=$(printf '%s\n' "$s" | sed 's/^\[.\] //; s/ -- .*//')
+    setline "$n" "$m $body -- $x"; echo "pg1lv: string $n $( [ "$cmd" = pull ] && echo pulled || echo relaxed): $body";;
+  state)
+    need; awk '/^\[ \] /{t++; if (!nx) nx = NR": "substr($0,5)} /^\[x\] /{p++} /^\[~\] /{r++} /^\[!\] /{b++}
+      /^# (closed|bailed):/{c = $0}
+      END { printf "%d taut, %d pulled, %d relaxed, %d bailed\n", t, p, r, b
+            if (c != "") print c; else if (nx) { sub(/^[0-9]+: /, "", nx); print "next taut: " nx } else print "nothing taut: pg1lv close" }' "$L";;
+  close)
+    need; R=$(root); bad=0; said=0
+    egg=$(sed -n 's/^# egg: \([0-9a-f]\{16\}\) //p' "$L"); eh=$(sed -n 's/^# egg: \([0-9a-f]\{16\}\) .*/\1/p' "$L")
+    if [ -n "$egg" ]; then pf=$R/$egg; case "$egg" in /*) pf=$egg;; esac
+      now_h=$( [ -f "$pf" ] && sha < "$pf" || echo gone)
+      [ "$now_h" = "$eh" ] || { echo "pg1lv: the prompt's capture changed after intake (egg $eh, now $now_h): nothing closed"; exit 1; }
+      echo "  egg    $egg unchanged since intake"; fi
+    taut=$(grep -n '^\[ \] ' "$L")
+    if [ -n "$taut" ]; then echo "pg1lv: still taut -- nothing closed:"; grep '^\[ \] ' "$L" | sed 's/^\[ \] /  /'; exit 1; fi
+    tmp=$(mktemp); grep '^\[x\] ' "$L" | sed 's/.* -- //' > "$tmp"
+    while IFS= read -r rc; do
+      case "$rc" in
+        file:*) p=${rc#file:}; case "$p" in /*) f=$p;; *) f=$R/$p;; esac
+                if [ -e "$f" ]; then echo "  holds  $rc"; else echo "  FAILS  $rc (no such file under $R)"; bad=1; fi;;
+        git:*) g=${rc#git:}; name=${g%@*}; sha=${g##*@}; repo=
+               case "$name" in /*) repo=$name;;
+                 *) for c in "$R/$name" "$R/../$name" "$R"/../*/"$name"; do [ -d "$c" ] && { repo=$c; break; }; done;; esac
+               [ -n "$repo" ] || repo=$R/$name
+               if git -C "$repo" cat-file -e "$sha^{commit}" 2>/dev/null; then echo "  holds  $rc"; else echo "  FAILS  $rc (no such commit)"; bad=1; fi;;
+        q:*) sl=${rc#q:}; if grep -q -e "$(printf '\t')$sl$(printf '\t')" -e "q/PROMPT-$sl.md" "$R/q/INDEX-captures.tsv" 2>/dev/null; then echo "  holds  $rc"; else echo "  FAILS  $rc (not in q/INDEX-captures.tsv)"; bad=1; fi;;
+        said:*) echo "  said   $rc (counted, not checked)"; said=$((said + 1));;
+        check:*) names=$(printf '%s' "${rc#check:}" | tr , ' ')
+                 if runchecks $names >/dev/null; then echo "  holds  $rc (re-run now: OK)"; else echo "  FAILS  $rc (re-run now: not OK)"; bad=1; fi;;
+      esac
+    done < "$tmp"; rm -f "$tmp"
+    [ "$bad" = 0 ] || { echo "pg1lv: a receipt does not hold; nothing closed"; exit 1; }
+    closed || printf '# closed: %s\n' "$(now)" >> "$L"
+    echo "pg1lv: closed -- nothing further owed by this prompt ($(grep -c '^\[x\] ' "$L") pulled, $(grep -c '^\[~\] ' "$L") relaxed; $said said and not checked)";;
+  bail)
+    need; w=${3:-}; [ -n "$w" ] || { echo "pg1lv: a bail keeps its reason"; exit 2; }
+    t=$(mktemp); sed "s/^\[ \] \(.*\)$/[!] \1 -- bailed: $(printf '%s' "$w" | sed 's/[\/&]/\\&/g')/" "$L" > "$t" && cat "$t" > "$L"; rm -f "$t"
+    printf '# bailed: %s -- %s\n' "$(now)" "$w" >> "$L"; echo "pg1lv: bailed with $(grep -c '^\[!\] ' "$L") string(s) left owed, each marked, reason kept";;
+  ask)
+    need; n=0
+    fields | while IFS="$US" read -r k st w q sk ck; do
+      [ "$st" = " " ] || continue
+      [ -n "$q" ] || q="Did you see to this: $(printf '%s' "$w" | sed 's/^\(in\|out\) *//')?"
+      printf '%s. %s\n' "$k" "$q"
+      [ -n "$sk" ] && printf '     delegates to: %s\n' "$sk"
+      [ -n "$ck" ] && printf '     checked by:   %s   (pg1lv check %s)\n' "$(printf '%s' "$ck" | sed 's/[^ ][^ ]*/!&/g')" "$L"
+    done
+    t=$(grep -c '^\[ \] ' "$L"); echo "$t question(s) open; each is pulled with a receipt or relaxed with a reason";;
+  check)
+    need; pullok=0; [ "${3:-}" = --pull ] && pullok=1; any=0; worst=0; tmp=$(mktemp)
+    fields > "$tmp"
+    while IFS="$US" read -r k st w q sk ck; do
+      [ "$st" = " " ] && [ -n "$ck" ] || continue; any=1
+      echo "$k. $w"; runchecks $ck; rc=$?
+      [ $rc -gt $worst ] && worst=$rc; [ $rc = 1 ] && worst=1
+      if [ $rc = 0 ] && [ $pullok = 1 ]; then rec=check:$(printf '%s' "$ck" | tr ' ' ,)
+        s=$(strn "$k"); body=$(printf '%s\n' "$s" | sed 's/^\[.\] //; s/ -- .*//'); setline "$k" "[x] $body -- $rec"; echo "  pulled with $rec"; fi
+    done < "$tmp"; rm -f "$tmp"
+    [ $any = 1 ] || { echo "pg1lv: no taut string carries a check"; exit 0; }
+    case $worst in 0) echo "pg1lv check: every check said OK";; 3) echo "pg1lv check: no FAULT; some ASK a person"; exit 3;; *) echo "pg1lv check: a check FAULTED"; exit 1;; esac;;
+  drift)
+    shift; for f in "$@"; do [ -f "$f" ] || { echo "$f: no ledger"; continue; }
+      awk -v f="$f" '/^\[ \] /{t++} /^\[x\] /{p++} /^\[~\] /{r++} /^\[!\] /{b++} /^# closed:/{s="closed " $3} /^# bailed:/{s="bailed " $3}
+        END { if (s == "") s = "open"; printf "%s: %s; %d taut, %d pulled, %d relaxed, %d bailed\n", f, s, t, p, r, b }' "$f"; done;;
+  *) usage;;
+esac

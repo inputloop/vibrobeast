@@ -60,6 +60,7 @@ throw away the only signal the arrangement was built to produce.
 
 from __future__ import annotations
 
+import os
 import shutil
 import subprocess
 from dataclasses import dataclass, field
@@ -225,7 +226,16 @@ def _run_reader(tool: Path, runner: str, seam_dir: Path, label: str) -> ChainRes
             f"{runner} is not on PATH, so the {label} reader cannot run. "
             "This matters more than it looks: with no second reader every "
             "verification is a single reader, which is DATA and not proof.")
-    proc = subprocess.run([exe, str(tool), str(seam_dir)],
+    # HYPOTHESIS, 2026-10-16 (written before the fix; NOT CHECKED on Windows from here): on avalon the
+    # shell reader has said "OK 0" for every seam the Python reader counts 1-3 generations in (10-12
+    # handback, and persona_chain mentat tonight).  An empty-but-present folder reads OK 0, so msys sh
+    # sees the folder and not its files.  The suspect is the backslash spelling: the folder is handed
+    # over as C:\Users\...\mentat and globbed as "$dir"/g*.md.  Hand the out-of-process readers the
+    # forward-slash spelling (C:/Users/.../mentat), which msys, Perl and POSIX all take.  Falsifier: after
+    # a rebuild, persona_chain mentat on avalon still shows shell gens=0 against Python's 3.
+    # tests/test_verify_windows_arg.py checks the hand-over, not the cure.
+    arg = seam_dir.as_posix() if os.name == "nt" else str(seam_dir)
+    proc = subprocess.run([exe, str(tool), arg],
                           capture_output=True, text=True, encoding="utf-8", timeout=60)
     out = (proc.stdout or "").strip()
     # Contract: "OK\t<gens>" or "BROKEN\t<gens>\t<file>\t<check>\t<why>"

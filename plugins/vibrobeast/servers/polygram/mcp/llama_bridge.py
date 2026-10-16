@@ -28,6 +28,10 @@ as he thinks best (NOTICE-llama_bridge has both hashes and the list). In short:
     large (gemma4: 262,144) gets a window sized to the prompt instead, in
     buckets from `num_ctx_floor` (8192) up, so it stays on the GPU. Measured on
     an RTX 3080: 52.6 tok/s at 8,192 against 8.1 tok/s at the default.
+  - an answer cap (config `num_predict_cap`; empty = `num_ctx_reserve`, 0 = none): a call that
+    does not set num_predict is capped at the room its window reserved for the answer (2026-10-16).
+  - a breaker (config `breaker_after`, 4; `breaker_cool`, the generate timeout): a model that failed
+    that many times in a row is not sent to again until it has rested, then gets one trial (2026-10-16).
   - one at a time (config `max_parallel`, 1): generate calls queue in the
     bridge, so a background job's time limit (`generate_timeout`, 600 s) counts
     from when it starts, not from when it was queued; delegate_result says
@@ -441,6 +445,16 @@ def build_generate_body(model, prompt, system=None, fmt=None, think=None,
         body["think"] = think  # Ollama could not say; the caller asked, so send it
         info["think"] = "sent"
     opts = caller_options(options)
+    # An answer with no cap can run until the time limit and hold the GPU; on avalon a 12b model then
+    # spilled into system memory ("I can feel the keystroke lag", 2026-10-15).  When nobody set
+    # num_predict, cap it at the room the window reserved for the answer, so the two agree.
+    # Not part of the cache key (that reads the caller's options), so existing caches still hit.
+    if "num_predict" not in opts:
+        raw = (cfg_get("num_predict_cap", "") or "").strip()
+        cap = _cfg_int("num_ctx_reserve", 4096) if raw == "" else (int(raw) if raw.isdigit() else 0)
+        if cap > 0:
+            opts["num_predict"] = cap
+            info["num_predict_cap"] = cap
     if "num_ctx" not in opts:
         n = choose_num_ctx(meta, prompt, system, opts.get("num_predict"))
         if n:
@@ -465,6 +479,51 @@ def generate_slot():
         if _GEN_SEM is None:
             _GEN_SEM = threading.BoundedSemaphore(max(1, _cfg_int("max_parallel", 1)))
         return _GEN_SEM
+
+
+# The breaker (2026-10-16): get_stats on avalon read 6 failures in 60 delegations, and a requeued job
+# waited about 30 minutes to learn that Ollama could not be reached.  After `breaker_after` failures of
+# one model in a row the bridge stops sending to it for `breaker_cool` seconds and says so at once; then
+# one trial call goes through (half-open): success closes the breaker, failure starts the rest again.
+# Kept in memory, per process: a restart forgets it, on purpose.  Only a failure to answer counts (an
+# OllamaError), never an answer that failed its checks.
+_BREAKER = {}
+_BREAKER_LOCK = threading.Lock()
+
+
+def _breaker_cfg():
+    after = _cfg_int("breaker_after", 4) if (cfg_get("breaker_after", "4") or "").strip() != "" else 4
+    raw = (cfg_get("breaker_cool", "") or "").strip()
+    cool = int(raw) if raw.isdigit() else _cfg_int("generate_timeout", 600)
+    return after, cool
+
+
+def breaker_check(model, now=None):
+    """None when a call may go to `model`; otherwise the sentence that says why not."""
+    after, cool = _breaker_cfg()
+    if after <= 0:
+        return None
+    now = time.time() if now is None else now
+    with _BREAKER_LOCK:
+        b = _BREAKER.get(model)
+        if not b or b["fails"] < after:
+            return None
+        left = int(b["opened"] + cool - now)
+        if left <= 0:
+            return None          # half-open: let one trial through; its result decides
+        return ("breaker open: %d failures in a row; resting %ds more (config breaker_after, "
+                "breaker_cool; 0 turns it off)" % (b["fails"], left))
+
+
+def breaker_note(model, failed, now=None):
+    now = time.time() if now is None else now
+    with _BREAKER_LOCK:
+        if not failed:
+            _BREAKER.pop(model, None)
+            return
+        b = _BREAKER.setdefault(model, {"fails": 0, "opened": 0.0})
+        b["fails"] += 1
+        b["opened"] = now
 
 
 def ollama_generate(model, prompt, system=None, timeout=None, fmt=None,
@@ -951,11 +1010,19 @@ def do_delegate(model, prompt, system=None, source="mcp", checks=None,
     errors = []
     for i, m in enumerate(chain):
         t0 = time.time()
+        why = breaker_check(m)
+        if why:
+            log_event("WARN", source, "delegate", message=why, model=m, prompt=prompt,
+                      duration_ms=0, task_type=task_type, budget=budget)
+            errors.append("%s: %s" % (m, why))
+            continue
         try:
             res = ollama_generate(m, prompt, system=system, fmt=fmt,
                                   think=think, options=options,
                                   on_start=on_start if i == 0 else None)
+            breaker_note(m, failed=False)
         except OllamaError as e:
+            breaker_note(m, failed=True)
             ms = int((time.time() - t0) * 1000)
             log_event("ERROR", source, "delegate", message=str(e), model=m,
                       prompt=prompt, duration_ms=ms, task_type=task_type,
@@ -2299,7 +2366,12 @@ VB_CONFIG = {
     "num_ctx_auto_above": ("32768", "a model's own context above this counts as very large"),
     "num_ctx_floor": ("8192", "the smallest window num_ctx_auto chooses"),
     "num_ctx_reserve": ("4096", "room left to answer, in tokens, when num_predict is not set"),
+    "num_predict_cap": ("", "longest answer, in tokens, when a call does not set num_predict: '' = "
+                            "num_ctx_reserve (the room the window kept for it), 0 = no cap"),
     "max_parallel": ("1", "generate calls at once (read when the server starts)"),
+    "breaker_after": ("4", "consecutive failures of one model before the bridge stops sending to it "
+                           "for a while (0 = never); 4 is from the house set, chosen, not measured"),
+    "breaker_cool": ("", "seconds a tripped model rests before one trial call: '' = generate_timeout"),
     "generate_timeout": ("600", "seconds one generate call may take once it starts"),
 }
 
@@ -2322,6 +2394,12 @@ def vb_config_set(key, value):
     elif key == "num_ctx_auto":
         if v not in ("0", "1"):
             return False, "num_ctx_auto must be 0 or 1"
+    elif key in ("breaker_after", "breaker_cool"):
+        if v and not v.isdigit():
+            return False, "%s must be empty or a whole number (0 turns the breaker off)" % key
+    elif key == "num_predict_cap":
+        if v and not (v.isdigit()):
+            return False, "num_predict_cap must be empty (the reserve), 0 (no cap) or a whole number"
     elif key in VB_CONFIG:
         try:
             if int(v) < 1:

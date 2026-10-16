@@ -58,6 +58,12 @@ use strict;
 use warnings;
 use Digest::SHA qw(sha256_hex);
 use File::Spec;
+use IPC::Open3 ();
+
+# Bytes out, exactly: a native Windows perl writes CRLF to a text-mode STDOUT, and the readers this
+# one is held against compare bytes ('16\r' != '16', make check from MSYS2, 2026-10-15).
+binmode STDOUT, ':raw';
+binmode STDERR, ':raw';
 
 my $SPEC = 'chainspec v3: C1-C4 chain, N1-N5 names; lift v1: L1-L5; '
          . 'score v1: U1-U4';
@@ -747,15 +753,16 @@ sub prove_red {
     # never sees them.  TRAP 6: a path with a space must survive.
     my $run = sub {
         my @args = @_;
-        my $pid = open my $ph, '-|';
-        die "cannot fork: $!" unless defined $pid;
-        unless ($pid) {                          # child
-            open STDERR, '>&', \*STDOUT;
-            exec $^X, $0, @args or die $!;
-        }
+        # open3 with no error handle puts the child's STDERR on its STDOUT.  A forked pipe open
+        # ('-|' with no command) returned nothing from every check under a native Windows perl
+        # (2026-10-15); open3 runs there and here alike.
+        my $pid = IPC::Open3::open3(my $in, my $ph, undef, $^X, $0, @args);
+        close $in;
+        binmode $ph, ':raw';
         local $/;
         my $out = <$ph>;
         close $ph;
+        waitpid $pid, 0;
         return defined $out ? $out : '';
     };
 
@@ -865,6 +872,10 @@ sub prove_red {
     mkdir File::Spec->catdir($d, 'g0009-20260914T000000Z-0123456789abcdef.md') or die $!;
     eval { symlink((glob(File::Spec->catfile($d, 'g0001-*')))[0],
                    File::Spec->catfile($d, 'g0008-20260914T000000Z-89abcdef01234567.md')) };
+    {   # MSYS2's perl makes a COPY when it cannot link (2026-10-15); a copy is a regular file, not this case
+        my $l = File::Spec->catfile($d, 'g0008-20260914T000000Z-89abcdef01234567.md');
+        unlink $l if -e $l && !-l $l;
+    }
     $say->('non-regular files ignored', 'OK',
            (split /\t/, (grep { /^(OK|BROKEN)\t/ } split /\n/, $run->('chain', $s, 'red'))[0])[0]);
 

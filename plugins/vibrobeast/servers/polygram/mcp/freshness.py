@@ -23,8 +23,9 @@ said out loud as a guess).  A
 manifest is one line per shipped file, ``<sha256>  ./path``; the diff of two of them is the list of
 files that would change on reinstall, sorted into ``servers/``, ``skills/<name>`` and the rest.
 
-WHAT IT DOES NOT DO.  It does not hash the installed tree (that is ``check.sh``, 42 s on his F:
-mount), does not fetch, does not install, and does not decide for him: the verdict is CURRENT,
+WHAT IT DOES NOT DO.  For a plugin tree it does not hash the installed tree (that is ``check.sh``,
+42 s on his F: mount); for a .mcpb install it hashes only the server's own .py files (the one way to
+tell a running process from the files a reinstall put under it), does not fetch, does not install, and does not decide for him: the verdict is CURRENT,
 BEHIND or UNKNOWN, and ``reinstall`` says in words what a reinstall would buy.
 
 Also a command, for the same answer from a shell::
@@ -149,8 +150,119 @@ def compare_roots(installed: Path, shelf: Path) -> dict:
             "counts": {"installed": len(a), "shelf": len(b)}, "reinstall": reinstall, "say": say}
 
 
+# ---------------------------------------------------------------- a .mcpb install
+# Found 2026-10-14 (spells/api-heal, cast 2): an extension installed from a .mcpb carries
+# manifest.json, not MANIFEST, so the comparison above always said UNKNOWN; and a reinstall had
+# replaced the files while the old process ran on, which only a matching confirmation code showed.
+# So for a .mcpb install, three readings of the same code: what this process LOADED when it started,
+# what is INSTALLED on disk now, and what is in the SHELF's .mcpb.
+
+def _is_mcpb_root(p: Path) -> bool:
+    return (p / "manifest.json").is_file() and (p / "server" / "polygram").is_dir()
+
+
+def mcpb_root(start: Path = _HERE) -> Path | None:
+    for up in start.parents:
+        if _is_mcpb_root(up):
+            return up
+    return None
+
+
+def code_digest(server: Path) -> dict[str, str]:
+    """sha256 (16 hex) of every .py under server/polygram, keyed by its path from server/."""
+    out = {}
+    for f in sorted((server / "polygram").rglob("*.py")):
+        if "__pycache__" not in f.parts:
+            out[f.relative_to(server).as_posix()] = hashlib.sha256(f.read_bytes()).hexdigest()[:16]
+    return out
+
+
+def zip_digest(mcpb: Path) -> tuple[dict[str, str], str]:
+    import zipfile
+    out, version = {}, ""
+    with zipfile.ZipFile(mcpb) as z:
+        for n in z.namelist():
+            if n.startswith("server/polygram/") and n.endswith(".py") and "__pycache__" not in n:
+                out[n[len("server/"):]] = hashlib.sha256(z.read(n)).hexdigest()[:16]
+        try:
+            import json
+            version = str(json.loads(z.read("manifest.json")).get("version") or "")
+        except (KeyError, ValueError):
+            version = ""
+    return out, version
+
+
+def _loaded_snapshot() -> dict[str, str] | None:
+    r = mcpb_root()
+    try:
+        return code_digest(r / "server") if r else None
+    except OSError:
+        return None
+
+
+#: what this process loaded, read once as it started
+LOADED = _loaded_snapshot()
+STARTED = __import__("time").strftime("%Y-%m-%d %H:%M:%S")
+
+
+def shelf_mcpb(given: str | None) -> Path | None:
+    cands = []
+    for g in (given, _pref_shelf(), os.environ.get("POLYGRAM_DIST")):
+        if g:
+            p = Path(str(g)).expanduser()
+            cands += [p] if p.suffix == ".mcpb" else [p / "vibrobeast.mcpb", p.parent / "vibrobeast.mcpb",
+                                                      p.parent.parent / "vibrobeast.mcpb"]
+    return next((c for c in cands if c.is_file()), None)
+
+
+def _pref_shelf() -> str:
+    try:
+        from . import prefs as _prefs
+        return _prefs.get("freshness.shelf").strip()
+    except Exception:                      # noqa: BLE001
+        return ""
+
+
+def _diff(a: dict, b: dict) -> list[str]:
+    return sorted(k for k in set(a) | set(b) if a.get(k) != b.get(k))
+
+
+def mcpb_compare(root: Path, loaded: dict | None, shelf: Path | None, started: str = "") -> dict:
+    import json
+    now = code_digest(root / "server")
+    try:
+        version = str(json.loads((root / "manifest.json").read_text(encoding="utf-8")).get("version") or "")
+    except (OSError, ValueError):
+        version = ""
+    base = {"installed_root": str(root), "installed_how": ".mcpb install (manifest.json)",
+            "installed_version": version, "process_started": started,
+            "shelf_root": str(shelf) if shelf else None}
+    restart = _diff(loaded or {}, now) if loaded is not None else []
+    if restart:
+        return {**base, "verdict": "RESTART", "reinstall": "no; restart",
+                "changed_since_start": restart,
+                "say": (f"RESTART: the installed files changed since this process started ({started}); "
+                        f"{len(restart)} code file(s) differ, so the running code is the old code. Switch the "
+                        "extension off and on (or quit and reopen Claude).")}
+    if shelf is None:
+        return {**base, "verdict": "UNKNOWN", "reinstall": "cannot say",
+                "say": f"running code = installed code (version {version}); no shelf .mcpb found to compare with."}
+    sh, sv = zip_digest(shelf)
+    changed = _diff(now, sh)
+    if changed:
+        return {**base, "verdict": "BEHIND", "reinstall": "yes", "changed": changed, "shelf_version": sv,
+                "say": (f"BEHIND: {len(changed)} code file(s) on the shelf ({shelf.name}, version {sv}) differ "
+                        f"from the installed {version}; reinstall {shelf}, then switch the extension off and on.")}
+    return {**base, "verdict": "CURRENT", "reinstall": "no", "shelf_version": sv,
+            "say": f"CURRENT: running = installed = shelf ({version}), started {started}."}
+
+
 def report(args: dict | None, *, installed: Path | None = None) -> dict:
     args = args or {}
+    if installed is None and not installed_root()[0]:
+        r = mcpb_root()
+        if r is not None:
+            return mcpb_compare(r, LOADED, shelf_mcpb(args.get("shelf")), STARTED)
     if installed is None:
         inst, how_i = installed_root()
     else:
@@ -177,7 +289,8 @@ def register(srv) -> None:
     srv.tool("plugin_freshness",
              "Is the plugin this server runs from the one on the shelf? Compares the two MANIFESTs and "
              "says CURRENT / BEHIND / UNKNOWN, which files would change on reinstall (servers, which "
-             "skills, other), and in words whether a reinstall buys anything. Read-only; hashes nothing.",
+             "skills, other), and in words whether a reinstall buys anything. Installed from a .mcpb: "
+             "also RESTART when the files on disk changed since this process started. Read-only.",
              SCHEMA)(lambda a: report(a))
 
 

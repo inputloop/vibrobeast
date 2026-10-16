@@ -41,9 +41,11 @@ BEGIN { FS = "\n"; phase = "expect"; bad = 0; notes = 0 }
 FNR == 1 && FILENAME ~ /EXPECTATIONS\.md$/ { phase = "expect"; cur = "" }
 FNR == 1 && FILENAME !~ /EXPECTATIONS\.md$/ {
     phase = "note"; notes++
-    nf = FILENAME
+    fn = FILENAME
+    gsub(/\\/, "/", fn)      # a Windows caller may hand "frozen\seam/note.md": either separator is one
+    nf = fn
     sub(/.*\//, "", nf)
-    nd = FILENAME
+    nd = fn
     sub("/" nf "$", "", nd); sub(/.*\//, "", nd)
     key = nd "/" nf
     seen_note[key] = 1

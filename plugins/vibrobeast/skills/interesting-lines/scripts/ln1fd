@@ -1,0 +1,110 @@
+#!/bin/sh
+# ln1fd -- LINES 1 FOLD: show the interesting lines of a stream, fold the dull ones into a count.
+# POSIX sh + awk.
+#
+# usage:  PROGRAM 2>&1 | tee full.log | ln1fd [--table FILE] [--live|--no-live] [--width N]
+#         ln1fd [--table FILE] FILE...
+#         ln1fd --prove-red
+#   An interesting line is one a class in the table matches.  It is always shown, with the lines
+#   after it that its class asks for (a failure keeps its traceback), and it is never folded away.
+#   A run of dull lines between them becomes ONE line: how many, and the first and last of them, so
+#   you can tell what was folded.  A run of one line is shown as it is (folding it saves nothing).  On a terminal (or --live) a single line counts the run as it
+#   grows and is rubbed out when an interesting line arrives.  The full stream is tee's job: this
+#   shows, it does not keep.
+#   --table FILE  CLASS<TAB>AFTER<TAB>PATTERN rows (an awk ERE; AFTER = lines kept after a match, or
+#                 "fold": the class is counted but its lines fold with the dull ones -- known noise,
+#                 kept as a number, not a screenful); default: assets/interesting.tsv beside this
+#                 script.  First matching row wins.
+#   --width N     cut the quoted first/last lines to N characters (default 100)
+# The last line says how many lines were read, kept and folded, and how many matched each class.
+# Exit: 0; 2 usage.  (It reports; deciding pass or fail is the program's own exit status.)
+#
+# Copyright (C) 2026 Corwin Brust <corwin@bru.st> and Contributors.  GPL-3.0-or-later.
+# Mentat (for Corwin; claude-opus-5-5).
+set -u
+me=ln1fd
+here=$(cd "$(dirname "$0")" && pwd)
+TABLE=$here/../assets/interesting.tsv LIVE=auto WIDTH=100
+while [ $# -gt 0 ]; do
+  case $1 in
+    --table) TABLE=${2:?}; shift ;;
+    --live) LIVE=1 ;;
+    --no-live) LIVE=0 ;;
+    --width) WIDTH=${2:?}; shift ;;
+    --prove-red) PROVE=1 ;;
+    -h|--help) sed -n '/^# usage:/,/^# Exit:/p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    --) shift; break ;;
+    -*) echo "$me: unknown option $1" >&2; exit 2 ;;
+    *) break ;;
+  esac; shift
+done
+
+if [ "${PROVE:-}" = 1 ]; then
+  t=$(mktemp -d) || exit 1; trap 'rm -rf "$t"' EXIT INT TERM
+  printf 'noise\tfold\tResourceWarning\nfail\t2\t^(FAIL|ERROR)\nwarn\t0\tWarning\nmark\t0\t^Ran \n' > "$t/tab"
+  printf 'a1\nResourceWarning: r\na3\nFAIL: x\ntb1\ntb2\nb1\nb2\nWarning: w\nc1\nRan 3 tests\nd1\n' > "$t/in"
+  want=$(printf '... 3 lines folded: a1 ... a3\nFAIL: x\ntb1\ntb2\n... 2 lines folded: b1 ... b2\nWarning: w\nc1\nRan 3 tests\nd1\nln1fd: 12 lines read, 7 shown, 5 folded in 2 runs; noise 1 (folded), fail 1, warn 1, mark 1')
+  got=$(sh "$0" --no-live --table "$t/tab" "$t/in")
+  [ "$got" = "$want" ] || { echo "$me: the filter itself is wrong before any plant:"; printf '%s\n' "$got"; exit 1; }
+  caught=0 n=0
+  plant() {
+    n=$((n + 1)); sed "$2" "$0" > "$t/p.sh"
+    if cmp -s "$0" "$t/p.sh"; then echo "  NOT PLANTED  $1 (this filter changed shape)"; return; fi
+    o=$(sh "$t/p.sh" --no-live --table "$t/tab" "$t/in" 2>&1)
+    if [ "$o" != "$want" ]; then caught=$((caught + 1)); echo "  caught  $1"; else echo "  MISSED  $1"; fi
+  }
+  plant 'a failure keeps no lines after it'      's/keep = after\[c\]/keep = 0/'
+  plant 'a fold miscounts its run'               's/run++; if (run == 1) first = $0/run += 2; if (run == 2) first = $0/'
+  plant 'an interesting line is folded too'      's/if (c != "") {/if (0) {/'
+  plant 'the last run is never said'             's/^END { flush()/END { /'
+  plant 'a folded class is shown after all'     's/if (c != "" \&\& quiet\[c\]) { hits\[c\]++; c = "" }/if (0) c = c/'
+  plant 'the second row is never tried'          's/for (i = 1; i <= nrow; i++)/for (i = 1; i <= 1; i++)/'
+  echo "$me --prove-red: $caught of $n planted faults caught"
+  [ "$caught" -eq "$n" ]; exit $?
+fi
+
+[ -r "$TABLE" ] || { echo "$me: cannot read the table $TABLE" >&2; exit 2; }
+if [ "$LIVE" = auto ]; then if [ -t 1 ]; then LIVE=1; else LIVE=0; fi; fi
+
+awk -v table="$TABLE" -v live="$LIVE" -v width="$WIDTH" '
+function cut(s) { return length(s) > width ? substr(s, 1, width - 3) "..." : s }
+function rub() { if (live && shown_tick) { printf "\r%s\r", "                                        "; shown_tick = 0 } }
+function flush() {
+  if (!run) return
+  rub()
+  if (run == 1) { print first; shown++; run = 0; return }   # folding one line saves nothing
+  print "... " run " lines folded: " cut(first) " ... " cut(last)
+  folded += run; runs++; run = 0
+}
+BEGIN {
+  FS = "\t"
+  while ((getline ln < table) > 0) {
+    if (ln ~ /^[ \t]*(#|$)/) continue
+    split(ln, f, "\t")
+    nrow++; cls[nrow] = f[1]; after[f[1]] = f[2] + 0; quiet[f[1]] = (f[2] == "fold"); pat[nrow] = f[3]; hits[f[1]] = 0; order[nrow] = f[1]
+  }
+  FS = "\n"
+}
+{
+  sub(/\r+$/, "")              # CRLF, and the CRCRLF a doubly text-mode Windows writer leaves
+  sub(/^.*\r/, "")             # a \r inside a line: keep what a terminal would show, the last part
+  read++
+  c = ""
+  for (i = 1; i <= nrow; i++) if ($0 ~ pat[i]) { c = cls[i]; break }
+  if (c != "" && quiet[c]) { hits[c]++; c = "" }
+  if (c != "") {
+    flush(); print; shown++; hits[c]++
+    keep = after[c]
+    next
+  }
+  if (keep > 0) { print; shown++; keep--; next }
+  run++; if (run == 1) first = $0
+  last = $0
+  if (live && run % 50 == 0) { printf "\r... %d lines and counting", run; shown_tick = 1 }
+}
+END { flush()
+  s = "ln1fd: " read + 0 " lines read, " shown + 0 " shown, " folded + 0 " folded in " runs + 0 " run" (runs == 1 ? "" : "s")
+  sep = "; "
+  for (i = 1; i <= nrow; i++) if (!(order[i] in said)) { said[order[i]] = 1; s = s sep order[i] " " hits[order[i]] + 0 (quiet[order[i]] ? " (folded)" : ""); sep = ", " }
+  print s
+}' "$@"

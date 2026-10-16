@@ -50,7 +50,9 @@ SWITCH_VARS = ("TAVERN_ON", "C4_ON", "LLAMABRIDGE_ON", "GW_ON", "GW_LOOKUPS", "G
 #: Reported as "set" only, like the paths; GW_PASSWORD and VIBROBEAST_API_TOKEN are secrets.
 PATH_VARS = ("VIBROBEAST_SSH_KEY", "VIBROBEAST_API_TOKEN", "GW_HOSTS", "GW_DOMAIN", "GW_METHOD",
              "GW_PORT", "GW_AUTH", "GW_USER", "GW_PASSWORD", "GW_AUTH_METHOD", "GW_REFRESH",
-             "GW_HOSTS_FILE",
+             "GW_HOSTS_FILE", "GW_SCANNER", "MENTCACHED_KEEPER",
+             "VIBROBEAST_API_TOKEN_FOR", "VIBROBEAST_API_TOKEN_USAGE", "VIBROBEAST_SSH_KEY_USAGE",
+             "GW_PASSWORD_USAGE", "VIBROBEAST_KEYS_FILE",
              "TAVERN_DATA", "TAVERN_AS", "C4_ROOT", "MENTCACHED_SEAT", "OLLAMA_HOST",
              "PERSONA_ROOT", "MENTCACHED_PREFS")
 START_TIMEOUT = float(os.environ.get("VIBROBEAST_HUB_START_TIMEOUT", "30"))
@@ -61,6 +63,18 @@ def unset_template(value: str | None) -> bool:
     """True when a settings field was left empty: missing, blank, or the template text itself."""
     v = (value or "").strip()
     return not v or "${" in v
+
+
+def switches_said(seen: dict) -> str:
+    """The settings the servers saw, in words: what is set, and how many were left empty -- not one line
+    per empty name (2026-10-14: "how can we drive down the number of configuration settings"; an empty
+    field is the normal state of an optional setting, so listing each one was noise).  The table stays
+    in switches_seen for anyone who wants it."""
+    on = sorted(k for k, v in seen.items() if v != "unset (dropped)")
+    empty = sum(1 for v in seen.values() if v == "unset (dropped)")
+    return ("Set: " + (", ".join(on) if on else "nothing") + ". "
+            + (f"{empty} optional field(s) left empty on the settings page, which is normal unless you meant "
+               "to fill one (each is listed in switches_seen)." if empty else "No field was left empty."))
 
 
 def clean_env(env: dict | None = None) -> tuple[dict, dict]:
@@ -188,6 +202,61 @@ STATUS_TOOL = {
 }
 
 
+SETUP_TOOL = {
+    "name": "vibrobeast_setup",
+    "description": ("What is left to set up after installing the extension, in plain steps: chiefly "
+                    "the skills, which Claude Desktop takes only from a plugin (Customize > Plugins > "
+                    "Add > Upload plugin). Asked to (put_in: 'downloads' or a folder), it puts the "
+                    "skills plugin file there so it is easy to pick; it installs nothing."),
+    "inputSchema": {"type": "object", "properties": {
+        "put_in": {"type": "string",
+                   "description": "'downloads', or a folder to put vibrobeast-skills.plugin in"}}},
+}
+SKILLS_PLUGIN_FILE = "vibrobeast-skills.plugin"
+
+
+def skills_plugin_path() -> Path | None:
+    """The skills plugin the extension carries (<ext>/skills-plugin/), or a tree's minted one."""
+    here = Path(__file__).resolve()
+    for p in (here.parents[3] / "skills-plugin" / SKILLS_PLUGIN_FILE,
+              here.parents[2] / "dist" / SKILLS_PLUGIN_FILE):
+        if p.is_file():
+            return p
+    return None
+
+
+def setup(args: dict) -> dict:
+    """2026-10-12, his "It would be nice if extra steps were integrated": the one step the extension
+    cannot take for you, said plainly, and the file put where a file picker finds it -- on request.
+    Never an install (his standing rule: installing or enabling skills is his act)."""
+    import shutil
+    src = skills_plugin_path()
+    steps = [
+        "1. The servers: done when vibrobeast_status says every server is running.",
+        "2. The skills, for the slash-command menu: in Claude Desktop open Customize, then Plugins, "
+        "then Add, then Upload plugin, and choose vibrobeast-skills.plugin"
+        + (f" ({src})" if src else " (it was not found beside the extension; run make dist)") + ".",
+        "3. The doors you want (Tavern, Llama Bridge, C4, Ghostwheel status): switch them on in this "
+        "extension's settings, then restart the extension.",
+        "Do not also install the full vibrobeast plugin here: it would run a second memory server on "
+        "the same seat.",
+    ]
+    out: dict = {"steps": steps, "skills_plugin": str(src) if src else None}
+    where = (args.get("put_in") or "").strip()
+    if where:
+        if src is None:
+            out["put"] = "nothing to put: the skills plugin file is not here"
+            return out
+        dest_dir = Path.home() / "Downloads" if where.lower() == "downloads" else Path(where).expanduser()
+        if not dest_dir.is_dir():
+            out["put"] = f"no such folder: {dest_dir} (nothing was written)"
+            return out
+        dest = dest_dir / SKILLS_PLUGIN_FILE
+        shutil.copyfile(src, dest)
+        out["put"] = f"{dest} -- choose it in Customize > Plugins > Add > Upload plugin"
+    return out
+
+
 class Hub:
     def __init__(self, names=SERVERS, env: dict | None = None):
         self.env, self.seen = clean_env(env)
@@ -201,14 +270,14 @@ class Hub:
         self.clashes: list = []
         for c in self.children:
             for t in c.tools:
-                if t["name"] in self.route or t["name"] == STATUS_TOOL["name"]:
+                if t["name"] in self.route or t["name"] in (STATUS_TOOL["name"], SETUP_TOOL["name"]):
                     self.clashes.append({"tool": t["name"], "kept_by": self.route.get(t["name"], "hub").name
                                          if t["name"] in self.route else "hub", "also": c.name})
                     continue
                 self.route[t["name"]] = c
 
     def tools(self) -> list:
-        out = [STATUS_TOOL]
+        out = [STATUS_TOOL, SETUP_TOOL]
         for c in self.children:
             out += [t for t in c.tools if self.route.get(t["name"]) is c]
         return out
@@ -217,7 +286,9 @@ class Hub:
         return {"servers": [{"name": c.name, "state": c.state, "tools": len(c.tools),
                              **({"why": c.why} if c.why else {})} for c in self.children],
                 "clashes": self.clashes, "switches_seen": self.seen,
-                "tools_total": len(self.tools())}
+                "say": switches_said(self.seen),
+                "tools_total": len(self.tools()),
+                "next": "vibrobeast_setup says what is left (chiefly: the skills plugin)"}
 
     def handle(self, msg: dict) -> dict | None:
         mid, method = msg.get("id"), msg.get("method")
@@ -234,8 +305,13 @@ class Hub:
         if method == "tools/call":
             p = msg.get("params") or {}
             name = p.get("name", "")
-            if name == STATUS_TOOL["name"]:
-                text = json.dumps(self.status(), indent=2, sort_keys=True)
+            if name in (STATUS_TOOL["name"], SETUP_TOOL["name"]):
+                try:
+                    res = self.status() if name == STATUS_TOOL["name"] else setup(p.get("arguments") or {})
+                except Exception as exc:                    # noqa: BLE001
+                    return {"jsonrpc": "2.0", "id": mid, "result": {"isError": True, "content": [
+                        {"type": "text", "text": f"{type(exc).__name__}: {exc}"}]}}
+                text = json.dumps(res, indent=2, sort_keys=True)
                 return {"jsonrpc": "2.0", "id": mid, "result": {"content": [{"type": "text", "text": text}]}}
             c = self.route.get(name)
             if c is None:

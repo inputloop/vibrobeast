@@ -296,7 +296,7 @@ pre-v1.4 caveats (size-first picks, silent truncation) as live again.
 | a thinking note | a result that thought because nobody said not to begins with one line saying so | so the caller learns to pass `think=false` |
 | spill in `ollama_status` | "62% in GPU memory: the rest runs on the CPU, so it is slow" | Ollama's own `size_vram`; the cheapest sign a model does not fit |
 | `warm_model` | warms at the window the next call will use | a warm at the default window, then a call at 8,192, loads twice |
-| settings | `python3 llama_bridge.py config [KEY [VALUE]]`, or the dashboard's `/api/config` | `think_default`, `options`, `num_ctx_auto`, `num_ctx_floor`, `num_ctx_reserve`, `max_parallel`, `generate_timeout` |
+| settings | `python3 llama_bridge.py config [KEY [VALUE]]`, or the dashboard's `/api/config` | `think_default`, `options`, `num_ctx_auto`, `num_ctx_floor`, `num_ctx_reserve`, `num_predict_cap` (empty = the reserve, 0 = none), `breaker_after` (4; 0 = off), `breaker_cool` (empty = the generate timeout), `max_parallel`, `generate_timeout` |
 
 The cache key includes `think` and `options` only when one is set, so a cache made by 1.4.0
 still hits. Tests: `tests/test_llama_bridge_vb.py` in the source tree, 19 checks, and

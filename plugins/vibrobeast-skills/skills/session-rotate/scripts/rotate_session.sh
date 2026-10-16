@@ -16,10 +16,11 @@
 # the success message is never trusted on its own.
 #
 # Exit 0 = plan clean (dry-run) or all writes verified (apply); non-zero = a
-# problem (missing model, unverified write, undetectable version).
+# problem (missing model, unverified write, undetectable version); 5 = the close
+# check refused the apply (no receipt, a receipt that does not verify, or more owed).
 set -eu
 
-PROJECT=""; MODEL="model.md"; SETVER=""; APPLY=0; FRESH=1; BUMP=1
+PROJECT=""; MODEL="model.md"; SETVER=""; APPLY=0; FRESH=1; BUMP=1; AFTER=""; C4DIR=""; UNGATED=""; COMMIT=1   # COMMIT: a verified apply commits its own files where there is git (2026-10-15, ENHANCE 12)
 while [ $# -gt 0 ]; do
   case "$1" in
     --project)     PROJECT="$2"; shift 2;;
@@ -27,10 +28,14 @@ while [ $# -gt 0 ]; do
     --set-version) SETVER="$2"; shift 2;;
     --apply)       APPLY=1; shift;;
     --no-fresh)    FRESH=0; shift;;
+    --after)       AFTER="$2"; shift 2;;     # the close check's receipt (c4 bin/ow1ed --receipt)
+    --c4)          C4DIR="$2"; shift 2;;     # where ow1ed lives, when it is not found by itself
+    --ungated)     UNGATED="$2"; shift 2;;   # why the close check cannot run here; written down
+    --no-commit)   COMMIT=0; shift;;  # leave the rotate's files uncommitted
     --no-bump)     BUMP=0; shift;;   # 2026-09-25: for a model that declares no session-close
                                      # step (c4): snapshot + continuity only, version untouched
     -h|--help)
-      echo "usage: rotate_session.sh --project DIR [--model FILE] [--set-version N] [--apply] [--no-fresh] [--no-bump]"
+      echo "usage: rotate_session.sh --project DIR [--model FILE] [--set-version N] [--apply [--after RECEIPT [--c4 DIR] | --ungated WHY]] [--no-fresh] [--no-bump] [--no-commit]"
       exit 0;;
     *) echo "unknown arg: $1" >&2; exit 2;;
   esac
@@ -85,6 +90,10 @@ echo "  project : $PROJECT"
 if [ "$BUMP" -eq 1 ]; then echo "  model   : $MODEL  (v$CUR -> v$NEXT)"; else echo "  model   : $MODEL  (version untouched: --no-bump)"; fi
 echo
 echo "  PLAN:"
+if [ -n "$AFTER" ]; then gate_note="--after: the receipt is verified before anything is written"
+elif [ -n "$UNGATED" ]; then gate_note="--ungated: NOT RUN, and the reason is written into the archive"
+else gate_note="needs --after RECEIPT (sh <c4>/bin/ow1ed --receipt --pressure FILE) or --ungated WHY"; fi
+echo "   0. the close check: $gate_note"
 echo "   1. snapshot $MODEL -> ${SNAP#$PROJECT/}"
 if [ "$BUMP" -eq 1 ]; then echo "   2. bump header version v$CUR -> v$NEXT (in $MODEL)"; else echo "   2. (skipped: --no-bump)"; fi
 if [ -f "$LASTP" ]; then p_note=""; else p_note=" (none yet)"; fi
@@ -96,11 +105,44 @@ if [ "$FRESH" -eq 1 ]; then
 else
   echo "   4. (skipped: --no-fresh)"
 fi
+if [ "$COMMIT" -eq 1 ]; then echo "   5. commit the rotate's own files (where the project is a git repository)"; else echo "   5. (skipped: --no-commit)"; fi
+
+# --- the close check: step 0, held by the tool, not by the prose (2026-10-15) ---------------------------
+# An apply needs ow1ed's RECEIPT (a token only a run of ow1ed can make; ow1ed --verify re-runs it), and
+# ow1ed must owe nothing but the rotate itself.  The one way round is --ungated WHY, which is written
+# into the archive.  His rule: guard in the tool, so the check cannot be simulated or skipped.
+c4_dir() {
+  for d in "$C4DIR" "${C4_ROOT:-}" /f/claude/c4 "$HOME/mnt/c4" "$PROJECT/../c4"; do
+    [ -n "$d" ] && [ -f "$d/bin/ow1ed" ] && { printf '%s\n' "$d"; return 0; }
+  done; return 1; }
 
 if [ "$APPLY" -eq 0 ]; then
   echo
   echo "Dry-run complete. Re-run with --apply to perform the rotation."
   exit 0
+fi
+
+if [ -n "$AFTER" ]; then
+  C4=$(c4_dir) || { echo "REFUSED: --after names a receipt, but C4's bin/ow1ed is not found; name it with --c4 DIR" >&2; exit 5; }
+  vrc=0; vout=$(sh "$C4/bin/ow1ed" --verify "$AFTER" 2>&1) || vrc=$?
+  if [ "$vrc" -ne 0 ]; then
+    echo "REFUSED (the close check): the receipt did not verify -- nothing was written." >&2
+    printf '%s\n' "$vout" | grep '^RECEIPT' >&2 || printf '%s\n' "$vout" | tail -2 >&2
+    exit 5
+  fi
+  others=$(printf '%s\n' "$vout" | grep '^OWED' | grep -v 'a rotate is owed' || true)
+  if [ -n "$others" ]; then
+    echo "REFUSED (the close check): ow1ed owes more than the rotate -- write these first; nothing was written." >&2
+    printf '%s\n' "$others" >&2
+    exit 5
+  fi
+  GATELINE="close check: ow1ed receipt $AFTER verified at $(date -u +%Y-%m-%dT%H:%M:%SZ); it owed the rotate only"
+elif [ -n "$UNGATED" ]; then
+  GATELINE="close check: NOT RUN (--ungated) -- $UNGATED"
+else
+  echo "REFUSED: an apply needs the close check's receipt -- run  sh <c4>/bin/ow1ed --receipt --pressure FILE" >&2
+  echo "         and pass its token with --after; or say why it cannot run here with --ungated 'WHY'." >&2
+  exit 5
 fi
 
 # --- verify helper: read the bytes back on the real disk --------------------
@@ -168,6 +210,9 @@ for pair in ".last-prompt.md:$LASTP" "last-response.md:$LASTR"; do
     echo "   [--] no $name to archive"
   fi
 done
+printf '%s\n' "$GATELINE" >> "$SESSDIR/GATE.txt"
+verify "$SESSDIR/GATE.txt" "$GATELINE"
+echo "   [ok] the close check recorded -> ${SESSDIR#$PROJECT/}/GATE.txt"
 
 # 4. fresh templates
 if [ "$FRESH" -eq 1 ]; then
@@ -185,6 +230,22 @@ if [ "$FRESH" -eq 1 ]; then
   [ "$BUMP" -eq 1 ] && verify "$LASTR" "model now v$NEXT" || verify "$LASTR" "last response"
   echo "   [ok] fresh .last-prompt.md and last-response.md written"
 fi
+
+# 5. hook to version control (2026-10-15, his ENHANCE 12): commit the rotate's own files, nothing else
+if [ "$COMMIT" -eq 1 ] && git -C "$PROJECT" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  paths="$MODEL ${SNAP#$PROJECT/} ${SESSDIR#$PROJECT/}"
+  [ "$FRESH" -eq 1 ] && paths="$paths .last-prompt.md last-response.md"
+  if [ "$BUMP" -eq 1 ]; then what="$MODEL v$CUR -> v$NEXT"; else what="$MODEL snapshot (version untouched)"; fi
+  cerr=$(mktemp)
+  if ( cd "$PROJECT" && git add -- $paths && git commit -q -m "rotate: $what" -m "$GATELINE" -- $paths ) 2>"$cerr"; then
+    echo "   [ok] committed $(git -C "$PROJECT" log -1 --format=%h): the snapshot, the archive, GATE.txt$( [ "$FRESH" -eq 1 ] && echo ', the fresh continuity files')"
+  else
+    echo "   [!!] NOT COMMITTED: $(head -2 "$cerr" | tr '\n' ' ')"
+    echo "        the rotation itself is done and verified; commit these by hand: $paths"
+  fi
+  rm -f "$cerr"
+elif [ "$COMMIT" -eq 1 ]; then echo "   [--] not a git repository: ${SNAP#$PROJECT/} is the kept copy"
+else echo "   [--] not committed (--no-commit)"; fi
 
 echo
 if [ "$BUMP" -eq 1 ]; then echo "Rotation complete and verified: $MODEL is now v$NEXT; snapshot at ${SNAP#$PROJECT/}."; else echo "Rotation complete and verified: $MODEL version untouched (--no-bump); snapshot at ${SNAP#$PROJECT/}."; fi

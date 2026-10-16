@@ -1,0 +1,96 @@
+#!/bin/sh
+# cb1ox -- COUNT BOXER 1 OX: keeps the count of a G/G/G stretch so the numbers stay invisible.
+#   His procedure (c4/q/2026-10-14-count-ladder-palace-release/PROMPT.md, "Use G/G/G to stretch"):
+#   answer to 4 (GRAIN) and ask one more; at 9 (GREAT) take away the weakest one; near 17 (GRAND)
+#   stop if sorting is inhibited, else at 18 race the halves inverted; bias-resort; a justified
+#   bisection; losers set aside, kept.  This tool counts and pairs.  It never ranks an idea, never
+#   picks a winner and never says an idea is weak: those are the person's judgement.
+#
+# usage: cb1ox state LIST          the count, the rung, and the next step, in words
+#        cb1ox drop LIST N WHY     move idea N to LIST.losers with the reason (kept, never deleted)
+#        cb1ox race LIST           pair the halves inverted: 1 vs last, 2 vs last-1, ... inward
+#        cb1ox check LIST          the invariants; exit 1 on a fault
+#   LIST: one idea per line; blank lines and lines starting with # are not ideas.
+#   A line "# sort: inhibited" anywhere says sorting is inhibited for this list.
+#   LIST.losers: "COUNT<TAB>RUNG<TAB>WHY<TAB>IDEA" per line, appended by drop.
+# Exit: 0 fine, 1 a fault (check), 2 usage.
+# Copyright (C) 2026 Corwin Brust <corwin@bru.st> and Contributors.  GPL-3.0-or-later.
+# Authored by Mentat (for Corwin; claude-opus-5-5).
+GRAIN=4 GREAT=9 GRAND=17
+
+usage() { sed -n '9,16p' "$0" | sed 's/^# \{0,1\}//' >&2; exit 2; }
+[ $# -ge 2 ] || usage
+cmd=$1 list=$2
+[ -f "$list" ] || { echo "cb1ox: no such list: $list" >&2; exit 2; }
+losers="$list.losers"
+
+ideas() { awk '!/^[ \t]*($|#)/' "$list"; }
+count() { ideas | wc -l | tr -d ' '; }
+inhibited() { grep -q '^# *sort: *inhibited' "$list"; }
+dropped_at() { [ -f "$losers" ] && awk -F'\t' -v c="$1" '$1==c' "$losers" | wc -l | tr -d ' ' || echo 0; }
+
+rung() {
+  n=$1
+  if [ "$n" -lt $GRAIN ]; then echo "below GRAIN"
+  elif [ "$n" -eq $GRAIN ]; then echo "GRAIN"
+  elif [ "$n" -lt $GREAT ]; then echo "past GRAIN"
+  elif [ "$n" -eq $GREAT ]; then echo "GREAT"
+  elif [ "$n" -lt $GRAND ]; then echo "past GREAT"
+  elif [ "$n" -eq $GRAND ]; then echo "GRAND"
+  elif [ "$n" -eq $((GRAND + 1)) ]; then echo "GRAND and one"
+  else echo "over GRAND"; fi
+}
+
+case $cmd in
+state)
+  n=$(count); r=$(rung "$n")
+  echo "$n idea(s); rung: $r"
+  if [ "$n" -eq 0 ]; then echo "next: answer the question until there are $GRAIN."
+  elif [ "$n" -lt $GRAIN ]; then echo "next: keep answering; $((GRAIN - n)) more to $GRAIN. Running dry is an honest stop: the count is where the questions ran out."
+  elif [ "$n" -eq $GRAIN ]; then echo "next: ask for one more."
+  elif [ "$n" -lt $GREAT ]; then echo "next: keep going toward $GREAT, or stop honestly where the ideas run out."
+  elif [ "$n" -eq $GREAT ] && [ "$(dropped_at $GREAT)" -eq 0 ]; then
+    echo "next: ask whether one can be taken away. If so, take only the weakest: cb1ox drop $list N 'why' (sort first$(inhibited && echo '; sorting is inhibited here, so judge without sorting'))."
+  elif [ "$n" -lt $GRAND ]; then echo "next: continue toward $GRAND, or stop honestly where the ideas run out."
+  elif [ "$n" -eq $GRAND ]; then
+    if inhibited; then echo "next: STOP. Sorting is inhibited, so the stretch ends at GRAND ($GRAND)."
+    else echo "next: one more, then resort and race the halves (cb1ox race $list)."; fi
+  elif [ "$n" -eq $((GRAND + 1)) ]; then
+    echo "next: resort, then race the halves inverted (cb1ox race $list); each pair's winner has the more unique contribution to the context, by one standard for the whole race. Then resort for bias until no sort controls better, and try to take away half for a reason other than 'half'."
+  else echo "next: over GRAND. Continue only if no bigger instrument is available (his telescope / orbital platform lens adaptor); otherwise take the list there."
+  fi
+  [ -f "$losers" ] && echo "set aside so far: $(wc -l < "$losers" | tr -d ' ') (in $losers, kept)"
+  exit 0 ;;
+drop)
+  [ $# -eq 4 ] || usage
+  k=$3 why=$4; n=$(count)
+  case $k in ''|*[!0-9]*) echo "cb1ox: N must be a number" >&2; exit 2 ;; esac
+  [ "$k" -ge 1 ] && [ "$k" -le "$n" ] || { echo "cb1ox: there is no idea $k (the list has $n)" >&2; exit 2; }
+  [ -n "$why" ] || { echo "cb1ox: say why it goes (the reason is kept with it)" >&2; exit 2; }
+  idea=$(ideas | sed -n "${k}p")
+  printf '%s\t%s\t%s\t%s\n' "$n" "$(rung "$n")" "$why" "$idea" >> "$losers"
+  tmp="$list.cb1ox.$$"
+  awk -v k="$k" '/^[ \t]*($|#)/ {print; next} {i++; if (i != k) print}' "$list" > "$tmp" && mv "$tmp" "$list"
+  echo "set aside idea $k at $n ($(rung "$n")): $idea"
+  echo "reason kept with it in $losers"
+  exit 0 ;;
+race)
+  n=$(count)
+  [ "$n" -ge 2 ] && [ $((n % 2)) -eq 0 ] || { echo "cb1ox: a race needs an even count of at least 2 (the list has $n)" >&2; exit 2; }
+  [ "$n" -eq $((GRAND + 1)) ] || echo "note: his race is at $((GRAND + 1)); this list has $n."
+  ideas | awk -v n="$n" '{a[NR]=$0} END {h=n/2; for (i=1;i<=h;i++) printf "pair %d: %s\n    vs: %s\n", i, a[i], a[n+1-i]}'
+  echo "Each pair: the winner is the idea with the more unique contribution to the context. Judge all pairs by one standard."
+  exit 0 ;;
+check)
+  n=$(count); bad=0
+  if [ -f "$losers" ]; then
+    awk -F'\t' 'NF != 4 || $3 == "" {exit 1}' "$losers" || { echo "FAULT: $losers has a line without its four parts or without a reason"; bad=1; }
+    g=$(dropped_at $GREAT)
+    [ "$g" -le 1 ] || { echo "FAULT: $g ideas were taken away at GREAT; the rule takes only the weakest one"; bad=1; }
+    awk -F'\t' -v G=$GREAT '$1 < G {f=1} END {exit f}' "$losers" || { echo "FAULT: an idea was taken away before GREAT ($GREAT)"; bad=1; }
+  fi
+  if inhibited && [ "$n" -gt $GRAND ]; then echo "FAULT: sorting is inhibited, so the stretch stops at GRAND ($GRAND); the list has $n"; bad=1; fi
+  [ $bad -eq 0 ] && echo "OK: $n idea(s), rung $(rung "$n"); the invariants hold."
+  exit $bad ;;
+*) usage ;;
+esac

@@ -1,12 +1,12 @@
 {
   "name": "vibrobeast",
-  "version": "1.1.9",
+  "version": "1.2.59",
   "description": "A memory seat that follows you and a garden you can trust: archive-only notes with provenance, persona sheets, and the skills to work them.",
   "author": {
-    "name": "Corwin Brust",
-    "email": "corwin@bru.st"
+    "name": "Corwin and Bryant",
+    "email": "BryantAndCorwin@inputloop.com"
   },
-  "license": "GPL-3.0-or-later",
+  "license": "GPL-3.0-or-later OR LGPL-3.0-or-later",
   "homepage": "https://vibrobeast.bru.st",
   "keywords": [
     "memory",

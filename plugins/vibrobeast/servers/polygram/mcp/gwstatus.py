@@ -17,7 +17,8 @@ WHERE THE SETTINGS COME FROM (2026-10-12, Corwin's items 3.1-3.4).
   Defaults, from the settings page (environment):  GW_HOSTS (a simple list), GW_DOMAIN, GW_METHOD,
     GW_PORT, GW_AUTH (none | ssh | basic), GW_AUTH_METHOD (SYSTEM | MUNIN), GW_USER, GW_PASSWORD,
     VIBROBEAST_SSH_KEY, GW_LOOKUPS + GW_LOOKUPS_ALWAYS, GW_KNOWN_HOSTS + GW_KNOWN_HOSTS_ALWAYS,
-    GW_REFRESH, GW_LETTER, GW_HTTP_PATH, GW_HOSTS_FILE.
+    GW_REFRESH, GW_LETTER, GW_HTTP_PATH, GW_HOSTS_FILE, GW_SCANNER (the ssh-keyscan to ask for host
+    keys; unset: the first one on PATH).
   Per host, from the hosts register (GW_HOSTS_FILE, else ~/.mentcached/gw-hosts.tsv), one row each:
     ENABLED  NAME  FINGERPRINT  USER  KEY  AUTH          ("-" for a cell left to its default)
   The settings page cannot hold a table, so the rows live in the register and gw_host_set edits it;
@@ -308,17 +309,33 @@ def known(fqdn: str, port: int) -> bool:
     return any(l.split(" ", 1)[0].lower() == hf for l in KNOWN.read_text(encoding="utf-8").splitlines())
 
 
+#: Why the last keyscan offered no key, in the scanner's own words; probe says it with the DOWN.
+SCAN_WHY = {"why": ""}
+
+
 def keyscan(fqdn: str, port: int) -> list[tuple[str, str, str]]:
-    exe = shutil.which("ssh-keyscan")
+    # GW_SCANNER names the binary to use; unset, the first ssh-keyscan on PATH.  2026-10-15: on Windows
+    # that is System32's, which against gw7 fails every try with "choose_kex: unsupported KEX method
+    # sntrup761x25519-sha512@openssh.com" (Corwin, from cmd) -- it offers that method first and cannot
+    # finish it -- while Git's ssh-keyscan returns all three keys; so every host read DOWN.  Also the
+    # children get SystemRoot back (_child_env), and SCAN_WHY carries the scanner's own words, so a
+    # DOWN now says which of these it was instead of "unreachable?".
+    SCAN_WHY["why"] = ""
+    exe = _env("GW_SCANNER") or shutil.which("ssh-keyscan")
     if not exe:
-        raise RuntimeError("ssh-keyscan not found on PATH")
+        raise RuntimeError("ssh-keyscan not found on PATH, and GW_SCANNER is not set")
     r = subprocess.run([exe, "-T", str(TIMEOUT), "-p", str(port), "-t", "ed25519,ecdsa,rsa", fqdn],
-                       capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=TIMEOUT * 3, **_quiet())
+                       capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=TIMEOUT * 3,
+                       env=_child_env(), **_quiet())
     out = []
-    for l in r.stdout.splitlines():
+    for l in (r.stdout or "").splitlines():
         p = l.split()
         if len(p) >= 3 and not l.startswith("#"):
             out.append((p[1], p[2], fingerprint(p[2])))
+    if not out:
+        said = next((l.strip() for l in (r.stderr or "").splitlines() if l.strip() and not l.startswith("#")), "")
+        name = Path(exe).name
+        SCAN_WHY["why"] = f"{name} said: {said[:160]}" if said else f"{name} exited {r.returncode} and printed no key"
     order = {"ssh-ed25519": 0}
     return sorted(out, key=lambda k: order.get(k[0], 1))
 
@@ -331,6 +348,16 @@ def _add_known(fqdn: str, port: int, ktype: str, b64: str) -> None:
 
 def _quiet() -> dict:
     return {"creationflags": 0x08000000} if os.name == "nt" else {}      # CREATE_NO_WINDOW
+
+
+def _child_env(base: dict | None = None, nt: bool | None = None) -> dict:
+    """The environment for a program we start.  On Windows a process started without SystemRoot cannot
+    open a socket, and the extension's host chooses our environment (keys.py found it 2026-10-14), so
+    put back the one variable networking needs and change nothing else."""
+    env = dict(os.environ if base is None else base)
+    if (os.name == "nt" if nt is None else nt) and not (env.get("SystemRoot") or env.get("SYSTEMROOT")):
+        env["SystemRoot"] = r"C:\Windows"
+    return env
 
 
 # ------------------------------------------------------------------ probes
@@ -411,7 +438,7 @@ def ssh_run(h: dict, cmd: str) -> str:
     if h["key"]:
         args += ["-o", "IdentitiesOnly=yes", "-i", h["key"]]
     r = subprocess.run(args + [h["fqdn"], cmd], capture_output=True, text=True, encoding="utf-8", errors="replace",
-                       timeout=TIMEOUT * 3, **_quiet())
+                       timeout=TIMEOUT * 3, env=_child_env(), **_quiet())
     if r.returncode != 0:
         raise RuntimeError(f"ssh exited {r.returncode}: {(r.stderr or '').strip()[:200]}")
     return r.stdout
@@ -448,9 +475,11 @@ def probe(h: dict, d: dict) -> dict:
     try:
         if h["method"] == "ssh":
             if not known(h["fqdn"], h["port"]):
+                SCAN_WHY["why"] = ""
                 keys = keyscan(h["fqdn"], h["port"])
                 if not keys:
-                    return {"state": "DOWN", "pairs": [["down", 0]], "say": "no host key offered (unreachable?)"}
+                    return {"state": "DOWN", "pairs": [["down", 0]],
+                            "say": f"no host key offered ({SCAN_WHY['why'] or 'unreachable?'})"}
                 fps = [k[2] for k in keys]
                 if h["fingerprint"]:
                     if h["fingerprint"] not in fps:
@@ -579,7 +608,9 @@ def build():
         return {"defaults": {k: v for k, v in d.items() if k not in ("problems",)},
                 "problems": d["problems"], "hosts_file": str(hosts_file()),
                 "outputs": {"svg": str(OUT_SVG), "page": str(OUT_HTML), "last": str(LAST)},
-                "known_hosts_file": str(KNOWN)}
+                "known_hosts_file": str(KNOWN),
+                "scanner": _env("GW_SCANNER") or shutil.which("ssh-keyscan") or "none found on PATH",
+                "scanner_from": "GW_SCANNER" if _env("GW_SCANNER") else "PATH"}
 
     @srv.tool("gw_hosts", "Every host: its row in the hosts register (or the simple list), each value "
               "resolved, and where each came from (row, default, or derived).")

@@ -3,9 +3,9 @@
   "description": "vibrobeast: a memory Claude keeps on your own computer, with skills, persona sheets and shared rooms.",
   "owner": {"name": "inputloop (Corwin Brust and Bryant Frankford)", "email": "corwin@bru.st"},
   "plugins": [
-    {"name": "vibrobeast", "source": "./plugins/vibrobeast", "version": "1.1.9",
+    {"name": "vibrobeast", "source": "./plugins/vibrobeast", "version": "1.2.59",
      "description": "The memory seat, persona sheets and doors (Tavern, Llama Bridge, C4, ghostwheel status) as servers, with the skills. For Claude Code and Cowork."},
-    {"name": "vibrobeast-skills", "source": "./plugins/vibrobeast-skills", "version": "1.1.9",
+    {"name": "vibrobeast-skills", "source": "./plugins/vibrobeast-skills", "version": "1.2.59",
      "description": "The skills alone, for Claude Desktop beside the vibrobeast extension. Starts no server."}
   ]
 }

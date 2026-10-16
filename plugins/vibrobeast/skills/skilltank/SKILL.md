@@ -189,6 +189,22 @@ shop's gates. Trigger: "rainbow pass", "rainbow-tank", "rainbow eval",
    original delivers installable — fine in its home garden). Output is
    pub-safe by construction: method travels, cases don't.
 
+## Where the queue lands
+
+A queue of ENHANCE / NEW / LEAVE-AS-MEMORY rows is a record, and a record has one home. In the
+polygram seat that home is the advice ledger: `advice/ENHANCE-YYYYMMDD-slug.md`, headed with one
+line, `produced-by: skilltank · subject: <what was scanned> · <UTC date>`, so a reader in either
+tree can find it by that line. Never `h/`: the seat's INDEX.md names `h/` not-a-home (the keeper's
+scratch-pad), and `sh bin/hb1ck --layout . --since LIST` faults a queue filed there. Where a second
+tree keeps a twin (c4 files its genre documents in its own `h/`), the twin names the seat copy as its
+source and the seat copy is the one that is edited; two copies edited apart is drift.
+
+Why this section exists (2026-10-15): this skill stopped at the recommendation and named no home, so
+the first queue (2026-09-04) went to `h/`, a memory note recorded that path, and five later seat queues
+followed the precedent while the layout check, reading `h/` as a home because the map mentioned it,
+said OK. The check is fixed (`tests/hb1ck-layout-spec.pl`, a second reader in Perl); the records
+already in `h/` are listed, where they lie, in `advice/ENHANCE-INDEX.md` (`bin/en1dx`).
+
 ## The hand-off
 
 SkillTank stops at the recommendation. To act on it:
@@ -240,7 +256,8 @@ re-implements them.
   it never writes a note, a skill, or an index.
 
 <!-- footer: minted by bin/ft1mt from conventions/house.env and conventions/FOOTERS.org; edit those, not this -->
-*Version 1.1.0: edition revised from 1.0.1 on 2026-10-10; spine: 2026-07-06.*
+*Version 1.2: edition revised from 1.1.0 on 2026-10-16; spine: 2026-07-06.*
 
 Copyright 2026 Corwin Brust <corwin@bru.st> and Contributors; CC-BY-SA4: https://creativecommons.org/licenses/by-sa/4.0/ (scripts GPL-3.0-or-later); Mentat (for Corwin; claude-opus-5-5)
+From the collection Corwin Brust and Bryant Frankford keep together, with K Smith as editor of the works she edited; thanks in ACKNOWLEDGEMENTS; home: https://github.com/inputloop
 <!-- /footer -->

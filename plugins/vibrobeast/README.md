@@ -7,8 +7,8 @@ and, by its own doing, sends nothing anywhere unless you turn on a part that say
 Claude reads from it becomes part of your conversation, as with any tool.
 
 It comes from one collection that Corwin Brust and Bryant Frankford keep and share together:
-Corwin's skills and memory servers, with Bryant's Llama Bridge and Tavern beside them. We offer all
-of it on the same terms (`TERMS-OF-SERVICE.md`, beside this README).
+the memory servers and skills from Corwin's workshop, and Tavern and Llama Bridge, which began in
+Bryant's. We offer all of it on the same terms (`TERMS-OF-SERVICE.md`, beside this README).
 
 One plugin, seven small programs (its servers), and the skill garden. The words this README
 uses come first, then the table of servers.
@@ -60,8 +60,8 @@ also beside it, says in words what the opt-in usage record holds. The words you 
 | `mentcached` | always on | the memory seat, served. Archive-only notes, a first-seen/last-cited spine, citation pressure, semaphores, and a mode word (`SEATED` / `JAILED` / `NOTVISIBLE`) on every single answer. |
 | `persona` | always on | persona sheets. A persona is a named voice Claude can take on, written down as a sheet (see Words, above). This server lists and reads the sheets, says which one applies (`persona_resolve`; with none, a plain default voice) and keeps the ledger of which sheet can check which. `bin/mt1pl` (in the source tree, not shipped) resolves the same order in shell. |
 | `skillx` | **refuses** | party-to-party skill exchange. Every tool refuses and names its blocker. This is on purpose: an absent server teaches a caller nothing, a refusing one is a checkable statement of what the design owes. |
-| `llamabridge` | **off** until you ask Claude to set `llamabridge.on` | Bryant's Llama Bridge: hands subtasks to local Ollama models. While off, one tool says so. |
-| `tavernface` | **off** until you ask Claude to set `tavern.on` | Bryant's Tavern, a common room for people and agents. While off, one tool says so and nothing is sent. This is his **stock Tavern 2.3.1**, byte for byte: it has no garden-pony tool registry (`tavern_tools`) and does not mark receipt lines an agent typed itself. That patched build (2.3.1+gp) lives in `projects/garden-pony` on Corwin's machine now, and at github.com/inputloop/tavern once published. |
+| `llamabridge` | **off** until you ask Claude to set `llamabridge.on` | Llama Bridge: hands small jobs to models on an Ollama server you choose. While off, one tool says so. |
+| `tavernface` | **off** until you ask Claude to set `tavern.on` | Tavern, a common room for people and agents. While off, one tool says so and nothing is sent. This is **stock Tavern 2.3.1** as Bryant Frankford published it, byte for byte: it has no garden-pony tool registry (`tavern_tools`) and does not mark receipt lines an agent typed itself. That patched build (2.3.1+gp) lives in `projects/garden-pony` on Corwin's machine now, and at github.com/inputloop/tavern once published. |
 | `c4face` | **off** until you ask Claude to set `c4.on` | C4's own MCP server, run with node from YOUR C4 folder (nothing of C4 is copied in). It finds both by itself, and checks C4's code at every start (a tripwire, not a fence: it refuses code that asks for a network, process or file module). While off, or when anything is missing, one tool, `c4_status`, says what and how to fix it by asking Claude (`c4.on`, `c4.root`). |
 | `gwstatus` | **off** until you ask Claude to set `gw.on` | the ghostwheel status icon: asks your listed hosts how they are (reachable, load, disk) and draws a letter made of small letters, one per host, as an SVG beside the seat. It asks before looking up a name or trusting a new host key, unless you said always; host keys go to its own known-hosts file. |
 
@@ -83,9 +83,14 @@ sends it.
 
 ## Install
 
-Claude Desktop: upload `vibrobeast.plugin` where the app installs plugins.
-Claude Code: `claude plugin install` (the form it takes depends on your
-version; `claude plugin --help` says). Nothing else is needed to start: the
+Claude Code, in one step (Claude Code 2.1.275 or later):
+
+    /plugin install vibrobeast --marketplace inputloop/vibrobeast
+
+or, on any version, `/plugin marketplace add inputloop/vibrobeast` and then
+`/plugin install vibrobeast@inputloop`. Claude Desktop: use the extension
+(`vibrobeast.mcpb`) with the skills-only plugin `vibrobeast-skills` beside it,
+not this plugin; the two would run the same memory server twice. Nothing else is needed to start: the
 servers need a Python 3.10+ the app can launch (see the next section), and the
 checks below need `sh`, `sha256sum` (or `shasum`) and, for signatures, `gpg`.
 
@@ -123,8 +128,10 @@ proof, wait for the signed build; if the byte check is enough for you, install i
 
 `PRIVACY.md` beside this README is the full list, minted for this build from
 claims checked against the servers' source: every file the servers write,
-where, what moves it, and every filter by name. In short: the servers make no
-network connections; they write under `~/.mentcached/` unless you point them
+where, what moves it, and every filter by name. In short: while their switches
+are off (the default) the servers make no network connections; Tavern, Llama
+Bridge and the ghostwheel status icon reach only what you name once you switch
+them on. They write under `~/.mentcached/` unless you point them
 elsewhere, and `word_register` writes under a words root only if one is found.
 `TERMS-OF-SERVICE.md` has the licences and the words.
 
@@ -379,6 +386,8 @@ default); nothing here is edited by hand. This table is minted from the keys the
 | `usage.capture` | `off` | usage capture: off until set to on; when on, span_start writes the token count at start and each new prompt writes the count after it, as rows in the frame (~/.mentcached/stats/fr; FRAME.md, beside this README, says each column in words). Those start and prompt rows hold two counts and a date, nothing else: no labels, no notes, no content. While it is on, the frame also mirrors each preference you set (key and value) and each question logged with question_log (its words); PRIVACY.md lists all of it. What the AI vendor sees is unchanged: the counts are ones the model already reports |
 | `tone.dial` | `0/0, 0/0` | tone: where the voice sits on two axes, answer length and narration, as signals seen / signals total on each; the default is the origin (no signals yet), which is plain voice |
 | `tone.show` | `words` | tone: how the tone reading is shown to you: words (a plain sentence, no numbers) or numbers |
+| `persona.on_threshold` | `off` | persona: what happens when someone crosses a threshold (used twice outside a test run; cited twice in seat notes; shipped through a cut with their credit): off (nothing; the default, his standing rule), propose (persona_list names the crossing and asks, in words), draft (persona_list names it and a draft may be written to the holding shelf ~/.mentcached/seat/persona/drafts, marked not-his-instruction and kept out of the index). No value mints a sheet: saying yes to a proposal or a draft is the instruction his rule asks for (2026-10-14) |
+| `keys.standing` | (none) | key_run: standing yeses, so routine runs on the keeper's own hosts need no confirmation each time. Entries KEY PROGRAM TARGET, separated by ';' (e.g. 'ssh ssh vibrobeast@gw33.bru.st; ssh scp vibrobeast@gw33.bru.st'). ssh: the host argument is exactly TARGET. scp: pushes to TARGET only (a pull could write this computer's files). Any argument starting with - still asks. Every standing run says so in its result. Only the keeper's own turn changes it |
 | `people.named` | `corwin` | the people whose person.<name>.* rows this server keeps: the keeper and the participants he named, comma-separated. Only the keeper's own turn changes it |
 
 ## The floor -- the skills every edition carries
