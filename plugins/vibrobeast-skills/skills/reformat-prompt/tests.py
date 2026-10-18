@@ -2,7 +2,7 @@
 """pg1lv-spec.py (a skill's tests.py) -- the glove's ledger (scripts/pg1lv, sh and awk) held by a second language.
 
 usage:  python3 tests.py [--prove-red]
---prove-red plants seven faults in copies of pg1lv; each must turn a case red.
+--prove-red plants faults in copies of pg1lv; each must turn a case red.
 Copyright (C) 2026 Corwin Brust <corwin@bru.st> and Contributors.  GPL-3.0-or-later.
 """
 import shutil, subprocess, sys, tempfile
@@ -83,10 +83,10 @@ def cases(tool):
     check("P12 a string that does not exist is an error", rc == 2 and "no string 99" in out, out)
 
     run(tool, "pull", L, 1, "said:read preferences.md")
-    run(tool, "pull", L, 3, "q:filed-one")
+    run(tool, "pull", L, 4, "q:filed-one")   # 4, not 3: this ledger has no egg, so its egg string cannot be pulled (P22)
     run(tool, "pull", L, 5, "file:h/PAIR.md")
     run(tool, "pull", L, 8, f"git:repo@{sha}")
-    relax_all_but(tool, L, {1, 3, 5, 8})
+    relax_all_but(tool, L, {1, 4, 5, 8})
     run(tool, "relax", L, N + 1, "he tells Bryant himself")
     rc, out = run(tool, "close", L)
     check("P3 close holds when nothing is taut and every receipt holds", rc == 0 and "nothing further owed" in out
@@ -184,6 +184,18 @@ def cases(tool):
     run(tool, "pull", L, 1, "git:c4@" + sha); relax_all_but(tool, L, {1}); run(tool, "owe", L, "out", "z  !debris")
     rc, out = run(tool, "check", L)
     check("P21 a repository named by a receipt and also the root is looked at once", "left in 1 repository" in out, out)
+
+    # P22 (2026-10-18): no egg, no claim to have laid one. modelthisbook's selfcheck ledger said "egg: none" and
+    # still had its egg string pulled.
+    r, L, sha = tree(); run(tool, "open", L, "q/NOT-CAPTURED.md")
+    rc, out = run(tool, "pull", L, 3, "file:h/PAIR.md")
+    check("P22 with no egg, the egg string cannot be pulled", rc == 2 and "no egg" in out and "[ ] in   capture" in L.read_text(), out)
+    rc, out = run(tool, "relax", L, 3, "captured late, after the first write")
+    check("P22 with no egg, the egg string can be relaxed with its reason", rc == 0 and "[~] in   capture" in L.read_text(), out)
+    relax_all_but(tool, L, {3})
+    L.write_text(L.read_text().replace("[~] in   capture", "[x] in   capture"))   # a hand-edit past the guard
+    rc, out = run(tool, "close", L)
+    check("P22 close refuses a ledger with no egg whose egg string is pulled", rc == 1 and "no egg" in out and "# closed" not in L.read_text(), out)
     return res
 
 
@@ -199,6 +211,8 @@ PLANTS = [
     ("a ledger can bring a command", "case \"$_c\" in *[!a-z0-9-]*|'') echo", "case \"$_c\" in '') echo"),
     ("an empty field collapses", "US=$(printf '\\037')", "US=$(printf '\\t')"),
     ("the root is counted twice", "done; done; } | awk '!seen[$0]++'; }", "done; done; } | cat; }"),
+    ("an egg string pulled with no egg", "if [ \"$cmd\" = pull ] && grep -q '^# egg: none' \"$L\"", "if false"),
+    ("close takes a pulled egg string with no egg", "if grep -q '^# egg: none' \"$L\" && grep -q", "if false && grep -q"),
     ("--pull pulls past an ASK", 'if [ $rc = 0 ] && [ $pullok = 1 ]; then', 'if [ $rc != 1 ] && [ $pullok = 1 ]; then'),
 ]
 

@@ -11,8 +11,11 @@ The source tree is the authority; this repository is what it builds. One path, b
 
     make dist                      # build and check: plugin, extension, skills plugin, terms
     make publish                   # stage this repository's tree in dist/github/vibrobeast and say what changed
-    make publish GH_REPO=PATH PUSH=1   # copy it into a clone of this repository, commit on publish/VERSION, push
-    #   then open the pull request the last line prints, and merge it when the checks agree
+    make publish GH_REPO=PATH PUSH=1   # copy it into a clone of this repository, commit on main, push main
+
+A publish is the keepers' own commit and push, like any other: this repository is correct when its
+`main` is the latest build. No pull request is opened for it (`bin/gh1pb push --branch` makes a branch
+instead, for the rare case one is wanted).
 
 **In (pull request here to the source)**, in the source tree:
 

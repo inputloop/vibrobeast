@@ -119,6 +119,10 @@ case "$cmd" in
     [ -n "$x" ] || { [ "$cmd" = pull ] && echo "pg1lv: a pull needs its receipt (file:, git:, q: or said:)" || echo "pg1lv: a string is relaxed only with its reason"; exit 2; }
     if [ "$cmd" = pull ]; then case "$x" in file:?*|git:?*@?*|q:?*|said:?*) ;; *) echo "pg1lv: a receipt is file:PATH, git:REPO@SHA, q:SLUG or said:TEXT"; exit 2;; esac; m='[x]'; else m='[~]'; fi
     body=$(printf '%s\n' "$s" | sed 's/^\[.\] //; s/ -- .*//')
+    # no egg, no claim to have laid one (2026-10-18: a ledger opened after the work, egg "none", still had its
+    # egg string pulled [x]; modelthisbook selfcheck/STRINGS:3 and :7). Relaxing it, with the reason, is honest.
+    if [ "$cmd" = pull ] && grep -q '^# egg: none' "$L" && printf '%s\n' "$body" | grep -q 'lay the egg'; then
+      echo "pg1lv: no egg was laid (the capture was not there when the ledger opened): relax string $n with the reason"; exit 2; fi
     setline "$n" "$m $body -- $x"; echo "pg1lv: string $n $( [ "$cmd" = pull ] && echo pulled || echo relaxed): $body";;
   state)
     need; awk '/^\[ \] /{t++; if (!nx) nx = NR": "substr($0,5)} /^\[x\] /{p++} /^\[~\] /{r++} /^\[!\] /{b++}
@@ -132,6 +136,8 @@ case "$cmd" in
       now_h=$( [ -f "$pf" ] && sha < "$pf" || echo gone)
       [ "$now_h" = "$eh" ] || { echo "pg1lv: the prompt's capture changed after intake (egg $eh, now $now_h): nothing closed"; exit 1; }
       echo "  egg    $egg unchanged since intake"; fi
+    if grep -q '^# egg: none' "$L" && grep -q '^\[x\] .*lay the egg' "$L"; then
+      echo "pg1lv: the ledger has no egg, yet its egg string is pulled: relax it with the reason; nothing closed"; exit 1; fi
     taut=$(grep -n '^\[ \] ' "$L")
     if [ -n "$taut" ]; then echo "pg1lv: still taut -- nothing closed:"; grep '^\[ \] ' "$L" | sed 's/^\[ \] /  /'; exit 1; fi
     tmp=$(mktemp); grep '^\[x\] ' "$L" | sed 's/.* -- //' > "$tmp"

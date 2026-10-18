@@ -10,7 +10,7 @@ Edit that, not this; a pull request against this file is carried back there by b
 A memory Claude keeps on your own computer, in plain files you can read, with the skills, persona sheets and shared rooms a small free-software shop built around it.
 
 > [!NOTE]
-> Version 1.2.59, built 2026-10-16 from source commit `d9d3247`. This is working software used daily by its two makers, not yet reviewed by anyone else. It runs on Claude Desktop (Windows and macOS) and Claude Code. It is not a security boundary: anything Claude can do with your files, it can still do. The parts that reach the network are off until you switch them on.
+> Version 1.2.60, built 2026-10-18 from source commit `33e7716`. This is working software used daily by its two makers, not yet reviewed by anyone else. It runs on Claude Desktop (Windows and macOS) and Claude Code. It is not a security boundary: anything Claude can do with your files, it can still do. The parts that reach the network are off until you switch them on.
 
 ## What you get
 
