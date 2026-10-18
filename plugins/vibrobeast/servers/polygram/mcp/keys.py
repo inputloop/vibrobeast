@@ -25,7 +25,7 @@ names another).  Append-only, like prefs.tsv: the last row for a NAME wins; KIND
           env:NAME  (an environment variable)  |  file:PATH  (a file holding the token, or the key file)
           Never the secret itself: a SOURCE without one of those prefixes is refused, and so is any
           cell that looks like a token (ghp_, github_pat_, glpat-, a long unbroken run).
-  BINDS   names this key answers to, outright.  Empty: what the word file (secret.md) lists for FOR.
+  BINDS   names this key answers to, outright.  Empty: what the word file (key.md) lists for FOR.
   FOR     the services it is for, as tags (github, gitlab, npm, pypi, ssh, ghostwheel ...).
   RUN     programs key_run may start with it.  Empty: the word file's #run lines for FOR.
   USAGE   usage constraints in your words.  Shown back in every confirmation, never enforced by us.
@@ -34,7 +34,7 @@ names another).  Append-only, like prefs.tsv: the last row for a NAME wins; KIND
   FOR from "API token: for", USAGE from "API token: usage constraints"), ``ssh`` (SSH key, FOR ssh
   git), ``gw`` (the ghostwheel password).  A register row of the same NAME wins.
 
-THE BINDER -- word balancing against secret.md (a C4 word file).  A name the file lists takes that
+THE BINDER -- word balancing against key.md (a C4 word file).  A name the file lists takes that
 line's #tags; a name it does not list is split at ``_`` and each piece looked up the same way, a
 piece found nowhere standing for itself.  Each key scores: a name in its BINDS wins outright (100);
 its KIND among the tags, 1; each FOR tag among them, 2.  Verdicts: BOUND (a BINDS hit, or the best
@@ -63,7 +63,7 @@ import time
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-LEXICON = HERE / "secret.md"
+LEXICON = HERE / "key.md"
 STATE = Path.home() / ".mentcached"
 COLS = ("name", "kind", "source", "binds", "for", "run", "usage")
 KINDS = ("token", "ssh-key", "password", "login")

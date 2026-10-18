@@ -17,14 +17,14 @@
 # holds both to one spec.  It reads no secret: a register names where a key lives, never the key.
 #
 # usage: bind.sh [-l WORDFILE] [-r REGISTER] [--tsv] NAME...
-#   -l   the word file (default: ../fixtures/secret.md beside this script)
+#   -l   the word file (default: ../fixtures/key.md beside this script)
 #   -r   the register, tab-separated NAME KIND SOURCE BINDS FOR RUN USAGE (default: none);
 #        the settings page's keys come from the environment as in keys.py (VIBROBEAST_API_TOKEN ...)
 #   --tsv  NAME VERDICT KEY SCORE, one line each, for comparing readers; default is words
 # exit 0 every name answered (BOUND), 1 some name needs asking (GUESS, TIE, NONE), 2 usage
 set -u
 here=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
-lex=$here/../fixtures/secret.md; reg=/dev/null; tsv=0
+lex=$here/../fixtures/key.md; reg=/dev/null; tsv=0
 while [ $# -gt 0 ]; do
   case $1 in
     -l) lex=$2; shift 2 ;;

@@ -26,7 +26,7 @@ if $B -r "$here/fixtures/register.tsv" GH_TOKEN | grep -q "ask which"; then pass
 if [ "${1-}" = --prove-red ]; then
   # The planted copy keeps the layout (scripts/ beside fixtures/), so it fails on its verdicts and
   # not on a missing word file (the unexercised-branch lesson: a planted failure must speak).
-  t=$(mktemp -d); mkdir -p "$t/scripts" "$t/fixtures"; cp "$here/fixtures/secret.md" "$t/fixtures/"
+  t=$(mktemp -d); mkdir -p "$t/scripts" "$t/fixtures"; cp "$here/fixtures/key.md" "$t/fixtures/"
   sed 's/else if (nbest > 1) out = "TIE"/else if (0) out = "TIE"/' "$here/scripts/bind.sh" > "$t/scripts/bind.sh"
   if cmp -s "$here/scripts/bind.sh" "$t/scripts/bind.sh"; then echo "  FAIL the plant did not apply"; fail=$((fail+1)); fi
   if sh "$t/scripts/bind.sh" --tsv -r "$here/fixtures/register.tsv" GH_TOKEN 2>&1 | grep -q "cannot read"; then

@@ -36,6 +36,10 @@ it is itself part of a name (`tavern.on`). Then a verdict:
 Nothing is set. The last line says what would set it (`pref_set`, or `el1ct NAME MODE`), so the
 person decides, with the reading in front of them.
 
+Without the vibrobeast servers there is no `pref_set` or `word_register`; the reading still stands.
+Say the key and value for the person to set themselves (preferences are plain text, in
+`~/.mentcached/prefs.tsv`), and give the gap words as a list to define by hand.
+
 ## The coverage gauge, and what it found
 
 `coverage` asks, setting by setting, whether the words of its name resolve anywhere. On 2026-10-15,

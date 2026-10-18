@@ -1,7 +1,7 @@
 {
   "name": "vibrobeast-skills",
-  "version": "1.2.61",
-  "description": "The vibrobeast skills alone, for Claude Desktop beside the Vibrobeast extension, which carries the servers. Starts no server.",
+  "version": "1.2.62",
+  "description": "Written ways of working Claude reads when a task calls for them: careful hand-backs, plain-language checks, honest testing, writing forms. The skills alone; starts no server.",
   "author": {
     "name": "Corwin and Bryant",
     "email": "BryantAndCorwin@inputloop.com"

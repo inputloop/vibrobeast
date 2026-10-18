@@ -1,9 +1,45 @@
 ---
 name: run-card
-description: Write a RUN-CARD before touching a system you did not build. Use whenever work is about to run against a real host, a production database, someone else's data, a backup, a log, or any environment where a mistake is expensive or a false conclusion could ship — and especially when the person at the keyboard is not the person who wrote the steps. Triggers on "write a run card", "card this", "no card no run", "how do I run this safely", "sweep the logs for X", "check whether Y ever happened", "is that host clean", "let's get on the box and look", "walk me through this", "what would I paste", "can a volunteer do this". Also use when a run just finished and the results need reading in the right order, or when someone is about to report a CLEAN result from a sweep. This is not a checklist generator and not a devops runbook tool — it is a discipline for producing one paste-ready, auditable artifact that a careful stranger could run without you in the room.
+description: The door for "help me run this": a job aid for steps at a screen, a paste card for a shell, or a .rc file the machine runs, picked by who is at the keyboard and what cannot be undone. Use before work runs against a real host, a production database, someone else's data, a backup, a log, a portal or settings page, or anywhere a mistake is expensive or a false conclusion could ship, and especially when the person at the keyboard did not write the steps. Triggers on "help me run this", "step us through this", "walk us through", "walk me through this", "let's get on the box and look", "a job aid", "a checklist we can follow together", "write a run card", "card this", "no card no run", "how do I run this safely", "sweep the logs for X", "check whether Y ever happened", "is that host clean", "what would I paste", "can a volunteer do this". Also when a run just finished and its results need reading in the right order, or before anyone reports a CLEAN result from a sweep.
 ---
 
 # run-card — the credential-free door
+
+## Help me run this: the door, and the three shapes behind it
+
+"Help me run this" lands here first. Ask two things, then pick a shape:
+- who is at the keyboard;
+- what can go wrong that cannot be undone.
+
+| shape | for | made with |
+|---|---|---|
+| **job aid** | people doing steps at a screen: a web portal, a settings page, an installer, often two people on a call | `scripts/ja1md` |
+| **paste card** | someone at a shell on a machine with no c4 on it | the furniture and read-order below |
+| **.rc card** | anything with more than one step that a machine can run and re-run | `scripts/rc1rn` |
+
+A job aid is a checklist with context. Each step says four things:
+- **do**: the screen, the button, the words to type;
+- **why**: one line, so the people doing it know what they are doing as they do it;
+- **check**: what they see when it worked;
+- **stop**: what means stop, where a step can go wrong in a way that matters.
+
+It is written in one plain-text file, which anyone can edit, and rendered two ways:
+
+    sh scripts/ja1md check AID.txt    every step has a why and a check, or it is not ready
+    sh scripts/ja1md md AID.txt       markdown, for the repository
+    sh scripts/ja1md html AID.txt     a checklist page with boxes, on the egad palette, light and dark
+
+The job aid keeps the card's discipline, said for a screen:
+- The why and the check carry the read-order.
+- The stop lines are the ABORT.
+- Anything only a person may do (a promise, a key, making something public) is named as theirs in its step.
+
+To be sure a job aid covers everything that was asked, grind the request with monocle-stack first:
+- each first-layer question becomes a step, or an answered line;
+- `mn1sk gaps` shows that none was dropped.
+
+The first one, 2026-10-18: Corwin and Bryant's directory submission, 14 steps in three sections. Its source,
+markdown, page and monocle stack are in c4-draw-kiosk `writing/directory/`.
 
 ## Since 2026-09-25: the card is a file the machine runs
 

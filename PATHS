@@ -3,7 +3,10 @@
 README.md	GENERATED:publish/github/vibrobeast/README.md.in
 SKILLS.md	GENERATED:bin/gh1pb (from each SKILL.md's front matter)
 PROVENANCE	GENERATED:bin/gh1pb
+PRIVACY.md	GENERATED:bin/tp2mt (dist/vibrobeast/PRIVACY.md, copied by bin/gh1pb)
 PATHS	publish/github/vibrobeast/PATHS
+MOVING-OVER.md	publish/github/vibrobeast/MOVING-OVER.md
+tools/	publish/github/vibrobeast/tools/
 CITATION.cff	publish/github/vibrobeast/CITATION.cff
 CONTRIBUTING.md	publish/github/vibrobeast/CONTRIBUTING.md
 SECURITY.md	publish/github/vibrobeast/SECURITY.md

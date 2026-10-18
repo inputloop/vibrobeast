@@ -5,7 +5,7 @@ description: >
 metadata:
   c4_status: mint-unblessed
   c4_minted: 2026-10-12
-  c4_source: polygram/mcp/secret.md (the word file; copied to fixtures/ and held identical by tests/test_keys.py)
+  c4_source: polygram/mcp/key.md (the word file; copied to fixtures/ and held identical by tests/test_keys.py)
   c4_ships_tool: scripts/bind.sh + fixtures/ + tests.sh
   c4_asset: assets/POCKET-BINDER.md
 ---
@@ -23,7 +23,7 @@ with no tools.
 
 | C4 | here |
 |---|---|
-| a word gets a file | `secret.md`, the word for "a thing you keep so a program can act as you" |
+| a word gets a file | `key.md`, the word for "a thing you keep so a program can act as you" |
 | ARRAY of lines | one line per name a program asks for (`GH_TOKEN`, `GIT_SSH_COMMAND`) |
 | SCALAR | each name, standing for one value |
 | `#TAG` cross-reference | `#github #token`: the service and the kind; the file never tags its own word |

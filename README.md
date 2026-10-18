@@ -10,7 +10,7 @@ Edit that, not this; a pull request against this file is carried back there by b
 A memory Claude keeps on your own computer, in plain files you can read, with the skills, persona sheets and shared rooms a small free-software shop built around it.
 
 > [!NOTE]
-> Version 1.2.61, built 2026-10-18 from source commit `f4cae9a`. This is working software used daily by its two makers, not yet reviewed by anyone else. It runs on Claude Desktop (Windows and macOS) and Claude Code. It is not a security boundary: anything Claude can do with your files, it can still do. The parts that reach the network are off until you switch them on.
+> Version 1.2.62, built 2026-10-18 from source commit `f4cae9a+uncommitted`. This is working software used daily by its two makers, not yet reviewed by anyone else. It runs on Claude Desktop (Windows and macOS) and Claude Code. It is not a security boundary: anything Claude can do with your files, it can still do. The parts that reach the network are off until you switch them on.
 
 ## What you get
 
@@ -25,9 +25,13 @@ A memory Claude keeps on your own computer, in plain files you can read, with th
 **Claude Desktop, two steps, no typing:**
 
 1. Download [`extension/vibrobeast.mcpb`](extension/vibrobeast.mcpb) and open it. Claude Desktop shows an install page; the settings page that follows is where the doors and their folders live.
-2. For the skills in the slash-command menu: in Claude Desktop open **Customize**, then **Plugins**, **Add**, **Upload plugin**, and choose `vibrobeast-skills.plugin`. Ask Claude to run `vibrobeast_setup` and it will put that file in your Downloads folder and say these steps again.
+2. For the skills in the slash-command menu: in Claude Desktop open **Customize**, then **Plugins**, **Add**, **Add marketplace**, **Add from a repository**, and enter `inputloop/vibrobeast-skills` (the skills' own repository). Then add **vibrobeast-skills** from that marketplace. Added this way, a new release of the skills reaches you from that repository rather than as a file you fetch again.
+
+   Without a GitHub connection, the older way still works: **Add**, **Upload plugin**, and choose `vibrobeast-skills.plugin`. Ask Claude to run `vibrobeast_setup` and it will put that file in your Downloads folder and say these steps again.
 
 Do not also install the full `vibrobeast` plugin in Claude Desktop: the extension already runs its servers, and two would share one memory.
+
+**If you add MCP servers by hand** in `claude_desktop_config.json`, you can keep doing that: [`MOVING-OVER.md`](MOVING-OVER.md) adds our servers one at a time, in the same JSON, and `tools/cd1ck.py` reads your file (never writing it) and says where it stands.
 
 **Claude Code** (2.1.275 or later, one step):
 
@@ -36,6 +40,8 @@ Do not also install the full `vibrobeast` plugin in Claude Desktop: the extensio
 ```
 
 On older versions: `/plugin marketplace add inputloop/vibrobeast`, then `/plugin install vibrobeast@inputloop`.
+
+Updates: Claude Code does not update a marketplace you added yourself until you say so. Run `/plugin marketplace update inputloop` when you want the newest release, or switch on auto-update for `inputloop` under `/plugin`, **Marketplaces**, and it checks at the start of each session.
 
 That plugin carries the servers and the skills together. While this repository is private, adding it needs a GitHub account with access to it.
 
@@ -58,8 +64,8 @@ Type these to Claude after installing:
 
 ## Where your data goes
 
-- **Kept on your computer:** notes, preferences, timings and the persona journal, all under `~/.mentcached/` unless you move them. Every store, what moves it and what is in it is listed in [`PRIVACY.md`](plugins/vibrobeast/PRIVACY.md).
-- **Sent by vibrobeast itself:** nothing, until you open a door. With Llama Bridge on, delegated prompts go to the Ollama server you name (this computer by default). With Tavern on, what Claude posts goes to your own Tavern node, which copies it to every member. With the ghostwheel door on, it asks only the hosts you list.
+- **Kept on your computer:** notes, preferences, timings and the persona journal, all under `~/.mentcached/` unless you move them. Every store, what moves it and what is in it is listed in [`PRIVACY.md`](PRIVACY.md).
+- **Sent by vibrobeast itself:** nothing, until you open a door. With Llama Bridge on, delegated prompts go to the Ollama server you name (this computer by default). With Tavern on, what Claude posts goes to your own Tavern node, which copies it to every member. With the ghostwheel door on, it asks only the hosts you list. With a key you have bound, `key_run` starts the one program you confirm (gh, git, ssh and the like) and that program reaches the host it names; nothing runs until you confirm it, or under a standing yes you wrote yourself.
 - **Sent by Claude:** what any tool answers becomes part of your conversation with Claude, under Anthropic's terms, not ours.
 - **To erase:** delete the folder. Every store is plain text.
 

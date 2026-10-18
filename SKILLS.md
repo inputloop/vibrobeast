@@ -34,7 +34,7 @@ Each skill is a folder with a `SKILL.md`. Claude reads one when the task calls f
 | `instrument-panel` | Run the gauges — one measured, receipted view of a signed working tree's state (signatures vs pinned key, edit-debt, seal freshness, tree version, git dirt) with a canary-first reader check. |
 | `interesting-lines` | Watch a long run (make check, a build, a test suite, any log) with the interesting lines shown and the dull ones folded into one counted line each, so a failure and its traceback are never buried and known noise is a number, not a screen... |
 | `kid-glove` | Arrive gently in a project, garden or machine someone else keeps: find the house rules first (instruction files such as CLAUDE.md, installed skills and soft skills, stated preferences and values, the licence, ChangeLog and test conventio... |
-| `layered-assurance` | A design rule for assurance when you CANNOT fully enforce or inspect what code does — the observation-first answer to "however sandboxed." A cumulative ladder: L1 count-the-cards (diff or re-hash what you declared must-not-change — a wea... |
+| `layered-assurance` | A design rule for assurance when you CANNOT fully enforce or inspect what code does — the observation-first answer to "however sandboxed." A cumulative ladder: L1 count-the-cards (diff or re-hash what you declared must-not-change — a... |
 | `lens` | The LENS — the wide reflection discipline, one human's thought experiment, run before a deliverable leaves your hands. |
 | `liner-notes` | The page at the end that says who made this, as stories of effort, written at the cut by a tool from what the tree already declares; and the gauge of whether every file's last lines carry the house's credit line (partner, editor, thanks,... |
 | `llama-bridge` | Operate and tune Llama Bridge, the local Ollama delegation bridge served by this plugin (off until llamabridge.on): delegate a subtask, pick a model that fits the task AND the machine, verify the output, run background jobs, and try it a... |
@@ -43,11 +43,11 @@ Each skill is a folder with a `SKILL.md`. Claude reads one when the task calls f
 | `medley-review` | Review and propose patches for Bob Proulx's medley and the savannah-medley-scripts deploy config (the software that configures GNU Savannah hosts). |
 | `mentat-skill` | Conventions for taking and maintaining notes in project memory the Mentat way, and for carrying a persona another instruction layer declared. |
 | `monocle-stack` | Grind one block of input (a prompt, a brief, a finding) into a stack of questions -- every question the block raises, each tied to the words that raised it, then the questions those raise, layer by layer until none raises another -- and ... |
-| `pencil-your-own` | A design rule for the move that recurs wherever judgment meets a record — own-error-is-the-relaxable-layer: make the layer most likely to be YOUR error the one that relaxes, gets marked, or gets made explicit; never the layer you defend ... |
+| `pencil-your-own` | A design rule for the move that recurs wherever judgment meets a record — own-error-is-the-relaxable-layer: make the layer most likely to be YOUR error the one that relaxes, gets marked, or gets made explicit; never the layer you defen... |
 | `persona-engine` | Use the garden's persona model carefully and without waste: decide first whether a persona is warranted at all (which of the four uses: a real person shared safely, a system actor, the context of an actor for a story, the tensions at an ... |
-| `pmo` | Drive Corwin's own PMO ("project-management office") tool from inside Cowork — the dependency-free supervisor over all projects in the keeper's projects folder (here: F:\claude\projects), backed by two TSV ledgers (projects.tsv, todos.ts... |
+| `pmo` | Drive Corwin's own PMO ("project-management office") tool from inside Cowork — the dependency-free supervisor over all projects in the keeper's projects folder (here: F:\claude\projects), backed by two TSV ledgers (projects.tsv, todos.... |
 | `pocket-binder` | One key kept, many names asked for. |
-| `pocket-mentat` | A portable, tool-free note discipline any AI can keep and hand off — SEAM / PIN / SEMAPHORE plus two honesty habits (From: where it came from, Would-change: what would prove it wrong) and came-from:/leads-to: links so notes walk both dir... |
+| `pocket-mentat` | A portable, tool-free note discipline any AI can keep and hand off — SEAM / PIN / SEMAPHORE plus two honesty habits (From: where it came from, Would-change: what would prove it wrong) and came-from:/leads-to: links so notes walk both d... |
 | `posix-gotchas` | The POSIX-sh footguns that a passing test suite cannot see, plus a checker measured against a real corpus so it does not cry wolf. |
 | `posix` | Write, review, and improve POSIX shell scripts and shell tooling with risk-first care. |
 | `powerglove` | Wear a prompt from intake to hand-back so nothing it asked for is dropped, even across a compaction -- lay the egg (the prompt captured verbatim and hashed before any work), hold its strings (every read and call owed coming in, every wri... |
@@ -57,7 +57,7 @@ Each skill is a folder with a `SKILL.md`. Claude reads one when the task calls f
 | `release-runbook` | The polygram release turnaround — mint, gate, sign, tag, publish to Forgejo — as one blessed path with runnable verification. |
 | `rewire-order` | A design rule for ORDERING a migration of several projects onto a shared model, framework, or substrate — which one to convert FIRST, and why. |
 | `rolls` | Draft and render report kinds over a tree that keeps its work in registers or folders — the session close/roll report, the intake report, the situation report, and the dashboard. |
-| `run-card` | Write a RUN-CARD before touching a system you did not build. |
+| `run-card` | The door for "help me run this": a job aid for steps at a screen, a paste card for a shell, or a .rc file the machine runs, picked by who is at the keyboard and what cannot be undone. |
 | `sandboxer` | Crossing between Claude's workspace and the keeper's disk. |
 | `savane-forensics` | Use for forensic security review or breach-notification work on GNU Savane / Savannah, or when extending the svhck-forensics suite. |
 | `seams` | The universal seam doctrine — what counts as evidence when two representations of one truth can silently split. |
@@ -66,7 +66,7 @@ Each skill is a folder with a `SKILL.md`. Claude reads one when the task calls f
 | `session-rotate` | Corwin's own per-project rotation for a project that carries a model.md — archive the last prompt/response, snapshot model.md, bump z, and (optionally) bake in a new primary directive. |
 | `shelf-check` | Fail-closed guard doctrine for a signed public shelf (pub/ or any directory of PGP-clearsigned / detached-signed files). |
 | `signing-model` | A design rule for signing artifacts and what "signed" and "versioned" MEAN. |
-| `skill-metrics` | Keep a time series of what each shipped thing in the garden is doing — one row per interesting event (ITEM STATE CUR LAST DATE NOTE), one file per item holding its last STATE, and content-keyed archives of the current and previous versio... |
+| `skill-metrics` | Keep a time series of what each shipped thing in the garden is doing — one row per interesting event (ITEM STATE CUR LAST DATE NOTE), one file per item holding its last STATE, and content-keyed archives of the current and previous vers... |
 | `skill-sign` | Sign, verify, and bundle skills with durable PGP provenance via scripts/skill-sign.sh. |
 | `skilltank` | Spot skill-shaped patterns and decide whether they earn a skill. |
 | `taxonomy-link` | Say where each word's meaning lives in C4's taxonomy (m/t, the g/ word registry, terms-of-art, d/dict), fill a palace entry's words table from those places, and read a setting named in plain words by what the words mean -- BOUND, GUESS, ... |

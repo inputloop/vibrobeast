@@ -150,6 +150,9 @@ case ${1:-} in
 "")
 	echo "== rc1rn: the card runner keeps its header's promises =="
 	suite "$RC"; r=$?
+	echo "== ja1md: the job aid maker catches its own planted faults =="
+	sh "$here/scripts/ja1md" --prove-red >"$tmp/ja1md.log" 2>&1; ok "ja1md --prove-red (a step without a why or a check is refused; words are escaped)" $?
+	[ $fail = 0 ] || r=1
 	if [ -n "${C4_ROOT:-}" ] && [ -f "$C4_ROOT/bin/rc1rn" ]; then
 		cmp -s "$RC" "$C4_ROOT/bin/rc1rn"; ok "scripts/rc1rn is byte-equal to C4's bin/rc1rn (SKILL.md falsifier)" $?
 		[ $fail = 0 ] || r=1
@@ -178,6 +181,8 @@ case ${1:-} in
 $(mutants)
 M2
 	echo
+	echo "== ja1md: its own planted faults =="
+	if sh "$here/scripts/ja1md" --prove-red >"$tmp/ja1md.log" 2>&1; then echo "CAUGHT  ja1md: $(tail -1 "$tmp/ja1md.log")"; else echo "MISSED  ja1md: $(grep FAIL "$tmp/ja1md.log" | head -1)"; n=$((n + 1)); fi
 	if [ $caught = $n ] && [ $n -gt 0 ]; then
 		echo "PROVE-RED OK -- controls green, $caught/$n planted breaks caught"; exit 0
 	fi
