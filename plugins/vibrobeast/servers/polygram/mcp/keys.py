@@ -384,16 +384,34 @@ def _remote(arg: str) -> bool:
     return "@" in arg or (i != -1 and i != 1)
 
 
+def _same_dir(a: str, b: str) -> bool:
+    """Two spellings of one folder (F:/x, F:\\x, f:/x/ are the same on Windows)."""
+    def norm(x: str) -> str:
+        return os.path.normcase(os.path.normpath(str(Path(x).expanduser().resolve())))
+    try:
+        return norm(a) == norm(b)
+    except (OSError, ValueError):
+        return False
+
+
+# git subcommands a standing yes may cover, run in exactly its folder: they bring the remote's work
+# home and change nothing anywhere else.  A pull runs fast-forward only (run() adds --ff-only), so a
+# standing yes never makes a merge commit.  His ask, 2026-10-18: "please allow the git command that
+# prompted the question going forward" (the pull of his Avalon copy of c4-draw-kiosk).
+GIT_STANDING = ("pull", "fetch")
+
+
 def standing_for(row: dict, program: str, argv: list[str],
-                 entries: list[tuple[str, str, str]] | None = None) -> str:
+                 entries: list[tuple[str, str, str]] | None = None, cwd: str | None = None) -> str:
     """The standing yes that covers this run, in words, or "" (it asks as before).
 
     Narrow on purpose: no argument may start with '-' (an ssh option such as ProxyCommand runs a
     program on THIS computer), so a remote command goes as ONE quoted argument ("ls -la", not ls
     -la, which asks); ssh only when its host argument is exactly the target; scp only
     pushing to the target, every source a local path and the destination TARGET:path (a pull
-    could write this computer's files).  His ask, 2026-10-15: "If you can't just attend to it
-    then it's broken." -- a confirmation on every routine run to his own host."""
+    could write this computer's files); git only `pull` or `fetch` alone, run in exactly the
+    folder TARGET (no -C: the folder is the run's cwd).  His ask, 2026-10-15: "If you can't just
+    attend to it then it's broken." -- a confirmation on every routine run to his own host."""
     args = argv[1:]
     if not args or any(a.startswith("-") for a in args):
         return ""
@@ -404,6 +422,9 @@ def standing_for(row: dict, program: str, argv: list[str],
             return f"standing yes ({key} {prog} {target}, keys.standing)"
         if program == "scp" and len(args) >= 2 and args[-1].startswith(target + ":") \
                 and not any(_remote(a) for a in args[:-1]):
+            return f"standing yes ({key} {prog} {target}, keys.standing)"
+        if program == "git" and len(args) == 1 and args[0] in GIT_STANDING and cwd \
+                and _same_dir(cwd, target):
             return f"standing yes ({key} {prog} {target}, keys.standing)"
     return ""
 
@@ -434,7 +455,9 @@ def run(row: dict, argv: list[str], cwd: str, confirm: str, lex, timeout: float 
                f"{', '.join(row['binds_list']) or 'its own'}. Its usage constraints, in your words: {usage}"
                + (f" It also hands the key {stdin_row['name']!r} to the program's input (its usage constraints: "
                   f"{stdin_row.get('usage') or 'none written'})." if stdin_row else ""))
-    stand = standing_for(row, program, argv) if stdin_row is None else ""
+    stand = standing_for(row, program, argv, cwd=cwd) if stdin_row is None else ""
+    if stand and program == "git" and argv[1:] == ["pull"]:
+        argv = [*argv, "--ff-only"]                  # a standing pull never makes a merge commit
     if confirm != code and not stand:
         return {"ok": None, "confirm": code, "present": present,
                 "say": "Show the person this confirmation, with the usage constraints, and call key_run "
