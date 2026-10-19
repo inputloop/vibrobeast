@@ -1,7 +1,6 @@
-# keys register: NAME	KIND	SOURCE	BINDS	FOR	RUN	USAGE (a demonstration; no key is in it)
+# keys register: NAME	KIND	SOURCE	BINDS	FOR	RUN	USAGE (a demonstration; no key is in it, and nothing shaped like one: tests.sh plants its refused row at run time)
 github	token	env:DEMO_GH		github		only the inputloop org
 lab	token	file:~/.config/glab-token		gitlab		
 npm	token	env:DEMO_NPM		npm		
 forge	ssh-key	file:~/.ssh/id_forge		ssh git		code.bru.st only
-leaky	token	ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789		github			sb:allow (a planted, refused row: no key)
 hub2	token	env:DEMO_GH2	GH_ENTERPRISE_TOKEN	github		

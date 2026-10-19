@@ -1,4 +1,4 @@
-5ede25f891a2ba828c288deb4c326ea27863ca1557be7d7c1bc7d5e263836876  ./.claude-plugin/plugin.json
+279cbdc94f3cd871324bea9fa1cd60504738d1bf2606aacdb1b8479040e1d3e8  ./.claude-plugin/plugin.json
 78d7e842b83bb9af4640006ee4484bb664500f9757837250c77d91fb42881bd0  ./.mcp.json
 f274c92648b23e8508d8c90e8a87d705e0407dac2f1c25be10b79180c4c7e13f  ./COPYING
 4072b1c2e4d1d57e34ceecd3229719e8bfefdb00a31235a4d34864e1d23720f3  ./FRAME.md
@@ -16,7 +16,7 @@ aeae9464534cce9bae271c3ac13266e9698a4beba8fec082be120a83ebdd502e  ./servers/bin/
 39f99f08c324dec293df567038f04cc2809e8c05ae5a3214c7971108ef932fe4  ./servers/bin/witness-signature.sh
 de1b199f318896662051391e2beef37f62a2c5af53fd81e25df186f23a03e53a  ./servers/launch.cmd
 75ed9090b351e9f960d677150f9d41a3ed8e540326c9ddacdf79b970c2cd39c0  ./servers/launch.py
-257b62f8773656b1fc480749b413ad9b2617b11c86c63fd443b327fec8d9e1f5  ./servers/polygram/__init__.py
+c0903c5dc5b5054d2430584014ab19a98dae7bc241f383446237060960e37a46  ./servers/polygram/__init__.py
 6f2c049ffb668f3d84b4ad5e6ec25d9781542f1e79db93685527653f2c637684  ./servers/polygram/mcp/NOTICE-llama_bridge
 15dc90d22b531572ea22ff83d5b6bb269cd7a1dda4b2c41a3e3c024cf12ad09f  ./servers/polygram/mcp/NOTICE-tavern
 2265762a8918d4885d5858af882371bfe03504260df48c9d1d00afdf7983e13e  ./servers/polygram/mcp/__init__.py
@@ -252,14 +252,14 @@ f8c927cc01368d6904242a3105dd9da80e899a473bf24367452b77715175e429  ./skills/perso
 59a871955352efba363b0df31cc0796cf5d46f64ba9ac4ed192eea65643a1671  ./skills/pmo/.skill-manifest
 0368b4112ab2d93a524f931e69640dcbd39ddc7e3fa00c4d203be9a6f3b1d84e  ./skills/pmo/SKILL.md
 ab285deb7c6c8d66afdb4dbb59dcbeadd561d25fb237db739a08d26d6365ba77  ./skills/pmo/trigger-eval.json
-8911934869ba9ab3633ce6dda20ebddb8b9665b6c6c0dc674ad410cd19d3567f  ./skills/pocket-binder/.signature.asc
-473b138bc9ef38204702f639434e1aa11f4e4bc317c570e978529299d186d2e6  ./skills/pocket-binder/.skill-manifest
-c91c6f48e26d7fcd752c0ae8eae8fe0d0d87b23275c66353f73f42d9e92782ef  ./skills/pocket-binder/SKILL.md
+ae1f86c5feeb2e10af421bf0ab75f536e1a09f61bba10c7cda930b3c84cf3862  ./skills/pocket-binder/.signature.asc
+ff943eafe05dfd792dff86e91751877faa569638483065bd075cf260c2670319  ./skills/pocket-binder/.skill-manifest
+cb8281fcf66ed75e84c56fb5969dd1be5a3bec2b92b54e4515f62142b90e3054  ./skills/pocket-binder/SKILL.md
 304b44c6de026d2a399350e8b77501674602c57e14469f25fa023859d7856251  ./skills/pocket-binder/assets/POCKET-BINDER.md
 4f1e16adf2d1a81373be5445d662283de9ffcb4a7082c5296b4c06d07209a80e  ./skills/pocket-binder/fixtures/key.md
-5b1314124b4ac8117d24543c05afb40ccfb96c9f1e8f296ee722f68105576751  ./skills/pocket-binder/fixtures/register.tsv
+580d61a12ace184c10b49153b0c2c4389eba2da360672d150ab9a9e0b14bb550  ./skills/pocket-binder/fixtures/register.tsv
 6d8772cddba5598b858259f450634bdd61c31ffb5d7132831f58a34eb1cf8b3e  ./skills/pocket-binder/scripts/bind.sh
-a6899e8a29f7bfa4b574431d980baac7067b6e2bf7b948f25095af65775a440d  ./skills/pocket-binder/tests.sh
+f2687546b44bf5f3ca233b86ea1d446cf5c46b97fa33712ccbf8d21982fbdb78  ./skills/pocket-binder/tests.sh
 3dec454dfef2102837db3c9cfbaeb54908450831add113ffc5371fd262291448  ./skills/pocket-mentat/.signature.asc
 5a3503e2d70d8d052bc4344c10658098b721c971a0ac243fbc8927e9c6530fac  ./skills/pocket-mentat/.skill-manifest
 a72188a6a9a3eb44128212777c5e2d729cb128c07ffb1851e4b80707483f372e  ./skills/pocket-mentat/SKILL.md

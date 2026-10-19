@@ -41,8 +41,8 @@ It says, in words, which key answers each name, or that it must ask. `--tsv` pri
 name needs asking. Settings-page keys come from the environment (`VIBROBEAST_API_TOKEN` and
 `VIBROBEAST_API_TOKEN_FOR`, `VIBROBEAST_SSH_KEY`, `GW_PASSWORD`), as in the servers.
 
-The demonstration register in `fixtures/` holds one row on purpose that is refused: `leaky` puts a
-token in its SOURCE, and both readers ignore it.
+The demonstration register in `fixtures/` holds no key and nothing shaped like one. `tests.sh` plants one
+refused row at run time (`leaky`, a token in its SOURCE) and checks that the reader ignores it.
 
 ## The verdicts, and what to do
 

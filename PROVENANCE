@@ -1,6 +1,6 @@
-version	1.2.62
-built	2026-10-18
+version	1.2.63
+built	2026-10-19
 source	f4cae9a+uncommitted
-sha256	957d971400dbe5e3babc859b0b5dae1389539231e24e43459a47290550e5dab0	extension/vibrobeast.mcpb
-sha256	09d525f6b936e7a4ea7f7289fd6a3387a32942e2d61c87e7f76e79d7eabed570	plugins/vibrobeast/MANIFEST
-sha256	5f11737dac025d72a75d53b632ab084c940eca2f83727e77961f16c38d1555a8	vibrobeast-skills.plugin (as minted; unpacked in plugins/vibrobeast-skills)
+sha256	63ddc7164cd44bc3a039f95a501bd0d7c1f531e3019e91dfb49471f75ec43dc5	extension/vibrobeast.mcpb
+sha256	7687b99410c094f2662943c2c789dcf88000816a4d73d93009adc0f0f446d4ed	plugins/vibrobeast/MANIFEST
+sha256	b7f89da1758503e0100c74d4df00c85501089774e9f690f5537758faed11f06f	vibrobeast-skills.plugin (as minted; unpacked in plugins/vibrobeast-skills)
