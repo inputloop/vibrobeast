@@ -1,4 +1,4 @@
-279cbdc94f3cd871324bea9fa1cd60504738d1bf2606aacdb1b8479040e1d3e8  ./.claude-plugin/plugin.json
+b308919d0e1ce3db28a8303abe45f6d976c59c8d0bef680999b02fff3951e8c6  ./.claude-plugin/plugin.json
 78d7e842b83bb9af4640006ee4484bb664500f9757837250c77d91fb42881bd0  ./.mcp.json
 f274c92648b23e8508d8c90e8a87d705e0407dac2f1c25be10b79180c4c7e13f  ./COPYING
 4072b1c2e4d1d57e34ceecd3229719e8bfefdb00a31235a4d34864e1d23720f3  ./FRAME.md
@@ -16,7 +16,7 @@ aeae9464534cce9bae271c3ac13266e9698a4beba8fec082be120a83ebdd502e  ./servers/bin/
 39f99f08c324dec293df567038f04cc2809e8c05ae5a3214c7971108ef932fe4  ./servers/bin/witness-signature.sh
 de1b199f318896662051391e2beef37f62a2c5af53fd81e25df186f23a03e53a  ./servers/launch.cmd
 75ed9090b351e9f960d677150f9d41a3ed8e540326c9ddacdf79b970c2cd39c0  ./servers/launch.py
-c0903c5dc5b5054d2430584014ab19a98dae7bc241f383446237060960e37a46  ./servers/polygram/__init__.py
+71707fe3535863c1197a9eaabb1c6f115b3cf6e540811b24e5725dc6611bdf6e  ./servers/polygram/__init__.py
 6f2c049ffb668f3d84b4ad5e6ec25d9781542f1e79db93685527653f2c637684  ./servers/polygram/mcp/NOTICE-llama_bridge
 15dc90d22b531572ea22ff83d5b6bb269cd7a1dda4b2c41a3e3c024cf12ad09f  ./servers/polygram/mcp/NOTICE-tavern
 2265762a8918d4885d5858af882371bfe03504260df48c9d1d00afdf7983e13e  ./servers/polygram/mcp/__init__.py
