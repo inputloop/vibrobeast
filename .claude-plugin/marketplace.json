@@ -6,6 +6,8 @@
     {"name": "vibrobeast", "source": "./plugins/vibrobeast",
      "description": "The memory seat, persona sheets and doors (Tavern, Llama Bridge, C4, ghostwheel status) as servers, with the skills. For Claude Code and Cowork."},
     {"name": "vibrobeast-skills", "source": "./plugins/vibrobeast-skills",
-     "description": "The skills alone, for Claude Desktop beside the vibrobeast extension. Starts no server."}
+     "description": "The skills alone, for Claude Desktop beside the vibrobeast extension. Starts no server."},
+    {"name": "vibrobeast-servers", "source": "./plugins/vibrobeast-servers",
+     "description": "The servers alone (memory seat, persona sheets, Tavern, Llama Bridge, C4, ghostwheel status), for Claude Code beside a skills plugin such as vibrobeast-skills or jarvis."}
   ]
 }

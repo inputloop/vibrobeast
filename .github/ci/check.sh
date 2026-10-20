@@ -85,6 +85,15 @@ P
     ( cd "$R/plugins/vibrobeast" && sh check.sh ) > /tmp/vbck.$$ 2>&1 && ok "C7 plugin bytes match its MANIFEST" || fail "C7 plugin check.sh: $(tail -2 /tmp/vbck.$$ | tr '\n' ' ')"
     rm -f /tmp/vbck.$$
   else fail "C7 plugins/vibrobeast/check.sh is missing"; fi
+  # 7b the servers-only plugin: its own bytes, and the same servers as the full plugin, byte for byte
+  if [ -d "$R/plugins/vibrobeast-servers" ]; then
+    if ( cd "$R/plugins/vibrobeast-servers" && sh check.sh ) > /tmp/vbck.$$ 2>&1 \
+       && diff -r -x __pycache__ "$R/plugins/vibrobeast/servers" "$R/plugins/vibrobeast-servers/servers" > /dev/null 2>&1 \
+       && [ ! -e "$R/plugins/vibrobeast-servers/skills" ]; then
+      ok "C7b servers-only plugin: its MANIFEST holds, its servers are the full plugin's, no skills"
+    else fail "C7b servers-only plugin: $(tail -2 /tmp/vbck.$$ | tr '\n' ' ')"; fi
+    rm -f /tmp/vbck.$$
+  fi
   # 8 every server builds its tools (doors off), from the plugin as shipped
   if out=$(cd "$R/plugins/vibrobeast/servers" && "$PY" -B launch.py --list 2>&1); then
     ok "C8 servers build: $(printf '%s\n' "$out" | grep -c '^[a-z]') servers, $(printf '%s\n' "$out" | grep -c '^    ') tools"
@@ -142,6 +151,7 @@ prove_red() {
   plant "an artifact changed after PROVENANCE" C6 'echo x >> extension/vibrobeast.mcpb'
   plant "a stray .pyc" C11 'mkdir -p plugins/vibrobeast/servers/__pycache__ && echo x > plugins/vibrobeast/servers/__pycache__/x.pyc'
   plant "a plugin file changed after its MANIFEST" C7 'f=$(ls plugins/vibrobeast/skills/*/SKILL.md | head -1); echo x >> "$f"'
+  plant "a server differs between the full and the servers-only plugin" C7b 'echo "# x" >> plugins/vibrobeast-servers/servers/launch.py'
   [ $bad -eq 0 ] && { echo "check: PROVE-RED OK"; return 0; } || { echo "check: PROVE-RED FAILED ($bad missed)"; return 1; }; }
 
 case ${1:-} in

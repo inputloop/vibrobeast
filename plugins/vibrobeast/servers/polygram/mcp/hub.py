@@ -236,8 +236,14 @@ def setup(args: dict) -> dict:
         "2. The skills, for the slash-command menu: in Claude Desktop open Customize, then Plugins, "
         "then Add, then Upload plugin, and choose vibrobeast-skills.plugin"
         + (f" ({src})" if src else " (it was not found beside the extension; run make dist)") + ".",
+        "   Or, instead of vibrobeast-skills (never beside it), jarvis: Bryant Frankford's skills with "
+        "these, in one plugin (Customize, Plugins, Add, Add marketplace, Add from a repository: "
+        "inputloop/jarvis). It carries every skill here that Bryant's garden keeps no copy of; its "
+        "COMPAT.md names the rest.",
         "3. The doors you want (Tavern, Llama Bridge, C4, Ghostwheel status): switch them on in this "
         "extension's settings, then restart the extension.",
+        "4. Your name: put it in this extension's Keeper field. Left empty, the keeper is the one this "
+        "seat already records, else this computer's account name; seat_mode says which, and why.",
         "Do not also install the full vibrobeast plugin here: it would run a second memory server on "
         "the same seat.",
     ]

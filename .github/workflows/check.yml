@@ -52,7 +52,7 @@ jobs:
       - name: claude plugin validate (marketplace and both plugins)
         run: |
           npm install -g @anthropic-ai/claude-code >/dev/null 2>&1 || { echo "NOT CHECKED: could not install Claude Code"; exit 0; }
-          claude plugin validate . && claude plugin validate ./plugins/vibrobeast && claude plugin validate ./plugins/vibrobeast-skills
+          claude plugin validate . && claude plugin validate ./plugins/vibrobeast && claude plugin validate ./plugins/vibrobeast-skills && claude plugin validate ./plugins/vibrobeast-servers
   package:
     name: package
     needs: check
