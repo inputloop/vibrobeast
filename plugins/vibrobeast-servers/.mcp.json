@@ -1,0 +1,53 @@
+{
+  "mcpServers": {
+    "mentcached": {
+      "command": "python3",
+      "args": [
+        "${CLAUDE_PLUGIN_ROOT}/servers/launch.py",
+        "mentcached"
+      ]
+    },
+    "persona": {
+      "command": "python3",
+      "args": [
+        "${CLAUDE_PLUGIN_ROOT}/servers/launch.py",
+        "persona"
+      ]
+    },
+    "skillx": {
+      "command": "python3",
+      "args": [
+        "${CLAUDE_PLUGIN_ROOT}/servers/launch.py",
+        "skillx"
+      ]
+    },
+    "llamabridge": {
+      "command": "python3",
+      "args": [
+        "${CLAUDE_PLUGIN_ROOT}/servers/launch.py",
+        "llamabridge"
+      ]
+    },
+    "tavernface": {
+      "command": "python3",
+      "args": [
+        "${CLAUDE_PLUGIN_ROOT}/servers/launch.py",
+        "tavernface"
+      ]
+    },
+    "c4face": {
+      "command": "python3",
+      "args": [
+        "${CLAUDE_PLUGIN_ROOT}/servers/launch.py",
+        "c4face"
+      ]
+    },
+    "gwstatus": {
+      "command": "python3",
+      "args": [
+        "${CLAUDE_PLUGIN_ROOT}/servers/launch.py",
+        "gwstatus"
+      ]
+    }
+  }
+}

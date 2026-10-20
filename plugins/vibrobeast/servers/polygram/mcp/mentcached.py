@@ -164,10 +164,12 @@ def build(by: str | None = None, seat: Path | None = None,
         try:
             from . import prefs as _prefs
             q = _prefs.quote(turn) #guard:quote
+            k, how = _prefs.keeper_and_how()
         except Exception as e:      # noqa: BLE001 -- the seat answers either way
             return f" Preferences could not be read ({e})."
-        return (f" Preferences in force: {q}." if q else " No person, room or declared preferences "
-                "are set, and no folder has a seatkeeper no.")
+        kl = f" The keeper is {k} (from {how})."     # whose say decides what is kept about people
+        return kl + (f" Preferences in force: {q}." if q else " No person, room or declared preferences "
+                     "are set, and no folder has a seatkeeper no.")
 
     @srv.tool("seat_mode",
               "Say plainly whether the seat is SEATED, JAILED or NOTVISIBLE, "

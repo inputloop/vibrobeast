@@ -1,0 +1,20 @@
+{
+  "name": "vibrobeast-servers",
+  "version": "1.2.65-pr.1",
+  "description": "The vibrobeast servers alone (the memory seat, persona sheets, and the doors to Tavern, Llama Bridge, C4 and the ghostwheel status icon), for Claude Code beside a skills plugin of your choosing: vibrobeast-skills, or jarvis. Each door stays off until you switch it on.",
+  "author": {
+    "name": "Corwin and Bryant",
+    "email": "BryantAndCorwin@inputloop.com"
+  },
+  "license": "GPL-3.0-or-later OR LGPL-3.0-or-later",
+  "homepage": "https://vibrobeast.bru.st",
+  "keywords": [
+    "memory",
+    "persona",
+    "provenance",
+    "archive",
+    "free-software",
+    "servers"
+  ],
+  "mcpServers": "./.mcp.json"
+}

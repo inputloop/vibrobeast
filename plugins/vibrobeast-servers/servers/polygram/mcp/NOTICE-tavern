@@ -1,0 +1,29 @@
+tavern_upstream.py -- Tavern 2.3.1, by Bryant Frankford, written with Alfred (for Bryant;
+claude-opus-5-5).  Kept here byte for byte as Bryant published it: not one byte changed.  It is
+served by tavernface.py beside it, which keeps it off until the person turns it on (preference
+tavern.on), finds the Tavern on this computer by itself, and never asks anyone to edit JSON.
+
+  sha256 6ffaa56681406aa55073cb9c5ae296edd6659730ff8d73793c5655a77483e78c  tavern_upstream.py (upstream 2.3.1, as received)
+
+How to check it (any one is enough; they read the same bytes):
+  sha256sum polygram/mcp/tavern_upstream.py                     (GNU/Linux, msys2)
+  shasum -a 256 polygram/mcp/tavern_upstream.py                 (macOS)
+  certutil -hashfile polygram\mcp\tavern_upstream.py SHA256     (Windows)
+and compare with the line above.  tests/tavernface-tests.sh does it too, and goes red when a byte
+is planted (its prove-red).
+
+Where updates come from: the tavern.py drop Bryant posts in the Tavern room, or the tavern.py
+inside his Tavern-Setup.bat (`python tavern.py build-setup` prints both hashes).  To take a new
+version: copy it in whole as tavern_upstream.py, change the sha256 line above and the pin in
+tests/tavernface-tests.sh, and run the tests.  Never edit the file itself; changes for Bryant go
+to him as a patch (projects/garden-pony/ keeps the working copy and the patches).
+
+Licence: SPDX-License-Identifier: GPL-3.0-or-later OR LGPL-3.0-or-later (the file's own header).
+Copyright 2026 Bryant Frankford <nathanielfrankford@gmail.com> and Contributors.
+tavernface.py: Copyright 2026 Bryant Frankford <nathanielfrankford@gmail.com> and Corwin Brust
+<corwin@bru.st> and Contributors, same licence; written by Mentat (for Corwin; claude-opus-5-5).
+
+Known, for Bryant (not changed here): bin/bytes-lint.awk finds 7 places where the file means
+different bytes on Windows than on GNU/Linux (read_text/write_text/open/subprocess without an
+encoding or newline): lines 1334, 2404, 4267, 8348, 8387, 8478, 9395.  This tree's whole-tree
+lint skips this one file because its bytes are his; the list is kept here instead.

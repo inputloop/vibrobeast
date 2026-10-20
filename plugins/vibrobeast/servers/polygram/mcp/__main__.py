@@ -315,6 +315,41 @@ def _prove_red() -> int:
         want("a room.<tavern> row is written only by the keeper or a named participant in that room",
              bool(_w26) and _k26 == "" and _b26 == "", f"stranger={_w26!r} keeper={_k26!r} bryant={_b26!r}")
 
+        # R26b -- an empty Keeper field does not make someone else the keeper (README "Your keeper").
+        import getpass as _gp26
+        import os as _os26
+        _env26 = {k: _os26.environ.get(k) for k in ("MENTCACHED_KEEPER", "MENTCACHED_PREFS")}
+        _get26 = _gp26.getuser
+        try:
+            _pfile26 = Path(td) / "r26b-prefs.tsv"
+            _os26.environ["MENTCACHED_PREFS"] = str(_pfile26)
+            _os26.environ["MENTCACHED_KEEPER"] = "${user_config.keeper}"      # what Desktop passes for an empty field
+            _gp26.getuser = lambda: "Bryant"
+            _a26 = _pf26.keeper_and_how()
+            _gp26.getuser = lambda: "user"
+            _g26 = _pf26.keeper_and_how()
+            _pfile26.write_text("ts\tkey\tvalue\tby\twhy\tturn\tconsent\n"
+                                "2026-10-01\tkeys.standing\t\tclaude\tx\tcorwin\t\n", encoding="utf-8")
+            _gp26.getuser = lambda: "bryant"
+            _s26 = _pf26.keeper_and_how()
+            _os26.environ["MENTCACHED_KEEPER"] = "bryant"
+            _f26 = _pf26.keeper_and_how()
+        finally:
+            _gp26.getuser = _get26
+            for _k, _v in _env26.items():
+                if _v is None:
+                    _os26.environ.pop(_k, None)
+                else:
+                    _os26.environ[_k] = _v
+        want("an empty Keeper field takes this computer's account name, and says so",
+             _a26[0] == "bryant" and "account name" in _a26[1], f"{_a26!r}")
+        want("a generic account name (user) is not taken for a person",
+             _g26[0] != "user" and "old default" in _g26[1], f"{_g26!r}")
+        want("a seat that records its keeper keeps that keeper when the field is empty",
+             _s26[0] == "corwin" and "seat" in _s26[1], f"{_s26!r}")
+        want("the Keeper field wins over the seat's record",
+             _f26 == ("bryant", "the Keeper setting"), f"{_f26!r}")
+
         # R27 -- "17" is a slip for 17%: refused at write, with the form to use (fix lane F3, pass 3).
         from polygram.mcp import spans as _sp27
         from polygram.mcp.rpc import ToolError as _TE27

@@ -1,0 +1,23 @@
+llama_bridge.py -- Llama Bridge, by Bryant Frankford (published as
+https://github.com/takushieternal/llamaBridge, inside llama_bridge.zip; also handed over directly
+on 2026-07-04).  Kept here as 1.4.0-vb.1: his 1.4.0 with changes made in this garden, for him to
+see and merge back as he thinks best (Corwin, 2026-10-05: Bryant can see the versions and merge
+back whatever composite he thinks best).
+
+  sha256 ed7c9067231e905c0bf009814d4b90f443a189bb9ef6c0dcb5d157b58da9ad1c  upstream 1.4.0, as received
+  sha256 da51f6b7574767f0a0e95c6a2938ad3b6d34f3f3a2937d5ed2d7f4d568c252dd  llama_bridge.py (1.4.0-vb.1, amended 2026-10-16)
+
+The upstream bytes are in this tree's history (commit 213103f) and the change is
+skills/llama-bridge/references/llama_bridge-1.4.0-vb.1.diff.  What changed, in words: the
+docstring at the top of llama_bridge.py.  Amended 2026-10-16: num_predict_cap (a call that sets no
+num_predict is capped at num_ctx_reserve, 4096 by default; 0 turns it off), after a 12b hop on avalon ran
+uncapped and spilled into system memory; and a breaker (breaker_after 4, breaker_cool = the
+generate timeout): a model that failed that many times in a row rests, then gets one trial.  Tests: tests/test_llama_bridge_vb.py (19, with
+--prove-red planting six faults).
+
+Licence: its repository carries the GNU General Public License, version 3; by the record of
+Bryant and Corwin's agreement, Bryant's work shares this garden's licence, and his offer of
+LGPL-3.0-or-later covers his code.  Copyright 2026 Bryant Frankford <nathanielfrankford@gmail.com>;
+the vb.1 changes Copyright 2026 Corwin Brust <corwin@bru.st> and Contributors, under the same
+terms.  It is served by llamabridge.py beside it, which keeps it off until the person turns it
+on (pref llamabridge.on).

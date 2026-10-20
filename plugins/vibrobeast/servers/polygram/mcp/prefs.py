@@ -67,7 +67,10 @@ from .rpc import ToolError
 
 DEFAULT_PATH = Path.home() / ".mentcached" / "prefs.tsv"
 HEADER = "ts\tkey\tvalue\tby\twhy\tturn\tconsent"
-KEEPER = "corwin"   # the keeper, unless $MENTCACHED_KEEPER names another
+KEEPER = "corwin"   # the old default keeper: used only when nothing in keeper_and_how() names one
+#: account names that say nothing about who the person is; this computer's account is not taken from these
+GENERIC_ACCOUNTS = frozenset({"user", "root", "admin", "administrator", "owner", "guest", "default", "runner",
+                              "vagrant", "ubuntu", "pi", "me", "home", "pc", "desktop", "laptop"})
 UNSET = "(unset)"   # the value pref_unset writes: the key goes back to its default
 
 #: key -> (default, what it changes).  Add a row here when a check grows a switch.
@@ -92,7 +95,7 @@ KNOWN: dict[str, tuple[str, str]] = {
     "tone.show": ("words", "tone: how the tone reading is shown to you: words (a plain sentence, no numbers) or numbers"),
     "persona.on_threshold": ("off", "persona: what happens when someone crosses a threshold (used twice outside a test run; cited twice in seat notes; shipped through a cut with their credit): off (nothing; the default, his standing rule), propose (persona_list names the crossing and asks, in words), draft (persona_list names it and a draft may be written to the holding shelf ~/.mentcached/seat/persona/drafts, marked not-his-instruction and kept out of the index). No value mints a sheet: saying yes to a proposal or a draft is the instruction his rule asks for (2026-10-14)"),
     "keys.standing": ("", "key_run: standing yeses, so routine runs on the keeper's own hosts need no confirmation each time. Entries KEY PROGRAM TARGET, separated by ';' (e.g. 'ssh ssh vibrobeast@gw33.bru.st; ssh scp vibrobeast@gw33.bru.st'). ssh: the host argument is exactly TARGET. scp: pushes to TARGET only (a pull could write this computer's files). git: TARGET is a folder, and only `git pull` (run fast-forward only) or `git fetch`, alone, run in exactly that folder (e.g. 'ssh git F:/claude/projects/c4-draw-kiosk'). Any argument starting with - still asks. Every standing run says so in its result. Only the keeper's own turn changes it"),
-    "people.named": ("corwin", "the people whose person.<name>.* rows this server keeps: the keeper and the participants he named, comma-separated. Only the keeper's own turn changes it"),
+    "people.named": ("", "the people whose person.<name>.* rows this server keeps, besides the keeper, who is always one of them: the participants the keeper named, comma-separated. Only the keeper's own turn changes it"),
 }
 
 #: keys only the keeper's own turn writes; a row in the file that another turn wrote is not read
@@ -118,9 +121,56 @@ _REST = re.compile(r"^[A-Za-z0-9_][A-Za-z0-9_.-]*$")
 SEAT_NO = "skill.seatkeeper."
 
 
+def _set(raw: str) -> str:
+    """A keeper name from settings, or "" when the setting is empty or an unfilled placeholder
+    (Claude Desktop passes "${user_config.keeper}" itself when the Keeper field is left empty)."""
+    k = (raw or "").strip().lower()
+    return k if k and not k.startswith("$") and "%" not in k and _NAME.match(k) else ""
+
+
+def _seat_keeper(p: Path | None = None) -> str:
+    """The keeper this seat already records: the turn that wrote its first keeper-only row (people.named,
+    keys.standing). Only the keeper writes those, so a seat that has them names its keeper itself, and a
+    seat made before the Keeper field existed keeps the keeper it had."""
+    if p is None:
+        p, _ = path()
+    for f in _rows(p):
+        if f[1] in KEEPER_ONLY:
+            k = _set(f[5] or f[3])
+            if k:
+                return k
+    return ""
+
+
+def _account() -> str:
+    """This computer's account name, lower-case, when it is a plain name that could be a person's."""
+    try:
+        import getpass
+        k = _set(getpass.getuser())
+    except Exception:          # noqa: BLE001 -- no account name to be had (a service, a container)
+        return ""
+    return k if k and k not in GENERIC_ACCOUNTS else ""
+
+
+def keeper_and_how(p: Path | None = None) -> tuple[str, str]:
+    """(the keeper, and where that name came from, in words). In order: the Keeper field
+    (MENTCACHED_KEEPER); the keeper this seat already records; this computer's account name; the old
+    default. Each later step is said, so the person can see whose say this install is following."""
+    k = _set(os.environ.get("MENTCACHED_KEEPER", ""))
+    if k:
+        return k, "the Keeper setting"
+    k = _seat_keeper(p)
+    if k:
+        return k, "this seat's own record (the turn that wrote its keeper-only rows); the Keeper setting overrides it"
+    k = _account()
+    if k:
+        return k, "this computer's account name, because the Keeper setting is empty; put your own name there to change it"
+    return KEEPER, ("the old default, because the Keeper setting is empty and nothing else names a keeper; put "
+                    "your own name there")
+
+
 def keeper() -> str:
-    k = (os.environ.get("MENTCACHED_KEEPER") or "").strip().lower()
-    return k if k and not k.startswith("$") and "%" not in k else KEEPER
+    return keeper_and_how()[0]
 
 
 def _split(key: str):

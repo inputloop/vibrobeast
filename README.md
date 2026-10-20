@@ -10,7 +10,7 @@ Edit that, not this; a pull request against this file is carried back there by b
 A memory Claude keeps on your own computer, in plain files you can read, with the skills, persona sheets and shared rooms a small free-software shop built around it.
 
 > [!NOTE]
-> Version 1.2.64, built 2026-10-19 from source commit `7c7dd26+uncommitted`. This is working software used daily by its two makers, not yet reviewed by anyone else. It runs on Claude Desktop (Windows and macOS) and Claude Code. It is not a security boundary: anything Claude can do with your files, it can still do. The parts that reach the network are off until you switch them on.
+> Version 1.2.65-pr.1: 1.2.64 (built 2026-10-19 from source commit `7c7dd26+uncommitted`) with a pull request's changes made in this repository, not yet in the source tree. This is working software used daily by its two makers, not yet reviewed by anyone else. It runs on Claude Desktop (Windows and macOS) and Claude Code. It is not a security boundary: anything Claude can do with your files, it can still do. The parts that reach the network are off until you switch them on.
 
 ## What you get
 
@@ -29,6 +29,8 @@ A memory Claude keeps on your own computer, in plain files you can read, with th
 
    Without a GitHub connection, the older way still works: **Add**, **Upload plugin**, and choose `vibrobeast-skills.plugin`. Ask Claude to run `vibrobeast_setup` and it will put that file in your Downloads folder and say these steps again.
 
+   **Or jarvis instead:** Bryant Frankford's skills with these ones, in one plugin (Add from a repository: `inputloop/jarvis`). Install one skills plugin or the other, never both.
+
 Do not also install the full `vibrobeast` plugin in Claude Desktop: the extension already runs its servers, and two would share one memory.
 
 **If you add MCP servers by hand** in `claude_desktop_config.json`, you can keep doing that: [`MOVING-OVER.md`](MOVING-OVER.md) adds our servers one at a time, in the same JSON, and `tools/cd1ck.py` reads your file (never writing it) and says where it stands.
@@ -43,7 +45,16 @@ On older versions: `/plugin marketplace add inputloop/vibrobeast`, then `/plugin
 
 Updates: Claude Code does not update a marketplace you added yourself until you say so. Run `/plugin marketplace update inputloop` when you want the newest release, or switch on auto-update for `inputloop` under `/plugin`, **Marketplaces**, and it checks at the start of each session.
 
-That plugin carries the servers and the skills together. While this repository is private, adding it needs a GitHub account with access to it.
+That plugin carries the servers and the skills together. If your skills come from another plugin (jarvis, say), install the servers alone instead, never beside the full plugin:
+
+```
+/plugin marketplace add inputloop/vibrobeast
+/plugin install vibrobeast-servers@inputloop
+/plugin marketplace add inputloop/jarvis
+/plugin install jarvis@jarvis
+```
+
+While this repository is private, adding it needs a GitHub account with access to it.
 
 It needs Python 3.10 or newer. On Windows the extension finds it by itself (the Python launcher, PATH, MSYS2, python.org installs).
 
@@ -75,7 +86,7 @@ This is free software, and it is built so the choices stay with you, in practice
 
 - **Your words.** Call things what you call them. Tell Claude the word you use and it uses yours; to make it last, `word_register` writes down what a word means to you (one small file per word, never overwritten), and `word_where` finds it again. The project's own terms are explained where they ship (`GRAMMARY.md`), as a glossary, not a rule.
 - **Your defaults.** Every default is a preference you can change by asking in plain words (`pref_set`, `pref_list`); the extension's settings page wins over anything set elsewhere.
-- **Your keeper.** The keeper is the person an install is for, whose say decides what is kept about people. Put your own name in the settings page's **Keeper** field. (Left empty, this build still names the person it began with; we count that as a bug and are fixing it.)
+- **Your keeper.** The keeper is the person an install is for, whose say decides what is kept about people. Put your own name in the settings page's **Keeper** field. Left empty, the keeper is the one your seat already records (the person who first set its keeper-only preferences), else this computer's account name when it is a person's name; `seat_mode` says which, and why.
 - **Your byline.** When an agent writes for you, it signs as itself, for you: `persona_byline` gives `Author: NAME (for YOU)`, and the copyright line stays yours. You choose the name, or withhold one. Nothing here signs as you.
 - **Your consent.** Doors start closed. The ghostwheel door asks before it looks anything up or trusts a new key; "always" is a separate switch, and only you set it.
 - **Your copy.** Everything is plain files you can read, move or delete, under licences that let you run, study, change and share all of it, these words included.
@@ -102,6 +113,7 @@ What this does **not** protect: Claude, with these tools, can read and write you
 | `extension/vibrobeast.mcpb` | the Claude Desktop extension: 7 servers behind one door, with a settings page |
 | `plugins/vibrobeast/` | the full plugin (servers and skills) for Claude Code and Cowork |
 | `plugins/vibrobeast-skills/` | the skills alone, the extension's partner for Claude Desktop |
+| `plugins/vibrobeast-servers/` | the servers alone, for Claude Code beside a skills plugin of your choosing (vibrobeast-skills, or jarvis) |
 | `.claude-plugin/marketplace.json` | this repository as a plugin marketplace named `inputloop` |
 | [`SKILLS.md`](SKILLS.md) | every skill, with what it is for (generated) |
 | `PROVENANCE` | the source commit, version and sha256 of each artifact here |
