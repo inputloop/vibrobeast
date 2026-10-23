@@ -1,0 +1,8 @@
+# WALK.tsv -- an EXAMPLE boundary walk for the example ledger. Steps: upstream, components, forms, containers, constraints.
+# couples: the findings this one cannot change without revisiting (directional); one in another step makes it a BOUNDARY.
+# Copyright (C) 2026 Corwin Brust <corwin@bru.st> and Contributors. SPDX-License-Identifier: CC-BY-SA-4.0
+id	step	subject	finding	sure	couples	first-seen	last-cited
+U1	upstream	the kettle's maker	sells one plug shape; another plug means another kettle	high	C1	the box it came in	today
+C1	components	the kettle	boils water; nothing else depends on its colour	high	-	the kitchen	today
+F1	forms	the garden rota	a shared sheet on the door; changing it means telling the neighbours	medium	B1	the door	today
+B1	constraints	the neighbours share the garden	any change to the rota is a social decision	high	F1	the gate	today

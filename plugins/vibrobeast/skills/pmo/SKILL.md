@@ -158,6 +158,16 @@ SSH key, hand that step to the user (cf. #25).
 `polygram` is a real key first) -> `pmo-report` -> present.
 
 
+## The read view (cxr), and one writer at a time
+
+`PMO_ATOMS=1 sh bin/pmo-report` also keeps the ledgers as folders and files (C4's `tv1cr`, the [[cxr]]
+skill: a column is a collection, a row is a registry): `ls projects/c/status/`, `cat todos/r/42/text`, and
+`todo-tags/`, the table the comma-joined tags column hides (`cut -f1 todo-tags/c/tag/risk` is every id
+tagged risk). Once `todos/` exists every report keeps it current; it is a view, committed with the
+ledgers (the repo is a private backup, and nothing is left out of a backup), and the TSVs stay the record. Every program that writes the ledger takes `todos.tsv.lock/` first, so two shells,
+or a shell and an agent, no longer repeat ids or lose rows; a lock left by a crash is named, never broken
+silently. The round that added both: `HARDEN.md` (and [[harden]]).
+
 ## How this skill can fail (falsifiers)
 
 - **The views drifted from the ledger.** fails if `README.md` or `index.html` differs from a fresh `pmo-report`; check: copy both, run `pmo-report`, and `cmp` each copy against the new file.
@@ -166,8 +176,8 @@ SSH key, hand that step to the user (cf. #25).
 - **git on the mount.** fails if any `git` command ran against `$PMO_DIR` in the session; check: grep the session's tool calls for `git` with that path.
 
 <!-- footer: minted by bin/ft1mt from conventions/house.env and conventions/FOOTERS.org; edit those, not this -->
-*Version 1.1.0: edition revised from 1.0.1 on 2026-10-10; spine: 2026-09-23.*
+*Version 1.2: edition revised from 1.1.0 on 2026-10-20; spine: 2026-09-23.*
 
-Copyright 2026 Corwin Brust <corwin@bru.st> and Contributors; CC-BY-SA4: https://creativecommons.org/licenses/by-sa/4.0/ (scripts GPL-3.0-or-later); Mentat (for Corwin; claude-opus-5-5)
+Copyright 2026 Corwin Brust <corwin@bru.st> and Contributors; CC-BY-SA4: https://creativecommons.org/licenses/by-sa/4.0/ (scripts: GNU General Public License, version 3 or any later version; SPDX GPL-3.0-or-later); Mentat (for Corwin, claude-opus-5-5)
 From the collection Corwin Brust and Bryant Frankford keep together, with K Smith as editor of the works she edited; thanks in ACKNOWLEDGEMENTS; home: https://github.com/inputloop
 <!-- /footer -->

@@ -82,6 +82,7 @@ KNOWN: dict[str, tuple[str, str]] = {
     "steward.auto": ("on", "nongnu-steward: ns1op runs its header + ledger audit at session open in a tree carrying .nongnu-steward"),
     "persona.sheets": ("", "folders holding persona sheets and person models, os.pathsep-separated, earlier wins a name; a file is a sheet by what its own first lines say (actor:, a sheet heading, or model front matter); else $PERSONA_SHEETS, else guessed from softskills.roots and words.root"),
     "words.root": ("", "the C4 root the word-path registry (word_where / word_register) reads: else $C4_ROOT, else /f/claude/c4, else ~/mnt/c4 -- whichever carries m/t"),
+    "words.kv": ("offer", "words: whether word_register also files a word's keeper row in C4's k/v (whose word it is, whether it is settled): offer writes the row when a kind is given, require refuses a word with no kind, off never writes k/v"),
     "llamabridge.on": ("off", "llamabridge: off until set to on; when on, prompts Claude delegates go to the Ollama server at OLLAMA_HOST (default http://127.0.0.1:11434, this computer). Restart the plugin after changing it (the README's Words say how)"),
     "tavern.on": ("off", "tavern: off until set to on; when on, Claude can read and post in your Tavern rooms, and what is posted is copied to every member machine's disk. Restart the plugin after changing it (the README's Words say how)"),
     "tavern.as": ("claude", "tavern: the agent name Claude uses in the Tavern (Tavern adds this machine's address, e.g. claude-192.0.2.7, a documentation address). When unset, it is the agent already registered in the Tavern for this machine's person, else claude"),
@@ -94,7 +95,7 @@ KNOWN: dict[str, tuple[str, str]] = {
     "tone.dial": ("0/0, 0/0", "tone: where the voice sits on two axes, answer length and narration, as signals seen / signals total on each; the default is the origin (no signals yet), which is plain voice"),
     "tone.show": ("words", "tone: how the tone reading is shown to you: words (a plain sentence, no numbers) or numbers"),
     "persona.on_threshold": ("off", "persona: what happens when someone crosses a threshold (used twice outside a test run; cited twice in seat notes; shipped through a cut with their credit): off (nothing; the default, his standing rule), propose (persona_list names the crossing and asks, in words), draft (persona_list names it and a draft may be written to the holding shelf ~/.mentcached/seat/persona/drafts, marked not-his-instruction and kept out of the index). No value mints a sheet: saying yes to a proposal or a draft is the instruction his rule asks for (2026-10-14)"),
-    "keys.standing": ("", "key_run: standing yeses, so routine runs on the keeper's own hosts need no confirmation each time. Entries KEY PROGRAM TARGET, separated by ';' (e.g. 'ssh ssh vibrobeast@gw33.bru.st; ssh scp vibrobeast@gw33.bru.st'). ssh: the host argument is exactly TARGET. scp: pushes to TARGET only (a pull could write this computer's files). git: TARGET is a folder, and only `git pull` (run fast-forward only) or `git fetch`, alone, run in exactly that folder (e.g. 'ssh git F:/claude/projects/c4-draw-kiosk'). Any argument starting with - still asks. Every standing run says so in its result. Only the keeper's own turn changes it"),
+    "keys.standing": ("", "key_run: standing yeses, so routine runs on the keeper's own hosts need no confirmation each time. Entries KEY PROGRAM TARGET, separated by ';' (e.g. 'ssh ssh vibrobeast@gw33.bru.st; ssh scp vibrobeast@gw33.bru.st'). ssh: the host argument is exactly TARGET. scp: pushes to TARGET only (a pull could write this computer's files). git: TARGET is a folder, and only `git pull` (run fast-forward only) or `git fetch`, alone, run in exactly that folder (e.g. 'ssh git /home/you/projects/c4-draw-kiosk'). Any argument starting with - still asks. Every standing run says so in its result. Only the keeper's own turn changes it"),
     "people.named": ("", "the people whose person.<name>.* rows this server keeps, besides the keeper, who is always one of them: the participants the keeper named, comma-separated. Only the keeper's own turn changes it"),
 }
 
@@ -128,20 +129,6 @@ def _set(raw: str) -> str:
     return k if k and not k.startswith("$") and "%" not in k and _NAME.match(k) else ""
 
 
-def _seat_keeper(p: Path | None = None) -> str:
-    """The keeper this seat already records: the turn that wrote its first keeper-only row (people.named,
-    keys.standing). Only the keeper writes those, so a seat that has them names its keeper itself, and a
-    seat made before the Keeper field existed keeps the keeper it had."""
-    if p is None:
-        p, _ = path()
-    for f in _rows(p):
-        if f[1] in KEEPER_ONLY:
-            k = _set(f[5] or f[3])
-            if k:
-                return k
-    return ""
-
-
 def _account() -> str:
     """This computer's account name, lower-case, when it is a plain name that could be a person's."""
     try:
@@ -154,14 +141,17 @@ def _account() -> str:
 
 def keeper_and_how(p: Path | None = None) -> tuple[str, str]:
     """(the keeper, and where that name came from, in words). In order: the Keeper field
-    (MENTCACHED_KEEPER); the keeper this seat already records; this computer's account name; the old
-    default. Each later step is said, so the person can see whose say this install is following."""
+    (MENTCACHED_KEEPER); this computer's account name; the old default. Each later step is said, so the
+    person can see whose say this install is following.
+
+    Only sources the person or the host set are read.  The seat's own rows never name the keeper: the
+    keeper-only rows (keys.standing, people.named) count only when written on the keeper's turn, so
+    taking the keeper from the turn that wrote the first of them let whoever wrote first become the
+    keeper and have that row count (removed 2026-10-23; advice/KEEPER-2026-10-23/).  ``p`` is kept so
+    callers need not change; no step reads it."""
     k = _set(os.environ.get("MENTCACHED_KEEPER", ""))
     if k:
         return k, "the Keeper setting"
-    k = _seat_keeper(p)
-    if k:
-        return k, "this seat's own record (the turn that wrote its keeper-only rows); the Keeper setting overrides it"
     k = _account()
     if k:
         return k, "this computer's account name, because the Keeper setting is empty; put your own name there to change it"

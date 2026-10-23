@@ -8,6 +8,8 @@
 #
 # usage: cb1ox state LIST          the count, the rung, and the next step, in words
 #        cb1ox drop LIST N WHY     move idea N to LIST.losers with the reason (kept, never deleted)
+#        cb1ox drop LIST 'TEXT' WHY  the same, naming the idea by its words: the whole line, or a part
+#                                  only one idea holds (numbers move after every drop; words do not)
 #        cb1ox race LIST           pair the halves inverted: 1 vs last, 2 vs last-1, ... inward
 #        cb1ox check LIST          the invariants; exit 1 on a fault
 #   LIST: one idea per line; blank lines and lines starting with # are not ideas.
@@ -18,7 +20,7 @@
 # Authored by Mentat (for Corwin; claude-opus-5-5).
 GRAIN=4 GREAT=9 GRAND=17
 
-usage() { sed -n '9,16p' "$0" | sed 's/^# \{0,1\}//' >&2; exit 2; }
+usage() { sed -n '9,18p' "$0" | sed 's/^# \{0,1\}//' >&2; exit 2; }
 [ $# -ge 2 ] || usage
 cmd=$1 list=$2
 [ -f "$list" ] || { echo "cb1ox: no such list: $list" >&2; exit 2; }
@@ -64,7 +66,18 @@ state)
 drop)
   [ $# -eq 4 ] || usage
   k=$3 why=$4; n=$(count)
-  case $k in ''|*[!0-9]*) echo "cb1ox: N must be a number" >&2; exit 2 ;; esac
+  case $k in
+    '') echo "cb1ox: name the idea, by number or by its words" >&2; exit 2 ;;
+    *[!0-9]*)   # by its words: the whole line first, else the one idea that holds them
+      k=$(ideas | T="$k" awk 'BEGIN { t = ENVIRON["T"] } $0 == t { print NR; f = 1; exit } END { if (!f) exit 1 }') ||
+      k=$(ideas | T="$3" awk 'BEGIN { t = ENVIRON["T"] } index($0, t) { m[++c] = NR; l[c] = $0 }
+            END { if (c == 1) print m[1]; else { for (i = 1; i <= c; i++) printf "  %d: %s\n", m[i], l[i] > "/dev/stderr"; exit(c ? 3 : 1) } }')
+      case $? in
+        0) ;;
+        3) echo "cb1ox: more than one idea holds those words (above); name it by more of them, or by number" >&2; exit 2 ;;
+        *) echo "cb1ox: no idea holds the words: $3" >&2; exit 2 ;;
+      esac ;;
+  esac
   [ "$k" -ge 1 ] && [ "$k" -le "$n" ] || { echo "cb1ox: there is no idea $k (the list has $n)" >&2; exit 2; }
   [ -n "$why" ] || { echo "cb1ox: say why it goes (the reason is kept with it)" >&2; exit 2; }
   idea=$(ideas | sed -n "${k}p")
@@ -73,6 +86,7 @@ drop)
   awk -v k="$k" '/^[ \t]*($|#)/ {print; next} {i++; if (i != k) print}' "$list" > "$tmp" && mv "$tmp" "$list"
   echo "set aside idea $k at $n ($(rung "$n")): $idea"
   echo "reason kept with it in $losers"
+  echo "the list now, renumbered:"; ideas | awk '{ printf "  %d: %s\n", NR, $0 }'
   exit 0 ;;
 race)
   n=$(count)

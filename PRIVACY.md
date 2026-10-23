@@ -1,9 +1,9 @@
-# Privacy Policy -- vibrobeast 1.2.64
+# Privacy Policy -- vibrobeast 1.2.78
 
-*Minted 2026-10-19 by `bin/tp2mt` for this build and no other. Every sentence about what the servers
+*Minted 2026-10-23 by `bin/tp2mt` for this build and no other. Every sentence about what the servers
 do was checked against their source when this was minted:*
 
-- no server but llamabridge, tavernface and gwstatus opens a network connection: none imports a network library
+- no server but llamabridge, tavernface and gwstatus opens a network connection: none imports a network library (urllib.parse, which only reads a URL's text, is not one)
 - no server but llamabridge, tavernface and gwstatus makes a socket; socket is used only to read this machine's name
 - llamabridge (Llama Bridge) is off until you set llamabridge.on, or LLAMABRIDGE_ON=1; while off it answers one tool and sends nothing
 - when on, llamabridge sends the prompts Claude delegates to the Ollama server at OLLAMA_HOST (default http://127.0.0.1:11434, this computer)
@@ -24,13 +24,24 @@ do was checked against their source when this was minted:*
 - the key register is kept in ~/.mentcached/keys.tsv (VIBROBEAST_KEYS_FILE moves it); it names where each key lives, never a key
 - a register row that holds a key itself, rather than naming where it lives, is refused
 - the key tools say a key is set or not set, never its value
-- key_run starts nothing on its first call: it returns a confirmation naming the key, the program and the folder, with your usage constraints, and runs only when called again with that confirmation's code -- or under a standing yes you wrote yourself (keys.standing)
+- key_run starts nothing on its first call: it returns a confirmation naming the key, the program and the folder, with your usage constraints, and runs only when called again with that confirmation's code, good for one run within 15 minutes -- or under a standing yes you wrote yourself (keys.standing)
+- a git push through key_run is decided by the push door, never by a code: it goes only when two readings of your frame (fr1me egress) both say GO, and is refused otherwise
+- to learn whether a place is public, the push door runs git ls-remote with no sign-in, as a stranger would; every decision it makes is a line in ~/.mentcached/push-yes.log, with no key in it
 - a standing yes (keys.standing) covers one key, one program and one host, changes only on your own turn, never covers a run with an option, and lets scp only push to that host; every run under it says so in its result
 - keys.standing is read only from a row written on the keeper's own turn
+- the keeper is named by your Keeper field, else this computer's account name, else the default -- never by the turn that wrote a row, so no row can make its own writer the keeper
 - key_run starts only the programs a key allows (by default gh, git, glab, ssh, scp, npm or twine, as the key's service needs)
 - key_run's output has the key's value replaced by [key NAME] before Claude sees it, in each way a program may spell it (slashes turned, backslashes doubled)
 - when key_run hands a second key to a program (gh secret set), it goes to the program's input as bytes, never its arguments, and the confirmation names it with its own usage constraints
+- a Docker token goes to docker login on its input (--password-stdin), never as -p
+- a DreamHost key goes to curl in a config on its input (-K -), never in its arguments or a logged URL
 - git started with the ssh key is told its ssh is OpenSSH, whatever ssh.variant a gitconfig names
+- the working mode is workshop unless your settings page says lab
+- chat cannot change the working mode unless your settings page allows it; when it does, only your own turn may, for at most 17 hours, and the default you set is never changed from chat
+- every change to the working mode, and the settings page as the server last saw it, is a row in ~/.mentcached/mode.tsv (MENTCACHED_MODE_LOG moves it)
+- when your group's ORG.md (named on the settings page) says chat must not switch the working mode, chat cannot switch it, whatever the settings page allows, and you are told the group's own sentence
+- a standing yes your group's ORG.md says must not to (the settings page's file, or the nearest ORG.md in the run's own repository) asks for a confirmation instead, and you are told the group's own sentence
+- a group's ORG.md is only read: it can narrow those two things and never loosens anything or writes a file
 - the seat defaults to ~/.mentcached/seat (MENTCACHED_SEAT moves it)
 - preferences are kept in ~/.mentcached/prefs.tsv (MENTCACHED_PREFS moves it)
 - timings are kept in ~/.mentcached/stats/spans.tsv (MENTCACHED_STATS moves it)
@@ -39,6 +50,7 @@ do was checked against their source when this was minted:*
 - the usage record is off by default: nothing is written to it, and no file is made, until you set usage.capture on
 - while usage.capture is off every writer of the usage record writes nothing and says so
 - word_register writes one small file per word and leaf, <words root>/g/<word>/<leaf>, and never overwrites one (the words.root preference or C4_ROOT names the root)
+- epmo reads the capability lens in your C4 tree (r/epmo, or the folder EPMO_DIR names) and writes no file
 - journal lines record this machine's name, the time, and who wrote them
 - the persona server never opens a file whose name says SECRET
 - skillx exchanges nothing: every tool refuses and says what is missing

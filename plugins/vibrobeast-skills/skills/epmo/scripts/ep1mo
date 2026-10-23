@@ -1,0 +1,246 @@
+#!/bin/sh
+# ep1mo -- EXPRESSION PROJECT, run-level 1, MODEL OBJECT: the EPMO transformer in C4's registry (r/epmo).
+# Copyright (C) 2026 Corwin Brust <corwin@bru.st> and Contributors.
+# SPDX-License-Identifier: GPL-3.0-or-later
+# This program is free software: you can redistribute it and/or modify it under the terms
+# of the GNU General Public License as published by the Free Software Foundation,
+# either version 3 of the License, or (at your option) any later version.
+#
+# Reads; never writes (run-level 1). Its rules are data: r/epmo/SCHEMAS.tsv (the mapping document),
+# its dimensions r/epmo/LENS.tsv, its placements r/epmo/PLACEMENTS.tsv, its parties r/epmo/CONTEXTS.tsv.
+# Why it exists: facts/epmo-is-a-registry-transformer.md; the lens it reads: facts/epmo-capability-lens.md.
+#
+#   ep1mo lens                    the dimensions, each value in order, and each dimension's cardinality
+#   ep1mo place KEY               where one project sits, in words: who cares, how much, why, whose runtime
+#   ep1mo pmo TODOS               pmo todos.tsv rows -> EPMO rows (TSV on stdout)
+#   ep1mo tavern TASKS            a Tavern task export (id title status priority due room) -> EPMO rows
+#   ep1mo stack STACK             a kiosk stack.tsv -> EPMO rows
+#   ep1mo assy KEY|--all          the placement as one C4 ASSY line (h/assy.sh roundtrip passes it)
+#   ep1mo roundtrip TODOS         pmo -> EPMO -> pmo: each field IDENTITY, DECLARED-LOSS or UNDECLARED (exit 1)
+#   ep1mo propose tavern TASKS TODOS  for each task with no pmo row tagged tavern:<id>, print the pmo-add line
+#                                 that would carry it across. Prints only; the keeper (or his word) runs it.
+#   ep1mo check [--roster FILE]   the data set holds together; with a roster, every key is placed
+#   ep1mo closure                 each project under open, ring and mobius closure of the who line: which parties sit
+#                                 within one step, and whose reading inverts across the seam; only differences print
+#   ep1mo edges                   EDGES.tsv in words: who may name, lift or depend on what of whom, and until when
+#   ep1mo seam                    every social decision on the Value<-Guess / Bet->Cost seam, read both ways:
+#                                 felt cost above what it is, and below (the gap shows once it is partly paid)
+#   ep1mo walk [--all]            the boundary walk (WALK.tsv): findings that cannot change without revisiting
+#                                 another box are boundaries; --all prints every finding
+#   ep1mo words                   each lens word: registered in g/ or a proper gap (a gauge, not a verdict)
+#
+# An EPMO row: src  id  key  who  stance  band  layer  frame  quote  loss
+# Exit: 0 done; 1 a check failed; 2 usage, or NOT CHECKED (what it needs is named).
+set -eu
+TAB=$(printf '\t')
+me=ep1mo
+here=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+C4_ROOT=${C4_ROOT:-$(CDPATH= cd -- "$here/.." && pwd)}
+# the data: EPMO_DIR, else C4's registry (r/epmo), else assets/ beside scripts/ (the epmo skill), else epmo/ (the pmo kit)
+if [ -n "${EPMO_DIR:-}" ]; then E=$EPMO_DIR; elif [ -d "$C4_ROOT/r/epmo" ]; then E=$C4_ROOT/r/epmo
+elif [ -f "$here/../assets/LENS.tsv" ]; then E=$here/../assets; else E=$here/../epmo; fi   # assets/: the skill
+die() { printf '%s: %s\n' "$me" "$*" >&2; exit 2; }
+for f in LENS SCHEMAS PLACEMENTS CONTEXTS; do [ -f "$E/$f.tsv" ] || die "NOT CHECKED: no $E/$f.tsv (set EPMO_DIR or C4_ROOT)"; done
+body() { grep -v '^#' "$1" | sed 1d; }          # a register file without its comments and header
+
+# the transform, shared by pmo/tavern/stack: APP, then the input rows with a header naming their columns
+xform() {  # xform APP FILE
+  awk -F"$TAB" -v OFS="$TAB" -v APP="$1" -v S="$E/SCHEMAS.tsv" -v P="$E/PLACEMENTS.tsv" '
+    BEGIN {
+      while ((getline l < S) > 0) { if (l ~ /^#/) continue; split(l, c, "\t"); if (c[1] != APP) continue
+        n++; f[n]=c[2]; d[n]=c[4]; r[n]=c[5]; loss[n]=c[6] }
+      while ((getline l < P) > 0) { if (l ~ /^#/ || l ~ /^key\t/) continue; split(l, c, "\t")
+        pw[c[1]]=c[2]; pb[c[1]]=c[5]; pl[c[1]]=c[6]; pf[c[1]]=c[8] }
+    }
+    function mapv(rule, v,   m, i, kv) {        # a=b;c=d;*=e  -> the lens value for v, or ""
+      m = split(rule, kv, ";"); for (i=1;i<=m;i++) { split(kv[i], p, "="); if (p[1]==v) return p[2] }
+      for (i=1;i<=m;i++) { split(kv[i], p, "="); if (p[1]=="*" && v != "") return p[2] }
+      return "" }
+    /^#/ { next }
+    !hdr { for (i=1;i<=NF;i++) col[$i]=i; hdr=1; next }
+    {
+      id = ("id" in col) ? $col["id"] : NR-1
+      key = ("project" in col) ? $col["project"] : "-"
+      who="-"; stance="-"; band="-"; layer="-"; frame="-"; quote="-"; lost=""
+      if (key in pw) { who=pw[key]; band=pb[key]; layer=pl[key]; frame=pf[key] }
+      for (i=1;i<=n;i++) {
+        if (!(f[i] in col)) continue
+        v = $col[f[i]]
+        if (r[i]=="quote") { quote=v; continue }
+        if (r[i] ~ /=/) { m=mapv(r[i], v); if (m=="") continue
+          if (d[i]=="who") who=m; else if (d[i]=="stance") { if (stance=="-" || f[i]!="due") stance=m }
+          else if (d[i]=="band") band=m; else if (d[i]=="layer") layer=m; else if (d[i]=="frame") frame=m }
+        if (loss[i] != "none" && loss[i] != "") lost = lost (lost?"; ":"") f[i] ": " loss[i]
+      }
+      gsub(/\t/, " ", quote)
+      print APP, id, key, who, stance, band, layer, frame, quote, (lost?lost:"none")
+    }' "$2"
+}
+
+cmd=${1:-}; [ $# -gt 0 ] && shift
+case $cmd in
+lens)
+  body "$E/LENS.tsv" | awk -F"$TAB" '{ if ($1!=d) { if (d) printf "\n"; d=$1; printf "%s (%s)", $1, $2 } printf "  %s", $3; n[$1]++ }
+    END { printf "\n"; for (k in n) c = c sprintf("%s=%d ", k, n[k]); print "cardinality: " c }' ;;
+place)
+  k=${1:-}; [ -n "$k" ] || die "usage: ep1mo place KEY"
+  awk -F"$TAB" -v K="$k" -v L="$E/LENS.tsv" '
+    BEGIN { while ((getline l < L) > 0) { split(l, c, "\t"); mean[c[1] "/" c[3]] = c[5] } }
+    $1==K { found=1
+      printf "%s\n  who cares?  %s, at %s: %s\n", K, $3, $2, mean["who/" $2]
+      printf "  how much?   %s: %s\n", $4, mean["stance/" $4]
+      printf "  why?        %s, as %s (%s): %s\n", $5, $6, $7, mean["band/" $5]
+      printf "  whose runtime?  %s: %s\n", $8, mean["frame/" $8]
+      printf "  what does change cost us?  %s: %s\n", $11, mean["horizon/" $11]
+      nc = split($3, cs, ","); so = (nc > 1) ? "social" : "solo"
+      printf "  is it solo?  %s (%d part%s care): %s\n", so, nc, (nc > 1 ? "ies" : "y"), mean["sociality/" so]
+      printf "  basis (%s confidence): %s\n", $9, $10 }
+    END { if (!found) { print "ep1mo: no placement for " K > "/dev/stderr"; exit 1 } }' "$E/PLACEMENTS.tsv" ;;
+pmo)    [ -f "${1:-}" ] || die "usage: ep1mo pmo TODOS";    printf 'src\tid\tkey\twho\tstance\tband\tlayer\tframe\tquote\tloss\n'; xform pmo.todos "$1" ;;
+tavern) [ -f "${1:-}" ] || die "usage: ep1mo tavern TASKS"; printf 'src\tid\tkey\twho\tstance\tband\tlayer\tframe\tquote\tloss\n'; xform tavern.task "$1" ;;
+stack)  [ -f "${1:-}" ] || die "usage: ep1mo stack STACK"
+  t=$(mktemp); trap 'rm -f "$t"' EXIT
+  # a stack row names its project by its leg (the arch leg is kiosk-arch); a "tension" row belongs to c4-draw-kiosk
+  grep -v '^#' "$1" | awk -F"$TAB" -v OFS="$TAB" 'NR==1{print "project","leg","layer","component","source","status","note"} {print ($1=="tension" ? "c4-draw-kiosk" : "kiosk-" $1), $0}' > "$t"
+  printf 'src\tid\tkey\twho\tstance\tband\tlayer\tframe\tquote\tloss\n'; xform kiosk.stack "$t" ;;
+assy)
+  k=${1:-}; [ -n "$k" ] || die "usage: ep1mo assy KEY|--all"
+  awk -F"$TAB" -v K="$k" '$0!~/^#/ && $1!="key" && (K=="--all" || $1==K) { found=1
+      printf "PROJECT %s REGISTRY epmo TAG %s MEASURE %s MODEL %s OBJECT %s ROUTER %s\n", $1, $2, $4, $5, $6, $8 }
+    END { if (!found) exit 1 }' "$E/PLACEMENTS.tsv" ;;
+roundtrip)
+  [ -f "${1:-}" ] || die "usage: ep1mo roundtrip TODOS"
+  t=$(mktemp); trap 'rm -f "$t"' EXIT
+  xform pmo.todos "$1" > "$t"
+  # back: id <- id, project <- key, text <- quote. A value map that sends two source values to one lens
+  # value cannot come back, so it must declare that loss; one that does not is UNDECLARED.
+  awk -F"$TAB" -v S="$E/SCHEMAS.tsv" -v X="$t" '
+    function mapv(rule, v,   m, i, kv, q) { m = split(rule, kv, ";")
+      for (i=1;i<=m;i++) { split(kv[i], q, "="); if (q[1]==v) return q[2] }
+      for (i=1;i<=m;i++) { split(kv[i], q, "="); if (q[1]=="*" && v != "") return q[2] } return "" }
+    BEGIN { while ((getline l < S) > 0) { split(l, c, "\t"); if (c[1]=="pmo.todos") { loss[c[2]]=c[6]; if (c[5] ~ /=/) rule[c[2]]=c[5] } }
+            while ((getline l < X) > 0) { split(l, c, "\t"); xid[c[2]]=c[2]; xkey[c[2]]=c[3]; xq[c[2]]=c[9] } }
+    NR==1 { for (i=1;i<=NF;i++) col[$i]=i; next }
+    { id=$col["id"]; n++
+      if (xid[id]!=id) { bad++; print "UNDECLARED id " id; next }
+      if (xkey[id]!=$col["project"]) { bad++; print "UNDECLARED project at " id }
+      q=$col["text"]; gsub(/\t/," ",q); if (xq[id]!=q) { bad++; print "UNDECLARED text at " id }
+      for (f in rule) if (f in col) { v=$col[f]; m=mapv(rule[f], v); k=f SUBSEP m
+        if (!((k SUBSEP v) in seen)) { seen[k SUBSEP v]=1; srcs[k]++; if (srcs[k]==2 && loss[f]=="none") { bad++; print "UNDECLARED " f ": two values read as " m " and no loss is declared" } } } }
+    END { printf "IDENTITY   id, project, text over %d rows\n", n
+          for (f in loss) if (loss[f]!="none" && f!="project") printf "DECLARED-LOSS  %s: %s\n", f, loss[f]
+          if (bad) { printf "%d UNDECLARED\n", bad; exit 1 } }' "$1" ;;
+check)
+  roster=""; [ "${1:-}" = --roster ] && { roster=${2:-}; [ -f "$roster" ] || die "no roster file: $roster"; }
+  EG=""; [ -f "$E/EDGES.tsv" ] && EG="$E/EDGES.tsv"
+  awk -F"$TAB" -v L="$E/LENS.tsv" -v C="$E/CONTEXTS.tsv" -v S="$E/SCHEMAS.tsv" -v R="$roster" -v EG="$EG" '
+    function err(m) { bad++; print "FAULT " m }
+    BEGIN {
+      while ((getline l < L) > 0) { if (l ~ /^#/ || l ~ /^dim\t/) continue; split(l, c, "\t"); ok[c[1] "/" c[3]]=1; if (!(c[1] in dims)) nd++; dims[c[1]]=1 }
+      while ((getline l < C) > 0) { if (l ~ /^#/ || l ~ /^party\t/) continue; nc=split(l, c, "\t")
+        if (nc != 7) err("CONTEXTS row has " nc " fields: " c[1]); party[c[1]]=1; who[c[1]]=c[2]; about[c[1]]=c[5]
+        if (!(("who/" c[2]) in ok)) err("CONTEXTS " c[1] ": who " c[2] " is not a lens value") }
+      while ((getline l < S) > 0) { if (l ~ /^#/ || l ~ /^app\t/) continue; ns=split(l, c, "\t")
+        if (ns != 6) err("SCHEMAS row has " ns " fields: " c[1] " " c[2])
+        if (c[6]=="") err("SCHEMAS " c[1] " " c[2] ": no loss declared")
+        if (c[4]!="-" && !(c[4] in dims)) err("SCHEMAS " c[1] " " c[2] ": dim " c[4] " is not in the lens")
+        if (c[5] ~ /=/) { m=split(c[5], kv, ";"); for (i=1;i<=m;i++) { split(kv[i], pq, "=")
+          if (!((c[4] "/" pq[2]) in ok)) err("SCHEMAS " c[1] " " c[2] ": " pq[2] " is not a " c[4] " value") } } }
+      if (R != "") while ((getline l < R) > 0) { if (l ~ /^#/ || l ~ /^key\t/) continue; split(l, c, "\t"); rost[c[1]]=1 }
+    }
+    /^#/ || /^key\t/ { next }
+    { n++; if (NF != 11) err("PLACEMENTS row has " NF " fields: " $1); placed[$1]=1
+      if (!(("horizon/" $11) in ok)) err($1 ": horizon " $11)
+      if ($11=="impossible") err($1 ": placed where no upstream change ever costs anything; nothing real sits there")
+      hz[$11]++
+      if (!(("who/" $2) in ok)) err($1 ": who " $2); if (!(("stance/" $4) in ok)) err($1 ": stance " $4)
+      if (!(("band/" $5) in ok)) err($1 ": band " $5); if (!(("layer/" $6) in ok)) err($1 ": layer " $6)
+      if (!(("coupling/" $7) in ok)) err($1 ": coupling " $7); if (!(("frame/" $8) in ok)) err($1 ": frame " $8)
+      if ($9 !~ /^(high|medium|low)$/) err($1 ": conf " $9); if ($10=="") err($1 ": no basis")
+      m=split($3, cs, ","); for (i=1;i<=m;i++) if (!(cs[i] in party)) err($1 ": cares names " cs[i] ", not a CONTEXTS party") }
+    END {
+      if (EG != "") while ((getline l < EG) > 0) { if (l ~ /^#/ || l ~ /^src\t/) continue; ne++; m=split(l, c, "\t")
+        if (m != 8) { err("EDGES row has " m " fields: " c[1] " " c[2]); continue }
+        if (!(c[1] in placed) && !(c[1] in party)) err("EDGES src " c[1] " is neither a placement nor a party")
+        if (!(c[2] in placed) && !(c[2] in party)) err("EDGES dst " c[2] " is neither a placement nor a party")
+        if (c[3] !~ /^may-(name|lift|depend)$/) err("EDGES " c[1] ">" c[2] ": relation " c[3])
+        if (c[4] != "-") { k=split(c[4], cr, ","); for (i=1;i<=k;i++) if (cr[i] !~ /^(method|mechanism|name|data)$/) err("EDGES " c[1] ">" c[2] ": crosses " cr[i]) }
+        if (c[7] !~ /^(held|lifted|never)$/) err("EDGES " c[1] ">" c[2] ": state " c[7])
+        if (c[7]=="held" && c[6]=="-") err("EDGES " c[1] ">" c[2] ": held with no lifts_when")
+        if (c[8]=="") err("EDGES " c[1] ">" c[2] ": no basis") }
+      for (p in about) { m=split(about[p], ks, ", "); for (i=1;i<=m;i++) if (ks[i] ~ /^[a-z0-9.-]+$/ && !(ks[i] in placed)) err("CONTEXTS " p " cares about " ks[i] ", which has no placement") }
+      if (R != "") { for (k in rost) { nr++; if (!(k in placed)) err("roster key " k " has no placement") }
+                     for (k in placed) if (!(k in rost)) err("placement " k " is not on the roster") }
+      printf "ep1mo check: %d placements (horizon: x %d, own-design %d), %d edges, %d lens dims; %s\n", n, hz["x"], hz["own-design"], ne, nd, (R!="" ? nr " roster keys" : "roster NOT CHECKED (--roster FILE)")
+      if (bad) { printf "%d FAULT\n", bad; exit 1 } print "0 FAULT" }' "$E/PLACEMENTS.tsv" ;;
+propose)
+  tr=${1:-}; x=${2:-}; t=${3:-}
+  case $tr in tavern) app=tavern.task ;; *) die "usage: ep1mo propose tavern TASKS TODOS (only tavern is mapped for now)";; esac
+  [ -f "$x" ] && [ -f "$t" ] || die "usage: ep1mo propose tavern TASKS TODOS"
+  r=$(mktemp); trap 'rm -f "$r"' EXIT; xform $app "$x" > "$r"
+  # rank to rank: Tavern 1/2/3 (0 = none, Tavern's default normal) to pmo A/B/C. Both unweighted, so the map
+  # claims nothing either rank did not. The tracker id rides in the tags, the stance and source in the text.
+  awk -F"$TAB" -v T="$t" -v R="$r" -v TR="$tr" '
+    BEGIN { while ((getline l < T) > 0) { split(l, c, "\t"); n=split(c[5], tg, ","); for (i=1;i<=n;i++) have[tg[i]]=c[1] }
+            while ((getline l < R) > 0) { split(l, c, "\t"); st[c[2]]=c[5]; ky[c[2]]=c[3] } }
+    /^#/ { next }
+    NR==1 || !hdr { if (!hdr) { for (i=1;i<=NF;i++) col[$i]=i; hdr=1; next } }
+    { id=$col["id"]; tag=TR ":" id
+      if (tag in have) { printf "# %s already carried by pmo #%s\n", tag, have[tag]; next }
+      p=$col["priority"]; pr = (p=="1") ? "A" : (p=="3") ? "C" : "B"
+      q=$col["title"]; gsub(/"/, "", q)
+      key = (ky[id]=="-" || ky[id]=="") ? "epmo" : ky[id]
+      printf "sh bin/pmo-add %s %s \"%s [%s #%s, %s; %s]\" --tags %s,epmo\n", key, pr, q, TR, id, $col["status"], st[id], tag }' "$x" ;;
+closure)
+  # MINE (facts/epmo-capability-lens.md R6): open = a line; ring = org and social adjacent; mobius = ring, and a
+  # reading that crosses the seam is inside out (forecast<->guess, proscribe<->bet). Neighbour = within one step.
+  awk -F"$TAB" -v L="$E/LENS.tsv" -v C="$E/CONTEXTS.tsv" '
+    BEGIN { while ((getline l < L) > 0) { split(l, c, "\t"); if (c[1]=="who") { ord[c[3]]=c[4]+0; if (c[4]+0>N) N=c[4]+0 } }
+            while ((getline l < C) > 0) { if (l ~ /^#/ || l ~ /^party\t/) continue; split(l, c, "\t"); np++; pn[np]=c[1]; pw[np]=c[2] }
+            flip["forecast"]="guess"; flip["guess"]="forecast"; flip["proscribe"]="bet"; flip["bet"]="proscribe" }
+    function dist(a, b, ring,   d) { d = a - b; if (d < 0) d = -d; if (ring && N - d < d) d = N - d; return d }
+    function seam(a, b) { d = a - b; if (d < 0) d = -d; return (N - d < d) }
+    /^#/ || /^key\t/ { next }
+    { me = ord[$2]; op=""; rg=""; mb=""
+      for (i=1;i<=np;i++) { q = ord[pw[i]]
+        if (dist(me, q, 0) <= 1) op = op " " pn[i]
+        if (dist(me, q, 1) <= 1) { rg = rg " " pn[i]; if (seam(me, q)) mb = mb " " pn[i] } }
+      if (rg != op) { nd++; printf "%s (%s, %s)\n  open: %s\n  ring adds:", $1, $2, $4, op
+        n = split(rg, a2, " "); for (j=1;j<=n;j++) if (index(" " op " ", " " a2[j] " ") == 0) printf " %s", a2[j]
+        printf "\n  mobius: across the seam %s read it as %s, not %s\n", mb, flip[$4], $4 }
+      total++ }
+    END { printf "%d of %d projects answer differently under ring or mobius than under open\n", nd, total }' "$E/PLACEMENTS.tsv" ;;
+seam)
+  # his answer, 2026-10-19: social is personal for each of us; any non-solo thing is social. The more social a
+  # decision seems, the more a bold one feels like cost; cost is time, so felt and is part only once partly paid,
+  # pushing away from centre one way or the other. Which? Read both.
+  awk -F"$TAB" '
+    /^#/ || /^key\t/ { next }
+    { nc = split($3, cs, ","); if (nc < 2) { solo++; next } }
+    $4 == "guess" { g++; printf "%s (guess, %d parties)\n  if it feels costlier than it is: the bold step waits, and value stays a guess\n  if it feels cheaper than it is: guessing goes on, and its time is the cost paid unseen\n", $1, nc }
+    $4 == "bet"   { b++; printf "%s (bet, %d parties)\n  if it feels costlier than it is: the bet may be dropped before it pays\n  if it feels cheaper than it is: more is committed than meant, seen only once part is paid\n", $1, nc }
+    END { printf "%d social decisions on the seam (%d guess, %d bet); %d solo placements not read here\n", g + b, g, b, solo }' "$E/PLACEMENTS.tsv" ;;
+walk)
+  [ -f "$E/WALK.tsv" ] || die "NOT CHECKED: no $E/WALK.tsv"
+  # his rule: a finding that cannot change without revisiting ANOTHER BOX is a meaningful boundary. A box is a step
+  # of the walk (upstream, components, forms, containers, constraints); coupling inside one box is not a boundary.
+  awk -F"$TAB" -v ALL="${1:-}" '
+    /^#/ || /^id\t/ { next }
+    { n++; id[n]=$1; st[n]=$2; sub_[n]=$3; fi[n]=$4; su[n]=$5; co[n]=$6; step[$1]=$2 }
+    END { for (i=1;i<=n;i++) { m = split(co[i], cc, ","); cross = ""; within = 0
+            for (j=1;j<=m;j++) { if (cc[j] == "-") continue
+              if (!(cc[j] in step)) { bad++; printf "FAULT %s couples %s, which is not a finding\n", id[i], cc[j]; continue }
+              if (step[cc[j]] != st[i]) cross = cross (cross ? "," : "") cc[j]; else within++ }
+            isb = (cross != ""); if (isb) nb++; if (within && !isb) nw++
+            if (isb || ALL == "--all") printf "%s%s [%s] %s: %s (sure: %s%s)\n", id[i], (isb ? " BOUNDARY" : ""), st[i], sub_[i], fi[i], su[i], (isb ? "; cannot change without revisiting " cross : "") }
+          printf "%d findings, %d boundaries (coupled across boxes), %d coupled only inside their own box\n", n, nb, nw; if (bad) exit 1 }' "$E/WALK.tsv" ;;
+edges)
+  [ -f "$E/EDGES.tsv" ] || die "NOT CHECKED: no $E/EDGES.tsv"
+  body "$E/EDGES.tsv" | awk -F"$TAB" '{ w = ($7=="held") ? "may not yet " : ($7=="never") ? "may never " : "may "
+    v = $3; sub(/^may-/, "", v); printf "%s %s%s %s of %s%s\n", $1, w, v, ($4=="-" ? "anything" : $4), $2, ($7=="held" ? " -- until " $6 : "") }' ;;
+words)
+  body "$E/LENS.tsv" | cut -f1,3 | tr "$TAB" '\n' | sort -u | while read -r w; do
+    if [ -d "$C4_ROOT/g/$w" ]; then printf 'registered  %s  (g/%s/%s)\n' "$w" "$w" "$(ls "$C4_ROOT/g/$w" | tr '\n' ' ' | sed 's/ $//')"
+    else printf 'proper gap  %s\n' "$w"; fi; done | sort | awk '{print} /^registered/{r++} /^proper/{g++} END{printf "%d registered, %d proper gaps\n", r, g}' ;;
+*) sed -n '2,/^# An EPMO row/p' "$0" | sed '$d' | sed 's/^# \{0,1\}//'; [ -z "$cmd" ] || exit 2 ;;
+esac

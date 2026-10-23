@@ -1,7 +1,7 @@
 ---
 name: sandboxer
 description: >
-  Crossing between Claude's workspace and the keeper's disk. Landing: a file built in the cloud workspace is delivered only when it sits in his connected folder, named by its full host path, with sha256 equal on both sides and a sha256sum -c receipt he can run (landing.sh also names strays); if his computer is usually linked but unreachable, attempt first, then list what waits to land. Write-side: an Edit/Write can report success while the bytes never land — for a LARGE file or a burst of edits, write via /tmp, then atomic write-and-verify. Read-side: bash can serve stale bytes — cross-read two paths; changed files can read stale; a bash cp of a pinned path copies the phantom; mtime is no tiebreaker; absence from one reader is not absence; git on the mount is object-reads only. Also: which memory store is reachable. Triggers: "where did the files land", "put it on my disk", "I can't find the file", "did that write land", "is this read stale", "file looks truncated", "stale pyc", "which memory is this".
+  Crossing between Claude's workspace and the keeper's disk. Landing: a file built in the cloud workspace is delivered only when it sits in his connected folder, named by its full host path, with sha256 equal on both sides and a sha256sum -c receipt he can run (landing.sh names strays; landing.sh --stage gives each version a fresh staged path, since a reused one can land old bytes); if his computer is usually linked but unreachable, attempt first, then list what waits to land. Write-side: an Edit/Write can report success while the bytes never land — for a LARGE file or a burst of edits, write via /tmp, then verify. Read-side: bash can serve stale bytes — cross-read two paths; a bash cp of a pinned path copies the phantom; mtime is no tiebreaker; absence from one reader is not absence; git on the mount is object-reads only. Also: which memory store is reachable. Triggers: "where did the files land", "did that write land", "is this read stale", "file looks truncated", "stale pyc", "which memory is this".
 ---
 
 # Sandboxer — crossing the sand
@@ -112,17 +112,24 @@ he can't find on disk is a miss".
    path (`h/ESSAY-…md`) is shorthand for Claude, not directions for him.
 3. **Its sha256 is equal on both sides.** Hash it in the cloud workspace, and hash it on the
    device with `device_bash sha256sum`. A reply of `written` is a message, not the bytes, so trust
-   the disk and not the message. When the two hashes differ, you are looking at a stale re-land (the
-   fingerprints below). Commit again and hash again. After 4 tries (GRAIN, a number from the dial,
-   because nothing better is known), stop. Report the file as STALE, give both hashes, and never
-   claim it landed.
+   the disk and not the message. **Stage every version under a staged path never used before:**
+   `sh scripts/landing.sh --stage FILE` copies it to `/mnt/user-data/outputs/<stem>-<sha8>/<name>`
+   (the first eight characters of its sha256 in the folder name), prints that path and the sha256,
+   and refuses a staged path that is already there. Commit from that path. The bridge keeps the bytes
+   it first read under a staged path, so editing a file in place and committing it again can land the
+   old bytes, even to a new device path; a fresh staged path is the cure (2026-10-19 fingerprint).
+   When the two hashes still differ, stage again and commit again. After 4 tries (GRAIN, a number
+   from the dial, because nothing better is known), stop. Report the file as STALE, give both
+   hashes, and never claim it landed. Simpler still, when the device has a shell: make the edit
+   there and nothing crosses the bridge at all.
 4. **A receipt he can check travels with it.** Beside the hand-back, write `<stem>.sha256` in the
    plain `sha256sum` format, with paths relative to the connected folder's root. In his own shell,
    from that root, `sha256sum -c <stem>.sha256` is the check. It needs no script, and it is the
    second reader. `sh scripts/landing.sh <receipt> [root]` says the same thing in words (LANDED,
    STALE, MISSING). `--dir <folder>` also names every file under that folder the receipt does not
-   list (STRAY), and `--make ROOT FILE…` writes the receipt lines. `--prove-red` runs nine planted
-   cases, and the script writes nothing outside `${TMPDIR:-/tmp}`.
+   list (STRAY), and `--make ROOT FILE…` writes the receipt lines. `--prove-red` runs twelve planted
+   cases, and the script writes nothing outside `${TMPDIR:-/tmp}`
+   except the one new folder `--stage` makes.
 
 **When his computer is usually there but is not there now.** Some projects say they are
 local-device projects (c4-ACTUAL does), and there his computer's absence is news. Before you
@@ -445,6 +452,19 @@ Learned on 2026-10-12, landing pull requests from avalon (inputloop/tavern#10..#
   means "not yours", not "gone".
 - **`patch` leaves `FILE.orig`** when a hunk applies with fuzz, and `git add -A` commits it. Read
   `git status --short` before every commit.
+- **Thousands of new files: commit with git's plumbing.** On the mount, `git commit` after a large
+  `git add` can pass the shell's 180 s limit (an 11,000-file add, 2026-10-20). Three plumbing commands
+  do the same in seconds: `tree=$(git write-tree) && c=$(git commit-tree "$tree" -p HEAD -F MSG) &&
+  git update-ref HEAD "$c"` (author and committer from `GIT_AUTHOR_*` and `GIT_COMMITTER_*`). The plumbing
+  skips the commit-msg hook, so run it on the message first (`sh .git/hooks/commit-msg MSG`, which C4's
+  `bin/cm1gd install` puts there) or the attribution rule goes unchecked: on 2026-10-20 four commits went
+  out in the condemned `Co-Authored-By:` form that way. Landed
+  c4 6857d94 in 20 s; pmo 726676e with 5,308 files the same day.
+- **On a big tree, ask git about named paths only.** `git status` over all of C4 does not finish in
+  180 s; `git diff --name-only HEAD` (tracked files) does. Untracked files outside named folders go
+  unlisted that way: say so.
+- **A background job does not outlive the call.** `nohup … &` from the device shell left no process,
+  no log and no commit (2026-10-20). Split long work into steps that each finish inside one call.
 
 ## Fingerprints — dated, each with its receipt
 
@@ -513,6 +533,22 @@ Facts about this sandbox that were learned by running into them. Date each; neve
   pull-request branch checked out in `F:\claude\projects\tavern`. Worktrees, above, prevent it.
 - **2026-10-12 · a shelved tavern's `tavern.json` holds its join code.** A helper printed two join codes
   with `cat` before it noticed. Read only the fields you need from a data file you did not write.
+
+- **2026-10-19 · the staged path, not the device path, carries the stale bytes.** In the c4-ACTUAL
+  session, `/mnt/user-data/outputs/tv1cr/tv1cr` was committed to `F:\claude\c4\bin\tv1cr` (landed
+  e2375a1d), edited in place, and committed again with `force: true`: the device still read e2375a1d.
+  A third commit from the same staged path to a NEW device path (`bin/tv1cr.new`) also landed
+  e2375a1d. The same bytes copied to a fresh staged path (`outputs/tv1cr-v3/tv1cr`) landed the new
+  sha e6a2c76a first time, and so did v4 to v8: 6 of 6. A reused staged path after an edit: stale 3 of
+  3. Hypothesis, still open: a never-used staged path never lands stale (not seen to, 6 tries). The
+  cure is now rule 3 and `landing.sh --stage`. Receipt: `advice/ENHANCE-20261020-recommit-trap.md`.
+
+- **2026-10-22 · `device_commit_files` re-encodes a PNG: same pixels, other bytes, and not the same bytes twice.**
+  A 4,676,656-byte sketch (sha256 91be2c34) landed as 4,682,426 bytes, efbad0fe on the first commit and
+  04c2f161 on a second from a fresh staged path; decoded, all three have the same 1895 x 2516 RGB pixels
+  (pixel sha256 4fe3b7ec). So a byte hash cannot prove an image landed; hash the decoded pixels on both
+  sides, or carry the image inside an archive (a tar or zip is not re-encoded). Receipt: the C4OK sketch,
+  `projects/c4ok/h/SKETCH-2026-10-22-bryants-polygram.png`.
 
 - **2026-10-12 · `git worktree prune` from one session orphaned another's worktree.** The Sonnet
   session's `.wt-limits` in `F:\claude\projects\tavern` lost its `.git/worktrees` entry to the Opus
@@ -633,8 +669,8 @@ need is *occasional*; never merge what is only *sometimes* shared.
 - **A check stopped checking.** fails if `sh tests-validators.sh --prove-red` or `python3 tests-sig-fresh.py --prove-red` (skill root) does not end `PROVE-RED OK`; each plants broken files in a temp dir and breaks its script in a temp copy.
 
 <!-- footer: minted by bin/ft1mt from conventions/house.env and conventions/FOOTERS.org; edit those, not this -->
-*Version 1.2: edition revised from 1.1.2 on 2026-10-15; spine: 2026-07-07.*
+*Version 1.2: edition revised from 1.1.2 on 2026-10-22; spine: 2026-07-07.*
 
-Copyright 2026 Corwin Brust <corwin@bru.st> and Contributors; CC-BY-SA4: https://creativecommons.org/licenses/by-sa/4.0/ (scripts GPL-3.0-or-later); Mentat (for Corwin; claude-opus-5-5)
+Copyright 2026 Corwin Brust <corwin@bru.st> and Contributors; CC-BY-SA4: https://creativecommons.org/licenses/by-sa/4.0/ (scripts: GNU General Public License, version 3 or any later version; SPDX GPL-3.0-or-later); Mentat (for Corwin, claude-opus-5-5)
 From the collection Corwin Brust and Bryant Frankford keep together, with K Smith as editor of the works she edited; thanks in ACKNOWLEDGEMENTS; home: https://github.com/inputloop
 <!-- /footer -->

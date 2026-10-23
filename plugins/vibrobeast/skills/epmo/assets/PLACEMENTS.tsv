@@ -1,0 +1,6 @@
+# PLACEMENTS.tsv -- EXAMPLE placements for the example ledger (examples/projects.tsv). Your own live in your C4 tree
+# (r/epmo/PLACEMENTS.tsv) or wherever EPMO_DIR points; they name people and stay home.
+# Copyright (C) 2026 Corwin Brust <corwin@bru.st> and Contributors. SPDX-License-Identifier: CC-BY-SA-4.0
+key	who	cares	stance	band	layer	coupling	frame	conf	basis	horizon
+kettle	person	keeper	bet	function	folder-file	physical	transformer	high	a small project its keeper runs and has spent time on	x
+garden	public	keeper,neighbours	guess	function	container	logical	bridge	low	shared with neighbours; resting, so its value is a guess	own-design

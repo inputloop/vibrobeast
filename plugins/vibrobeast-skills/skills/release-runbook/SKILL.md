@@ -48,6 +48,13 @@ pushes. Don't fight this; it's a feature — the keys stay where the keeper is.
    the plan. Gates: clean work tree · artifacts present · MANIFEST stray-free
    · NEWS entry · tests green · tag free. A red gate is an answer, not an
    obstacle.
+   **For a project with a GNU build, one more gate (PROVISIONAL, raised
+   2026-10-18):** `make distcheck` run as an ordinary user, never root, on a
+   tarball whose source is made read-only (`chmod -R a-w`). Root writes through
+   a read-only tree, so a distcheck run as root passes a check that cannot fail;
+   theseus's tarball, built as an ordinary user, failed 5 of 7 and found a real
+   VPATH bug (PR #4). `bin/release` does not run it yet: polygram has no GNU
+   build. It stays PROVISIONAL until a second project's release has run it.
 4. **Read before signing.** The operator reads what is about to carry their
    signature. Time to read is bought with a pause, never with a REJECT
    (see skilltank's reading room). The signing itself is the moment that
@@ -105,8 +112,8 @@ It would have caught 0.5.4.
 - **The verifier's own check went quiet.** fails if `sh tests.sh --prove-red` does not end `PROVE-RED OK`; it builds a clean dist and ten planted faults in a throwaway keyring, then breaks `verify_dist.py` five ways and must catch each.
 
 <!-- footer: minted by bin/ft1mt from conventions/house.env and conventions/FOOTERS.org; edit those, not this -->
-*Version 1.1.0: edition revised from 1.0.1 on 2026-10-10; spine: 2026-09-11.*
+*Version 1.2: edition revised from 1.1.0 on 2026-10-20; spine: 2026-09-11.*
 
-Copyright 2026 Corwin Brust <corwin@bru.st> and Contributors; CC-BY-SA4: https://creativecommons.org/licenses/by-sa/4.0/ (scripts GPL-3.0-or-later); Mentat (for Corwin; claude-opus-5-5)
+Copyright 2026 Corwin Brust <corwin@bru.st> and Contributors; CC-BY-SA4: https://creativecommons.org/licenses/by-sa/4.0/ (scripts: GNU General Public License, version 3 or any later version; SPDX GPL-3.0-or-later); Mentat (for Corwin, claude-opus-5-5)
 From the collection Corwin Brust and Bryant Frankford keep together, with K Smith as editor of the works she edited; thanks in ACKNOWLEDGEMENTS; home: https://github.com/inputloop
 <!-- /footer -->

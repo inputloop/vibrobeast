@@ -1,0 +1,184 @@
+#!/bin/sh
+# cx1op -- CxR 1 OPPORTUNITY: where in a tree would a table read better unfolded (bin/tv1cr), where
+#          is it already unfolded and has it parted from its TSV, and what says leave it flat.
+#
+# usage:  cx1op scan ROOT [--tsv] [--screen N] [--prune DIR]...     every *.tsv under ROOT, one verdict each
+#         cx1op why FILE [--root ROOT]                               one table, every reason, in words
+#         cx1op --prove-red                                          plant faults in a scratch tree, show each caught
+#
+# Verdicts (the first that applies wins; why prints them all):
+#   HELD       a .cxr-hold line covers it (walking up from the table to ROOT), or it is signed
+#              (FILE.asc or FILE.sig beside it, or a PGP armour line in it): a signature covers the
+#              bytes, so the bytes stay one file. The hold's reason is printed as written.
+#   UNFOLDED   its stem (FILE less .tsv, as tv1cr names it) holds r/ and l. With tv1cr reachable:
+#              STALE when an atom is newer than the TSV (tv1cr stale), else FRESH.
+#   FINDING    the first column is nearly a key but repeats: fewer than 1 row in 9 (a house number)
+#              shares its first cell with another. Name the first repeat. On evidence/terms-of-art.tsv
+#              (164 distinct over 171 rows) this was seven two-sense terms the flat file hid.
+#   GROUPED    the first column repeats a lot (a time, a verdict, a category: SIGSWEEP has 7 distinct
+#              over 2,710 rows): the rows are events or members of groups, not items. The key is a
+#              composite or the line number; unfold with --key a,b if a person asks by group, else leave.
+#   BULK       over 4,913 rows (17 cubed, a house number): the atoms would cost more than any reader
+#              gains; read it with a query, not with ls.
+#   FIXTURE    under a fixtures/, examples/ or tests/ folder: a test's input stays as the test wrote it.
+#   PAIRS      two columns: a map. grep reads it forward; unfold only when the reverse question (which
+#              keys carry this value) is asked. One item's properties as lines (cp1mp's a/<ITEM>.tsv) is
+#              already a row's registry in table form.
+#   CANDIDATE  at least 4 rows (the house GRAIN: fewer is read whole at a glance) and either at least
+#              4 columns, or 3 columns with a line wider than the screen (N, default $COLUMNS or 80).
+#              Printed with the tv1cr line that would unfold it and the atom cost (rows x columns x 2).
+#   FLAT       the rest: small enough to read as it stands.
+#
+# .cxr-hold: a plain file anywhere under ROOT, one hold per line: GLOB<TAB>REASON, the glob matched
+# against the table's path relative to that file's folder (a # line is a comment). It is how a keeper
+# says "I work in this TSV directly" or "this travels as one file" (the pocket-mentat case) without
+# writing anything into the table itself. JOURNEY: the name and the shape are mine; his to change.
+#
+# Reads only. Exit 0 done; 1 a prove-red plant was missed; 2 usage.
+# Copyright (C) 2026 Corwin Brust <corwin@bru.st> and Contributors.  Mentat (for Corwin; claude-opus-5-5).
+# SPDX-License-Identifier: GPL-3.0-or-later OR LGPL-3.0-or-later
+set -u
+LC_ALL=C; export LC_ALL
+me=cx1op
+TAB=$(printf '\t')
+here=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+TV1CR=${TV1CR:-}
+[ -n "$TV1CR" ] || for t in "$here/tv1cr" "$here/../bin/tv1cr" "${C4_ROOT:-/nonexistent}/bin/tv1cr"; do [ -f "$t" ] && { TV1CR=$t; break; }; done
+
+die() { printf '%s: %s\n' "$me" "$1" >&2; exit "${2:-2}"; }
+usage() { sed -n '/^# usage:/,/^# Reads only/p' "$0" | sed 's/^# \{0,1\}//'; exit 2; }
+
+# measure FILE -> "rows cols widest dupkey" (rows excludes # lines and a header when the first data
+# line has no digit-led first cell and every later line has as many fields; good enough to judge size)
+measure() {
+  awk -F'\t' '
+    /^#/ || /^[ \t]*$/ { next }
+    { n++; if (NF > cols) cols = NF; if (length($0) > wide) wide = length($0)
+      if (n == 1) { first = $1; next }
+      if (($1 in seen) && dup == "") dup = $1; if (!($1 in seen)) distinct++; seen[$1] = 1 }
+    END { if (n == 0) { print "0 0 0 - 0"; exit }
+          rows = n - 1   # the first line is read as the header; a headless table loses one row of count, never a verdict
+          gsub(/ /, "%20", dup)
+          print rows, cols + 0, wide + 0, (dup == "" ? "-" : dup), distinct + 0 }' "$1"
+}
+
+# hold_for FILE ROOT -> the reason of the first .cxr-hold line that covers FILE, walking up
+hold_for() {
+  f=$1; root=$2; d=$(dirname -- "$f")
+  while :; do
+    if [ -f "$d/.cxr-hold" ]; then
+      rel=${f#"$d"/}
+      r=$(while IFS="$TAB" read -r g why; do
+            case $g in '#'*|'') continue;; esac
+            # shellcheck disable=SC2254
+            case $rel in $g) printf '%s\n' "${why:-held}"; break;; esac
+          done < "$d/.cxr-hold")
+      if [ -n "$r" ]; then
+        if [ "$d" = "$root" ]; then printf '%s (.cxr-hold)\n' "$r"; else printf '%s (%s)\n' "$r" "${d#"$root"/}/.cxr-hold"; fi
+        return 0
+      fi
+    fi
+    [ "$d" = "$root" ] || [ "$d" = / ] || [ "$d" = . ] && return 1
+    d=$(dirname -- "$d")
+  done
+}
+
+signed() { [ -f "$1.asc" ] || [ -f "$1.sig" ] || grep -q '^-----BEGIN PGP' "$1" 2>/dev/null; }
+
+# verdict FILE ROOT SCREEN ALL -> lines "VERDICT<TAB>detail" (ALL=1: every reason; 0: the first)
+verdict() {
+  f=$1; root=$2; screen=$3; all=$4; got=0
+  say() { printf '%s\t%s\n' "$1" "$2"; got=1; }
+  if r=$(hold_for "$f" "$root"); then say HELD "$r"; [ "$all" = 1 ] || return 0; fi
+  if signed "$f"; then say HELD "signed: a signature covers these bytes; they travel as one file"; [ "$all" = 1 ] || return 0; fi
+  stem=${f%.tsv}
+  if [ -d "$stem/r" ] && [ -f "$stem/l" ]; then
+    if [ -n "$TV1CR" ]; then
+      if sh "$TV1CR" stale "$stem" "$f" >/dev/null 2>&1; then say UNFOLDED "FRESH: the atoms in ${stem#"$root"/}/ and the table agree by time"
+      else say UNFOLDED "STALE: $(sh "$TV1CR" stale "$stem" "$f" 2>&1 | head -1); fold or re-unfold"; fi
+    else say UNFOLDED "atoms in ${stem#"$root"/}/ (tv1cr not reachable: freshness NOT CHECKED)"; fi
+    [ "$all" = 1 ] || return 0
+  fi
+  set -- $(measure "$f"); rows=$1 cols=$2 wide=$3 dup=$4 distinct=$5
+  if [ "$dup" != - ]; then
+    # repeats on fewer than 1 row in 9: a near-key with stray repeats (a finding); more: a grouping column
+    if [ $(( (rows - distinct) * 9 )) -lt "$rows" ]; then
+      say FINDING "the first column is nearly a key but repeats ($dup; $distinct distinct over $rows rows): name the composite key (tv1cr --key a,b) or split the senses"
+    else
+      say GROUPED "the first column groups the rows ($distinct distinct over $rows rows): events or members, not items; unfold with --key a,b only if a person asks by group"
+    fi
+    [ "$all" = 1 ] || return 0
+  fi
+  if [ "$rows" -gt 4913 ]; then say BULK "$rows rows: about $((rows * cols * 2)) atoms; query it, do not ls it"; [ "$all" = 1 ] || return 0; fi
+  case /${f#"$root"/} in */fixtures/*|*/examples/*|*/tests/*|*/t/fixtures/*)
+    say FIXTURE "a test's input stays as the test wrote it"; [ "$all" = 1 ] || return 0;; esac
+  if [ "$cols" -eq 2 ]; then say PAIRS "$rows rows of key and value: grep reads it forward; unfold only for the reverse lookup"; [ "$all" = 1 ] || return 0; fi
+  if [ "$rows" -ge 4 ] && { [ "$cols" -ge 4 ] || { [ "$cols" -ge 3 ] && [ "$wide" -gt "$screen" ]; }; }; then
+    say CANDIDATE "$rows rows x $cols cols, widest line $wide (screen $screen): about $((rows * cols * 2)) atoms; sh bin/tv1cr unfold ${f#"$root"/}"
+    [ "$all" = 1 ] || return 0
+  fi
+  [ "$got" = 1 ] || say FLAT "$rows rows x $cols cols, widest $wide: reads as it stands"
+}
+
+scan() {
+  root=$1; shift; tsvout=0; screen=${COLUMNS:-80}; prunes=".git .arc archive _to_delete node_modules d"
+  while [ $# -gt 0 ]; do case $1 in
+    --tsv) tsvout=1; shift;; --screen) screen=$2; shift 2;; --prune) prunes="$prunes $2"; shift 2;;
+    *) die "unknown flag $1";; esac; done
+  [ -d "$root" ] || die "no such tree: $root"
+  root=$(CDPATH= cd -- "$root" && pwd)
+  pe=""; for p in $prunes; do pe="$pe -name $p -prune -o"; done
+  # a stem's own folders (r/ c/) never hold tables of their own; d/ is pruned above
+  # shellcheck disable=SC2086
+  find "$root" $pe -name '*.tsv' -type f -print | sort | while IFS= read -r f; do
+    case $f in */r/*/*.tsv|*/c/*/*.tsv) continue;; esac
+    verdict "$f" "$root" "$screen" 0 | while IFS="$TAB" read -r v why; do
+      if [ "$tsvout" = 1 ]; then printf '%s\t%s\t%s\n' "${f#"$root"/}" "$v" "$why"
+      else printf '%-9s %s: %s\n' "$v" "${f#"$root"/}" "$why"; fi
+    done
+  done
+}
+
+why() {
+  f=$1; shift; root=$(dirname -- "$f")
+  while [ $# -gt 0 ]; do case $1 in --root) root=$2; shift 2;; *) die "unknown flag $1";; esac; done
+  [ -f "$f" ] || die "no such table: $f"
+  root=$(CDPATH= cd -- "$root" && pwd); f=$(CDPATH= cd -- "$(dirname -- "$f")" && pwd)/$(basename -- "$f")
+  verdict "$f" "$root" "${COLUMNS:-80}" 1 | while IFS="$TAB" read -r v w; do printf '%-9s %s\n' "$v" "$w"; done
+}
+
+prove_red() {
+  x=$(mktemp -d); trap 'rm -rf "$x"' EXIT
+  mk() { mkdir -p "$(dirname "$x/$1")"; printf '%b' "$2" > "$x/$1"; }
+  row() { i=0; while [ $i -lt "$1" ]; do printf 'k%d\ta\tb\tc\td\n' "$i"; i=$((i + 1)); done; }
+  mk wide.tsv "key\tw\tx\ty\tz\n$(row 9)\n"
+  mk dup.tsv "key\tv\tx\ty\n$(row 9 | cut -f1-4)\nk1\tz\tb\tc\n"
+  mk small.tsv "k\tv\tw\na\t1\t2\nb\t2\t3\n"
+  mk grouped.tsv "when\tv\tx\ty\nT1\ta\tb\tc\nT1\tb\tb\tc\nT1\tc\tb\tc\nT2\ta\tb\tc\nT2\tb\tb\tc\n"
+  mk pairs.tsv "k\tv\na\t$(printf '%0100d' 0)\nb\t2\nc\t3\nd\t4\ne\t5\n"
+  mk held/mine.tsv "key\tw\tx\ty\tz\n$(row 9)\n"; printf 'mine.tsv\tthe keeper edits this one by hand\n' > "$x/held/.cxr-hold"
+  mk signed.tsv "key\tw\tx\ty\tz\n$(row 9)\n"; : > "$x/signed.tsv.asc"
+  mk tests/fixtures/in.tsv "key\tw\tx\ty\tz\n$(row 9)\n"
+  mk folded.tsv "key\tw\tx\ty\tz\n$(row 9)\n"; mkdir -p "$x/folded/r" "$x/folded/c"; printf 'key\nw\nx\ny\nz\n' > "$x/folded/l"
+  out=$(sh "$0" scan "$x" 2>&1)
+  c=0; p=0
+  check() { p=$((p + 1)); if printf '%s\n' "$out" | grep -q "$1"; then echo "caught $2"; c=$((c + 1)); else echo "MISSED $2"; fi; }
+  check '^CANDIDATE wide.tsv' 'a wide table read as a candidate'
+  check '^FINDING   dup.tsv: .*(k1;' 'a near-key with one stray repeat named'
+  check '^FLAT      small.tsv' 'a small table left flat'
+  check '^GROUPED   grouped.tsv' 'a grouping first column told from a broken key'
+  check '^PAIRS     pairs.tsv' 'a wide two-column map left as a map'
+  check '^HELD      held/mine.tsv: the keeper edits' 'a .cxr-hold reason carried'
+  check '^HELD      signed.tsv: signed' 'a signed table held'
+  check '^FIXTURE   tests/fixtures/in.tsv' 'a fixture left as written'
+  check '^UNFOLDED  folded.tsv' 'an unfolded table recognised'
+  printf '%s\n' "$out" | grep -q '^CANDIDATE \(held\|signed\|tests\)' && { echo "MISSED: a held, signed or fixture table also called a candidate"; p=$((p + 1)); } || { p=$((p + 1)); c=$((c + 1)); echo "caught: no table both held and a candidate"; }
+  echo "$c of $p plants caught"; [ "$c" -eq "$p" ]
+}
+
+case ${1:-} in
+  scan) shift; [ $# -ge 1 ] || usage; scan "$@";;
+  why)  shift; [ $# -ge 1 ] || usage; why "$@";;
+  --prove-red) prove_red;;
+  *) usage;;
+esac

@@ -97,6 +97,7 @@ secret where it belongs. This holds when you are the one keeping the notes, too.
 
 - [[mentat-skill]] — the house's own memory discipline. Pocket Mentat is its give-away cousin: same
   instincts, none of the layout.
+- [[cxr]]: the one place cxr's unfolding never reaches: the paste-in travels as one file to an AI with no tools, so it stays one file; a house copy of its notes may be unfolded, the hand-over never.
 - [[import-memory]] — the other direction; use that when notes are arriving rather than leaving.
 - [[fortress-palace]] — its tables are SEAM/PIN/SEMAPHORE at scale, with `came-from`/`leads-to` as
   the doubly-linked spine.
@@ -112,8 +113,8 @@ C4 existing on the reader's machine. C4 holds the original, so the duplication i
 kind. **Mint status: unblessed**, nothing installed.
 
 <!-- footer: minted by bin/ft1mt from conventions/house.env and conventions/FOOTERS.org; edit those, not this -->
-*Version 1.1.0: edition revised from 1.0.1 on 2026-10-10; spine: 2026-09-04.*
+*Version 1.2: edition revised from 1.1.0 on 2026-10-20; spine: 2026-09-04.*
 
-Copyright 2026 Corwin Brust <corwin@bru.st> and Contributors; CC-BY-SA4: https://creativecommons.org/licenses/by-sa/4.0/ (scripts GPL-3.0-or-later); Mentat (for Corwin; claude-opus-5-5)
+Copyright 2026 Corwin Brust <corwin@bru.st> and Contributors; CC-BY-SA4: https://creativecommons.org/licenses/by-sa/4.0/ (scripts: GNU General Public License, version 3 or any later version; SPDX GPL-3.0-or-later); Mentat (for Corwin, claude-opus-5-5)
 From the collection Corwin Brust and Bryant Frankford keep together, with K Smith as editor of the works she edited; thanks in ACKNOWLEDGEMENTS; home: https://github.com/inputloop
 <!-- /footer -->

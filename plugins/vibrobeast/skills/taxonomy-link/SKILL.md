@@ -54,6 +54,15 @@ order of work — define those words in the registry (`word_register`) before a 
 empty), each sense quoted with its place, never written here. A context stack's boulder tags are words
 too (context-stack): `where TAG` before a boulder becomes a mountain.
 
+## The register has atoms (2026-10-19)
+
+`evidence/terms-of-art.tsv` is also on disk unfolded beside itself (`evidence/terms-of-art/`, the cxr skill,
+`tv1cr unfold --cols term,definer,status,disposition,sense,receipt --key term,receipt`): `ls c/status` is the
+set of statuses in use, `cat c/term/^lc^` is every sense a term carries (LC has two — a seam the flat file
+hid), `cat r/<term>+<receipt>/sense` is one cell. `where` may cite those paths as places; the TSV stays the
+file `tx1lk` reads, and `tv1cr stale evidence/terms-of-art` says whether the two have parted. A session that
+edits the TSV re-unfolds (`--replace`) or says it did not.
+
 ## A value must fit its setting (2026-10-16)
 
 `config` reads a third vocab column, the setting's default (`--prefs` supplies it), as the KIND of
@@ -82,8 +91,8 @@ Corwin, 2026-10-15: "refine the configuration by word meaning parsing backed ana
 key/value parameters". The scoring follows polygram's key binder (keys.py), the closest precedent.
 
 <!-- footer: minted by bin/ft1mt from conventions/house.env and conventions/FOOTERS.org; edit those, not this -->
-*Version 1.2: first edition 2026-10-16; spine: 2026-10-15.*
+*Version 1.2: first edition 2026-10-20; spine: 2026-10-15.*
 
-Copyright 2026 Corwin Brust <corwin@bru.st> and Contributors; CC-BY-SA4: https://creativecommons.org/licenses/by-sa/4.0/ (scripts GPL-3.0-or-later); Mentat (for Corwin; claude-opus-5-5)
+Copyright 2026 Corwin Brust <corwin@bru.st> and Contributors; CC-BY-SA4: https://creativecommons.org/licenses/by-sa/4.0/ (scripts: GNU General Public License, version 3 or any later version; SPDX GPL-3.0-or-later); Mentat (for Corwin, claude-opus-5-5)
 From the collection Corwin Brust and Bryant Frankford keep together, with K Smith as editor of the works she edited; thanks in ACKNOWLEDGEMENTS; home: https://github.com/inputloop
 <!-- /footer -->

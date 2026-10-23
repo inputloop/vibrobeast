@@ -111,6 +111,24 @@ its second reader, and the scan that sees Bryant's house and reads REUSE.
 The flagship conventions belong to their projects (GNU, LibreJS, AboutCode's ScanCode, the FSFE's
 REUSE); the kit points at them and copies nothing.
 
-*Version 0.3: edition revised from 0.2 on 2026-10-05 (Alfred's findings); spine: 2026-10-04.*
+## How this skill can fail (falsifiers)
 
-Copyright 2026 Corwin Brust <corwin@bru.st> and Contributors; CC-BY-SA4: https://creativecommons.org/licenses/by-sa/4.0/ (scripts GPL-3.0-or-later); Mentat (for Corwin; claude-opus-5-5)
+- **The kit trampled a house rule.** Check: `kg1sc recheck` names a TRAMPLE and exits 1.
+- **A conflict was raised twice.** Check: a second `kg1sc scan` of the same house says the conflict is
+  known, not new (the tests' "the second scan does not nag").
+- **A licence was filled from the kit.** Check: the scan says HOLD for the licence and the re-check finds
+  no licence file the owners did not choose.
+- **A form the house keeps was read as a gap.** A manual, NEWS, a ChangeLog, INSTALL or `--version` text
+  that a free-software reader expects, with no topic to find it. Check: `kg1sc scan TREE --raw` on a
+  GNU-form tree says FOUND for each (the manual, cli and install topics came from such a miss, theseus,
+  2026-10-18).
+- **One reader decided alone.** Check: the re-check says the second reader (`kg1sc.py`) agreed, or it
+  says NOT CHECKED.
+- Off-switch: `KG1SC=0`.
+
+<!-- footer: minted by bin/ft1mt from conventions/house.env and conventions/FOOTERS.org; edit those, not this -->
+*Version 1.1.0: edition revised from 1.0.1 on 2026-10-20; spine: 2026-10-04.*
+
+Copyright 2026 Corwin Brust <corwin@bru.st> and Contributors; CC-BY-SA4: https://creativecommons.org/licenses/by-sa/4.0/ (scripts: GNU General Public License, version 3 or any later version; SPDX GPL-3.0-or-later); Mentat (for Corwin, claude-mythos-5-1)
+From the collection Corwin Brust and Bryant Frankford keep together, with K Smith as editor of the works she edited; thanks in ACKNOWLEDGEMENTS; home: https://github.com/inputloop
+<!-- /footer -->

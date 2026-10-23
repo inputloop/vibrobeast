@@ -36,9 +36,11 @@ also beside it, says in words what the opt-in usage record holds. The words you 
   plugins, does the same. A server reads its on/off switch only when it starts, so a switch whose
   name ends in `.on` takes effect after a restart.
 - **The keeper** is the one person an install is for, whose say decides what is kept about people.
-  The server reads the keeper's name from `MENTCACHED_KEEPER`; when that is not set, the keeper is
+  The server reads the keeper's name from the Keeper field (`MENTCACHED_KEEPER`); when that is empty,
+  from this computer's account name (unless it is a generic one such as `user`); else the keeper is
   `corwin` (Corwin Brust: this began as his own install, and his name is the default until you set
-  yours).
+  yours). Nothing in the seat names the keeper: a row only the keeper may write counts only when the
+  keeper wrote it, so it cannot also decide who the keeper is.
 - **`people.named` starts as `corwin`.** The server keeps preferences about a person (rows named
   `person.<name>.*`) only for the names in `people.named`. To have yours kept, ask Claude to "set
   people.named to" your name. In this build that change is accepted only on the keeper's turn, so
@@ -375,6 +377,7 @@ default); nothing here is edited by hand. This table is minted from the keys the
 | `steward.auto` | `on` | nongnu-steward: ns1op runs its header + ledger audit at session open in a tree carrying .nongnu-steward |
 | `persona.sheets` | (none) | folders holding persona sheets and person models, os.pathsep-separated, earlier wins a name; a file is a sheet by what its own first lines say (actor:, a sheet heading, or model front matter); else $PERSONA_SHEETS, else guessed from softskills.roots and words.root |
 | `words.root` | (none) | the C4 root the word-path registry (word_where / word_register) reads: else $C4_ROOT, else /f/claude/c4, else ~/mnt/c4 -- whichever carries m/t |
+| `words.kv` | `offer` | words: whether word_register also files a word's keeper row in C4's k/v (whose word it is, whether it is settled): offer writes the row when a kind is given, require refuses a word with no kind, off never writes k/v |
 | `llamabridge.on` | `off` | llamabridge: off until set to on; when on, prompts Claude delegates go to the Ollama server at OLLAMA_HOST (default http://127.0.0.1:11434, this computer). Restart the plugin after changing it (the README's Words say how) |
 | `tavern.on` | `off` | tavern: off until set to on; when on, Claude can read and post in your Tavern rooms, and what is posted is copied to every member machine's disk. Restart the plugin after changing it (the README's Words say how) |
 | `tavern.as` | `claude` | tavern: the agent name Claude uses in the Tavern (Tavern adds this machine's address, e.g. claude-192.0.2.7, a documentation address). When unset, it is the agent already registered in the Tavern for this machine's person, else claude |
@@ -387,8 +390,8 @@ default); nothing here is edited by hand. This table is minted from the keys the
 | `tone.dial` | `0/0, 0/0` | tone: where the voice sits on two axes, answer length and narration, as signals seen / signals total on each; the default is the origin (no signals yet), which is plain voice |
 | `tone.show` | `words` | tone: how the tone reading is shown to you: words (a plain sentence, no numbers) or numbers |
 | `persona.on_threshold` | `off` | persona: what happens when someone crosses a threshold (used twice outside a test run; cited twice in seat notes; shipped through a cut with their credit): off (nothing; the default, his standing rule), propose (persona_list names the crossing and asks, in words), draft (persona_list names it and a draft may be written to the holding shelf ~/.mentcached/seat/persona/drafts, marked not-his-instruction and kept out of the index). No value mints a sheet: saying yes to a proposal or a draft is the instruction his rule asks for (2026-10-14) |
-| `keys.standing` | (none) | key_run: standing yeses, so routine runs on the keeper's own hosts need no confirmation each time. Entries KEY PROGRAM TARGET, separated by ';' (e.g. 'ssh ssh vibrobeast@gw33.bru.st; ssh scp vibrobeast@gw33.bru.st'). ssh: the host argument is exactly TARGET. scp: pushes to TARGET only (a pull could write this computer's files). git: TARGET is a folder, and only `git pull` (run fast-forward only) or `git fetch`, alone, run in exactly that folder (e.g. 'ssh git F:/claude/projects/c4-draw-kiosk'). Any argument starting with - still asks. Every standing run says so in its result. Only the keeper's own turn changes it |
-| `people.named` | `corwin` | the people whose person.<name>.* rows this server keeps: the keeper and the participants he named, comma-separated. Only the keeper's own turn changes it |
+| `keys.standing` | (none) | key_run: standing yeses, so routine runs on the keeper's own hosts need no confirmation each time. Entries KEY PROGRAM TARGET, separated by ';' (e.g. 'ssh ssh vibrobeast@gw33.bru.st; ssh scp vibrobeast@gw33.bru.st'). ssh: the host argument is exactly TARGET. scp: pushes to TARGET only (a pull could write this computer's files). git: TARGET is a folder, and only `git pull` (run fast-forward only) or `git fetch`, alone, run in exactly that folder (e.g. 'ssh git /home/you/projects/c4-draw-kiosk'). Any argument starting with - still asks. Every standing run says so in its result. Only the keeper's own turn changes it |
+| `people.named` | (none) | the people whose person.<name>.* rows this server keeps, besides the keeper, who is always one of them: the participants the keeper named, comma-separated. Only the keeper's own turn changes it |
 
 ## The floor -- the skills every edition carries
 

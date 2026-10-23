@@ -1,8 +1,9 @@
 dbf96f363f339b760734847450d506ca3580c286f8fe966105db0c66920d9b05  ./FROM
-bafb82c6fcdaae0d0b5c0b075fbb57d36fa0f6088f495b997b9e3c29efed9757  ./SKILL.md
+b14bfc569c79d4901cdf4649334233ff5278b4bfdd35f7aae9486e94606ddd40  ./SKILL.md
 ecaa5f755e03a77eee81c94fbc8d494e863deb1cdb8b78e43e52405e00cf0b4f  ./references/CARD-2026-10-05-bridge-cutover.md
 8206617636d91eff2b752ccf58446154784743c9acfe461149aff16931aa002f  ./references/KIT.md
 b8051a74a04988cd4fdab13fb19c062d837f9e8e959e9a842ec9896f9d7ed185  ./references/PROBE-2026-10-04-ollama-speed.md
 1d2918eb2a65ac8890ae6df401e6d3a46d02041f7c4f6bbbcaef0b0cc1582cda  ./references/llama_bridge-1.4.0-vb.1.diff
 4d797a96c03d01f05f7d16ef77e73f4800a3594cc5f7ed0a8e978352f39278e0  ./scripts/bridge_smoke.py
 81bb444d88a3bfeed8160de3636e136dc94c8b70d3576d98aad0a2d7a48f2410  ./scripts/fake_ollama.py
+f75c0a95a221a22e00a0664e59346aba15d8ef8f64f3abe8421edc256177586b  ./scripts/split_verdict.py

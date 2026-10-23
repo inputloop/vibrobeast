@@ -17,6 +17,13 @@ extension/	GENERATED:make mcpb (polygram/mcpb.py)
 plugins/vibrobeast/skills/	SKILL
 plugins/vibrobeast-skills/skills/	SKILL
 plugins/vibrobeast/servers/polygram/	polygram/
+plugins/vibrobeast-servers/servers/polygram/	polygram/
+plugins/vibrobeast-servers/servers/bin/	bin/
+plugins/vibrobeast-servers/servers/launch.cmd	polygram/launch.cmd
+plugins/vibrobeast-servers/COPYING	COPYING
+plugins/vibrobeast-servers/GRAMMARY.md	GRAMMARY.md
+plugins/vibrobeast-servers/FRAME.md	FRAME.md
+plugins/vibrobeast-servers/README.md	GENERATED:polygram/plugin.py (SERVERS_PLUGIN_README)
 plugins/vibrobeast/servers/bin/	bin/
 plugins/vibrobeast/servers/launch.cmd	polygram/launch.cmd
 plugins/vibrobeast/GRAMMARY.md	GRAMMARY.md

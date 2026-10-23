@@ -51,4 +51,4 @@ one recorded.  Exit 1 on any break, 2 when it could not look.
 
 *Version 0.2: edition revised from 0.1 on 2026-10-05; spine: 2026-10-04.*
 
-Copyright 2026 Corwin Brust <corwin@bru.st> and Contributors; CC-BY-SA4: https://creativecommons.org/licenses/by-sa/4.0/ (scripts GPL-3.0-or-later); Mentat (for Corwin; claude-opus-5-5)
+Copyright 2026 Corwin Brust <corwin@bru.st> and Contributors; CC-BY-SA4: https://creativecommons.org/licenses/by-sa/4.0/ (scripts GPL-3.0-or-later); Mentat (for Corwin, claude-opus-5-5)

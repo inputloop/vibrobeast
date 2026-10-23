@@ -41,6 +41,9 @@ takes it from there.
 ```
 sh scripts/cb1ox state LIST        the count, the rung, and the next step, in words
 sh scripts/cb1ox drop LIST N WHY   set idea N aside with its reason (to LIST.losers, kept)
+sh scripts/cb1ox drop LIST 'WORDS' WHY   the same, naming the idea by its words (numbers move after
+                                   each drop, so after one drop name ideas by words); every drop
+                                   prints the list renumbered
 sh scripts/cb1ox race LIST         the halves inverted: pair 1 = first vs last, inward
 sh scripts/cb1ox check LIST        the invariants; exit 1 on a fault
 ```
@@ -89,8 +92,8 @@ there.
   ask them what rung they are on without `cb1ox` — if they know, the tool did not carry it, and should.
 
 <!-- footer: minted by bin/ft1mt from conventions/house.env and conventions/FOOTERS.org; edit those, not this -->
-*Version 1.2: first edition 2026-10-15; spine: 2026-10-15.*
+*Version 1.2: first edition 2026-10-20; spine: 2026-10-15.*
 
-Copyright 2026 Corwin Brust <corwin@bru.st> and Contributors; CC-BY-SA4: https://creativecommons.org/licenses/by-sa/4.0/ (scripts GPL-3.0-or-later); Mentat (for Corwin; claude-opus-5-5)
+Copyright 2026 Corwin Brust <corwin@bru.st> and Contributors; CC-BY-SA4: https://creativecommons.org/licenses/by-sa/4.0/ (scripts: GNU General Public License, version 3 or any later version; SPDX GPL-3.0-or-later); Mentat (for Corwin, claude-opus-5-5)
 From the collection Corwin Brust and Bryant Frankford keep together, with K Smith as editor of the works she edited; thanks in ACKNOWLEDGEMENTS; home: https://github.com/inputloop
 <!-- /footer -->

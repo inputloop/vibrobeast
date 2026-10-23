@@ -46,13 +46,14 @@ from .rpc import PROTOCOL_VERSION, utf8_stdio
 VERSION = "1.0"
 #: Settings-page variables the hub cleans before a server sees them.
 SWITCH_VARS = ("TAVERN_ON", "C4_ON", "LLAMABRIDGE_ON", "GW_ON", "GW_LOOKUPS", "GW_LOOKUPS_ALWAYS",
-               "GW_KNOWN_HOSTS", "GW_KNOWN_HOSTS_ALWAYS")
+               "GW_KNOWN_HOSTS", "GW_KNOWN_HOSTS_ALWAYS", "MENTCACHED_MODE", "MENTCACHED_MODE_CHAT",
+               "MENTCACHED_ORG_MD")
 #: Reported as "set" only, like the paths; GW_PASSWORD and VIBROBEAST_API_TOKEN are secrets.
 PATH_VARS = ("VIBROBEAST_SSH_KEY", "VIBROBEAST_API_TOKEN", "GW_HOSTS", "GW_DOMAIN", "GW_METHOD",
              "GW_PORT", "GW_AUTH", "GW_USER", "GW_PASSWORD", "GW_AUTH_METHOD", "GW_REFRESH",
              "GW_HOSTS_FILE", "GW_SCANNER", "MENTCACHED_KEEPER",
              "VIBROBEAST_API_TOKEN_FOR", "VIBROBEAST_API_TOKEN_USAGE", "VIBROBEAST_SSH_KEY_USAGE",
-             "GW_PASSWORD_USAGE", "VIBROBEAST_KEYS_FILE",
+             "GW_PASSWORD_USAGE", "VIBROBEAST_KEYS_FILE", "VIBROBEAST_KEYRING_DIR",
              "TAVERN_DATA", "TAVERN_AS", "C4_ROOT", "MENTCACHED_SEAT", "OLLAMA_HOST",
              "PERSONA_ROOT", "MENTCACHED_PREFS")
 START_TIMEOUT = float(os.environ.get("VIBROBEAST_HUB_START_TIMEOUT", "30"))
@@ -242,8 +243,8 @@ def setup(args: dict) -> dict:
         "COMPAT.md names the rest.",
         "3. The doors you want (Tavern, Llama Bridge, C4, Ghostwheel status): switch them on in this "
         "extension's settings, then restart the extension.",
-        "4. Your name: put it in this extension's Keeper field. Left empty, the keeper is the one this "
-        "seat already records, else this computer's account name; seat_mode says which, and why.",
+        "4. Your name: put it in this extension's Keeper field. Left empty, the keeper is this computer's "
+        "account name, else the old default; the seat's own rows never name it. seat_mode says which, and why.",
         "Do not also install the full vibrobeast plugin here: it would run a second memory server on "
         "the same seat.",
     ]

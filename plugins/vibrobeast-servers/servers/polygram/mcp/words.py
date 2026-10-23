@@ -27,6 +27,13 @@ proper gap (nothing on the short list holds it) -- the gap footnote, mechanical.
 
 Two tools: ``word_where`` (read) and ``word_register`` (write one leaf; never overwrites; the
 neighbour must exist under the root unless the leaf is ``m``). Nothing else here writes.
+
+THE CLERK (2026-10-22, his words at 19:11 CDT: "we must drive this idea as deeply as some given user may
+consent and have systemic support to do"). Given a ``kind``, ``word_register`` also files the word's row
+in C4's keeper register ``k/v`` -- whose word it is and whether it is settled -- the same row C4's
+``bin/kv2wd`` writes, with the same refusals, leaf and row together or neither. The ``words.kv``
+preference is the consent: ``off`` never writes k/v; ``offer`` (the default) writes the row when a kind
+is given; ``require`` refuses a word with no kind.
 """
 from __future__ import annotations
 
@@ -38,6 +45,25 @@ from . import prefs as _prefs
 from .rpc import ToolError
 
 ORDER = ["t", "z", "s", "e", "d", "g", "f", "c", "h", "m"]
+KINDS = ("KEEPER", "PINNED", "TYPE", "SEAM", "MANUFACTURED", "NOT-STATED")
+STATUSES = ("ADOPTED", "OPEN", "RETIRED", "ANSWERED")
+
+
+def _tok(text: str) -> str:
+    """One space-free token for a k/v field: runs of white space become one hyphen (kv2wd's tok)."""
+    return "-".join(text.split())
+
+
+def kv_has(c4: Path, word: str) -> bool:
+    kv = c4 / "k" / "v"
+    if not kv.is_file():
+        return False
+    w = word.lower()
+    for line in kv.read_text(encoding="utf-8", errors="replace").splitlines():
+        f = line.split()
+        if f and f[0].lower() == w:
+            return True
+    return False
 PLACES = {
     "t": "m/t (the register table)",
     "z": "private canon in another root (the SAVANNAH enclave: PRINCIPLES, CHARTERS -- NOTATION's z/*; cited by path, never copied; the values canon itself lives on the pub shelf, canon/principles/, since 2026-09-29)",
@@ -179,6 +205,23 @@ def register_word(args: dict, by: str) -> dict:
     leaf = (args.get("leaf") or "").strip()
     nb = (args.get("neighbor") or "").strip()
     mn = (args.get("meaning") or "").strip()
+    kind = (args.get("kind") or "").strip()
+    gloss = _tok(args.get("gloss") or "")
+    source = _tok(args.get("source") or "")
+    status = (args.get("status") or "OPEN").strip()
+    try:
+        mode = (_prefs.get("words.kv") or "offer").strip()
+    except Exception:            # noqa: BLE001 -- unreadable prefs fall back to the default
+        mode = "offer"
+    if mode == "require" and not kind:
+        raise ToolError("words.kv is require: give kind (" + " ".join(KINDS) + "), gloss and source, so the word gets its keeper row in k/v")
+    if kind and mode != "off":
+        if kind not in KINDS:
+            raise ToolError(f"kind {kind!r} is not one of {' '.join(KINDS)}; NOT-STATED when nothing on record says whose word it is")
+        if status not in STATUSES:
+            raise ToolError(f"status {status!r} is not one of {' '.join(STATUSES)}")
+        if not gloss or not source:
+            raise ToolError("a keeper row needs a gloss (what the word means here) and a source (where its provenance is recorded)")
     if leaf not in ORDER:
         raise ToolError(f"leaf {leaf!r} is not on the short list ({' '.join(ORDER)})")
     if not nb or not mn:
@@ -198,13 +241,41 @@ def register_word(args: dict, by: str) -> dict:
         raise ToolError(f"g/{w} exists and is not a word dir; refusing to mix")
     if (d / leaf).is_file():
         raise ToolError(f"g/{w}/{leaf} already registered:\n" + (d / leaf).read_text(encoding="utf-8", errors="replace"))
+    filing = bool(kind) and mode != "off"
+    if filing and kv_has(c4, w):
+        raise ToolError(f"{w!r} already has a k/v row; a second leaf goes in without a kind, a new row never")
+    had_dir = d.exists()
     d.mkdir(parents=True, exist_ok=True)
     stamp = _dt.datetime.now(_dt.timezone.utc).strftime("%Y-%m-%d")
     body = f"neighbor\t{nb}\nmeaning\t{mn}\nsince\t{stamp}\nby\t{by}\n"
     tmp = d / f"{leaf}.tmp"
     tmp.write_text(body, encoding="utf-8", newline="\n")
     tmp.replace(d / leaf)
-    return {"word": w, "leaf": leaf, "path": str(d / leaf), "root": str(c4), "say": f"g/{w}/{leaf} -> {nb}"}
+    out = {"word": w, "leaf": leaf, "path": str(d / leaf), "root": str(c4), "say": f"g/{w}/{leaf} -> {nb}"}
+    if not filing:
+        out["say"] += ("; no keeper row filed (give kind, gloss and source to file one in k/v)" if mode != "off" else "")
+        return out
+    row = f"{w} {stamp} {kind} {gloss} {status} {source}\n"
+    kv = c4 / "k" / "v"
+    try:
+        kv.parent.mkdir(parents=True, exist_ok=True)
+        old = kv.read_text(encoding="utf-8") if kv.is_file() else ""
+        if old and not old.endswith("\n"):
+            old += "\n"
+        ktmp = kv.parent / f"v.tmp.{os.getpid()}"
+        ktmp.write_text(old + row, encoding="utf-8", newline="\n")
+        ktmp.replace(kv)
+    except OSError as e:
+        (d / leaf).unlink(missing_ok=True)
+        if not had_dir:
+            try:
+                d.rmdir()
+            except OSError:
+                pass
+        raise ToolError(f"the keeper row could not be written ({e}); the leaf was taken back, g/ and k/v are as found")
+    out["kv"] = row.rstrip("\n")
+    out["say"] += f"; k/v: {out['kv']}"
+    return out
 
 
 def register(srv, by: str) -> None:
@@ -220,10 +291,15 @@ def register(srv, by: str) -> None:
     @srv.tool("word_register",
               "Register where a word's meaning lives: one leaf under g/<word>/ (leaf = t s e d g f c h m; "
               "neighbor = a path under the C4 root or a register reference like 'T col2'; meaning = one "
-              "sentence in this context). Never overwrites; a second leaf on a word is a seam, kept.",
+              "sentence in this context). Never overwrites; a second leaf on a word is a seam, kept. "
+              "With kind (and gloss, source), also files the word's keeper row in k/v, together or neither.",
               {"type": "object",
                "properties": {"name": {"type": "string"}, "leaf": {"type": "string"},
-                              "neighbor": {"type": "string"}, "meaning": {"type": "string"}},
+                              "neighbor": {"type": "string"}, "meaning": {"type": "string"},
+                              "kind": {"type": "string", "description": "whose word it is: KEEPER PINNED TYPE SEAM MANUFACTURED NOT-STATED; given, the word also gets its keeper row in k/v"},
+                              "gloss": {"type": "string", "description": "for the keeper row: what the word means here, in common words"},
+                              "source": {"type": "string", "description": "for the keeper row: where its provenance is recorded (a path, a line, a commit)"},
+                              "status": {"type": "string", "description": "for the keeper row: ADOPTED OPEN RETIRED ANSWERED (default OPEN)"}},
                "required": ["name", "leaf", "neighbor", "meaning"]})
     def _reg(args):
         return register_word(args or {}, by)

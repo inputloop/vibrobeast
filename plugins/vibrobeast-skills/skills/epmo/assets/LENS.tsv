@@ -1,0 +1,38 @@
+# LENS.tsv -- the heuristic rung: the capability lens's dimensions, each value, its order, and the mark on his sheet it comes from.
+# Source: facts/epmo-capability-lens.md (his drawing, 2026-10-19; the photos in assets/epmo-lens-2026-10-19/).
+# dim: who | stance | band | layer | coupling | frame | closure.  question: the EPMO question the dim answers.
+# order: position along the dim (an ordinal, not a weight; nothing here is a measure).
+# Cardinality is the count of rows per dim: ep1mo lens prints it, so it is never restated here.
+# Copyright (C) 2026 Corwin Brust <corwin@bru.st> and Contributors. SPDX-License-Identifier: CC-BY-SA-4.0
+dim	question	value	order	meaning	mark
+who	who cares?	org	1	the organisation that plans and proves (inputloop, the shop, a foundation)	ORG (PLAN/PROVE), top of the N/S line
+who	who cares?	team	2	a working group across people (the keepers plus residents, agents, reviewers)	between ORG and Context on the dashed line (inferred)
+who	who cares?	pair	3	two named people working one thing together	between ORG and Context on the dashed line (inferred)
+who	who cares?	person	4	one person's own work and stakes	Context / PERSONAL
+who	who cares?	public	5	many people outside the keepers, each caring personally: a community, users, players, the commons (renamed from "social" 2026-10-19: social is personal for each of us)	"and social", below PERSONAL; his answer 2026-10-19
+stance	how much?	forecast	1	the organisation states what it plans the thing to do	FORECAST, upper line west
+stance	how much?	proscribe	2	the organisation states what the thing may not do or become	PROSCRIBE, upper line east
+stance	how much?	guess	3	a person estimates its value; nothing is committed yet	VALUE <- GUESS, lower line west
+stance	how much?	bet	4	a person has committed cost to it; receipts exist	BET -> COST, lower line east
+band	why?	function	1	it exists to do a job for someone	Function, under FORECAST
+band	why?	structure	2	it exists to organise other things	STRUCTURE, with Components
+band	why?	form	3	it exists as a shape others take up	FORM
+layer	why?	component	1	a part, not yet held by anything	Components
+layer	why?	container	2	a tree or holder bent by design and practical constraint	CONTANORS, the bowl
+layer	why?	folder-file	3	a folder or a single file	Folder/File
+layer	why?	pkg-dist	4	a package or a distribution	Pkg/dist
+layer	why?	lib-frame	5	a library or framework others build on	lib/frames
+layer	why?	os	6	an operating system image; less cost per use, free as value	OS, where LESS COST and OS VALUE meet
+coupling	why?	logical	1	known mostly by its meaning; boundaries still visible	Coupling: II logical
+coupling	why?	physical	2	known mostly by its bytes; boundaries blur as it formalises	} physical
+frame	whose runtime?	bridge	1	seen from an edge: two parties each run their own and trade signed rows	"from a let's standpoint it's a bridge" (his message)
+frame	whose runtime?	transformer	2	seen from the centre, our runtime: C4 runs the transform (bin/ep1mo)	"from the center point ... a transformer" (his message)
+frame	whose runtime?	map	3	seen from the centre, their runtime: we publish the mapping document and they run it	"... or a mapping document" (his message)
+closure	is the N/S line a loop?	open	1	org and social are two ends	the bracketed note: "fixed length"
+closure	is the N/S line a loop?	ring	2	the social is itself an organisation: the ends meet	the bracketed note: "linked"
+closure	is the N/S line a loop?	mobius	3	they meet with a twist: followed far enough, the org returns as its own constituency, inside out	the bracketed note: "in effect 'mobius'"
+horizon	what does change cost us?	impossible	1	no change will ever come due from upstream churn: the grey area above LESS COST; nothing real sits here, so a placement here is a fault	the grey area above the LESS COST line (his answer, 2026-10-19)
+horizon	what does change cost us?	x	2	at the event horizon: built on system libraries and well-trodden tools, frameworks, methods and standards in actual use, so upstream change and peer pressure push us toward good change and worthwhile contributions back	X where the dotted line crosses LESS COST (his answer, 2026-10-19)
+horizon	what does change cost us?	own-design	3	below the line: our own design constraints are the harder line; the change we pay for is change we chose	below the LESS COST line (his answer, 2026-10-19)
+sociality	is it solo?	solo	1	exactly one party cares: a decision made alone; COMPUTED from the cares column, never typed	his answer 2026-10-19: "social is personal for each of us"
+sociality	is it solo?	social	2	more than one party cares: any non-solo thing is social, and the more social a decision seems, the more a bold one feels like cost	his answer 2026-10-19: "implicitly any non-solo thing is social"

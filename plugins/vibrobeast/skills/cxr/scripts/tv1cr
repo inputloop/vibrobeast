@@ -1,0 +1,545 @@
+#!/bin/sh
+# tv1cr -- TSV one CxR: a table unfolded so a COLUMN is a COLLECTION (c/) and a ROW is a
+#          REGISTRY (r/), folded back to the same bytes, set at a call grain, checked both ways.
+#
+# Copyright (C) 2026 Corwin Brust <corwin@bru.st> and Contributors.  Mentat (for Corwin).
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+#   MUST     unfold: every cell (k,c,v) lands as r/<k>/<c> (content v) and c/<c>/<v> (a line k);
+#            a duplicate key, a ragged row, a blank or comment line inside the table (between the
+#            header and the first row too: found 2026-10-20 on pmo's epmo-keys.tsv, where fold hoisted
+#            it and check still held, because check compares r with c, never with the table), or a stem
+#            already holding r/ (without --replace) is refused and named.
+#            fold: prints the table from a, l, t, n and r/ alone; writes nothing under the stem.
+#            set: writes BOTH sides (the two writers) and keeps the trampled value under d/.
+#            check: every r atom is listed in its c twin and every c line reads back; exit 1 on
+#            the first fault class found, every fault named by path.
+#            stale: exit 1 when any atom is newer than the TSV, naming the newest.
+#   JOURNEY  the stem beside the table (PATH/NAME/ for PATH/NAME.tsv); the files i l t n a d;
+#            the name encoding (bare [a-z0-9._-]; an upper-case run is ^run^; any other byte
+#            %XX; empty is %; over 200 bytes ends %~sha16).  Mine; his to change.
+#            Model: h/MODEL-2026-10-19-cxr-column-collection-row-registry.md.  Q607-Q611.
+#
+# usage: tv1cr unfold TSV [--key COL[,COL..]] [--cols a,b,c] [--out DIR] [--replace]
+#        tv1cr fold DIR [--where COL=VALUE] [--to TSV]      > TSV   (--to writes it, and marks s)
+#        tv1cr set DIR KEY COL VALUE
+#        tv1cr get DIR KEY [COL]
+#        tv1cr who DIR COL VALUE
+#        tv1cr col DIR NAME
+#        tv1cr route DIR COL --into ROOT [--as NAME]       the column built into ROOT/c/<NAME>/<value>: one
+#                                                          line per row, the row atom's ADDRESS (<rel>/r/<key>),
+#                                                          never the value; idempotent; ROOT is asserted, not found
+#        tv1cr route --check DIR COL --into ROOT [--as NAME] every routed line reads back; faults by path
+#        tv1cr check DIR [--each]                    one pass over every atom; --each is the first, per-atom
+#                                                          way, kept as a second reader
+#        tv1cr stale DIR [TSV]
+#        tv1cr enc STRING
+#        tv1cr selftest | --prove-red
+#   --cols   the column names when the TSV has no header row (then fold prints none).
+#   --held-anyway  unfold a table a .cxr-hold line holds (it is refused otherwise, and the reason said).
+#   --key    the column(s) whose values name a row; a composite key is its parts joined by a tab
+#            (in a, and as KEY to set/get) and by + in its r/ dir name (r/^lc^+h%2F...).
+#   The stem's files:  i IDENTITY (the key column, or columns, one per line) · l LAYOUT (columns, in order) · t TEMPLATE (the
+#   header line, verbatim, when there was one) · n NOTE (leading # lines, verbatim) · o OTHER (trailing
+#   # lines after the last row, verbatim; a # line between rows is refused) · a ARRAY (the
+#   keys, in row order) · s SEMAPHORE (touched by unfold and fold --to: the last time atoms and
+#   table were known equal) · r/ REGISTRY · c/ COLLECTION · d/<stamp>/ what --replace and set trampled.
+set -eu
+LC_ALL=C; export LC_ALL
+me=tv1cr
+TAB=$(printf '\t')
+
+die() { printf '%s: %s\n' "$me" "$*" >&2; exit "${2:-2}"; }
+usage() { sed -n '/^# usage:/,/^set -eu/p' "$0" | sed '$d' | sed 's/^# \{0,1\}//'; }
+
+# enc STRING -> a filename.  One rule, reversible below 200 bytes (see JOURNEY above).
+enc() {
+  V="$1" awk 'BEGIN {
+    s = ENVIRON["V"]; n = length(s); out = ""; up = 0
+    for (i = 1; i < 256; i++) ord[sprintf("%c", i)] = i
+    for (i = 1; i <= n; i++) {
+      ch = substr(s, i, 1)
+      if (ch ~ /[A-Z]/) { if (!up) { out = out "^"; up = 1 }; out = out tolower(ch); continue }
+      if (up) { out = out "^"; up = 0 }
+      if (ch ~ /[a-z0-9._-]/) out = out ch
+      else out = out sprintf("%%%02X", ord[ch])
+    }
+    if (up) out = out "^"
+    if (out == "." || out == "..") gsub(/\./, "%2E", out)   # a name of . or .. is a folder, never a value (2026-10-20)
+    if (out == "") out = "%"
+    print out
+  }'
+}
+encl() {  # enc, with the 200-byte cap
+  e=$(enc "$1")
+  if [ ${#e} -gt 200 ]; then
+    h=$(printf '%s' "$1" | sha256sum | cut -c1-16)
+    e=$(printf '%s' "$e" | cut -c1-180)"%~$h"
+  fi
+  printf '%s\n' "$e"
+}
+
+stamp() { date -u +%Y-%m-%dT%H%M%SZ; }
+# kenc KEY -> the r/ dir name: a composite key (parts joined by a tab) encodes part by part, joined
+# by + (never produced by enc itself, so the join is unambiguous)
+kenc() {
+  ko=""; krest=$1
+  while :; do
+    case $krest in
+      *"$TAB"*) kpart=${krest%%"$TAB"*}; krest=${krest#*"$TAB"} ;;
+      *) kpart=$krest; krest="" ;;
+    esac
+    ke_=$(encl "$kpart"); if [ -z "$ko" ]; then ko=$ke_; else ko="$ko+$ke_"; fi
+    [ -n "$krest" ] || break
+  done
+  printf '%s\n' "$ko"
+}
+# keycell DIR RD -> the row's key, read from its key-part cells (tab-joined)
+keycell() {
+  kk=""; kfirst=1
+  while IFS= read -r kpart; do
+    kv=$(cell "$2/$(encl "$kpart")")
+    if [ $kfirst -eq 1 ]; then kk=$kv; kfirst=0; else kk="$kk$TAB$kv"; fi
+  done < "$1/i"
+  printf '%s' "$kk"
+}
+# held TSV -> prints the reason and returns 0 when a .cxr-hold line in the table's folder or any folder
+# above it names the table (GLOB<TAB>REASON, the glob read against the path from that folder), as cx1op
+# reads it; returns 1 otherwise (fold-up ENHANCE 2, 2026-10-20)
+held() {
+  hd=$(cd "$(dirname -- "$1")" && pwd); hf=$hd/$(basename -- "$1")
+  while :; do
+    if [ -f "$hd/.cxr-hold" ]; then
+      hrel=${hf#"$hd"/}
+      hr=$(while IFS="$TAB" read -r g why; do
+             case $g in '#'*|'') continue;; esac
+             # shellcheck disable=SC2254
+             case $hrel in $g) printf '%s\n' "${why:-held}"; break;; esac
+           done < "$hd/.cxr-hold")
+      [ -n "$hr" ] && { printf '%s, %s/.cxr-hold\n' "$hr" "$hd"; return 0; }
+    fi
+    [ "$hd" = / ] && return 1
+    hd=$(dirname -- "$hd")
+  done
+}
+need_stem() { [ -d "$1/r" ] && [ -f "$1/l" ] && [ -f "$1/i" ] || die "no table at $1 (wants r/, l, i)"; }
+colnum() {  # colnum DIR COL -> 1-based index in l, or empty
+  awk -v c="$2" '$0 == c { print NR; exit }' "$1/l"
+}
+# read a cell: the file's bytes less one trailing newline; a missing file is empty
+cell() { [ -f "$1" ] && awk 'NR > 1 { printf "\n" } { printf "%s", $0 }' "$1" || true; }
+
+# ---------------------------------------------------------------- unfold
+unfold() {
+  tsv=${1:?TSV}; shift
+  key=""; cols=""; out=""; replace=0; held_anyway=0
+  while [ $# -gt 0 ]; do
+    case $1 in
+      --key) key=$2; shift 2 ;;
+      --cols) cols=$2; shift 2 ;;
+      --out) out=$2; shift 2 ;;
+      --replace) replace=1; shift ;;
+      --held-anyway) held_anyway=1; shift ;;
+      *) die "unfold: unknown option $1" ;;
+    esac
+  done
+  [ -f "$tsv" ] || die "no such table: $tsv"
+  if [ $held_anyway -eq 0 ] && why=$(held "$tsv"); then
+    die "unfold: $tsv is held ($why); a .cxr-hold line says this table stays a table. Say --held-anyway to unfold it all the same"; fi
+  [ -n "$out" ] || out=$(printf '%s' "$tsv" | sed 's/\.tsv$//')
+  [ "$out" != "$tsv" ] || die "unfold: $tsv does not end in .tsv; say --out DIR"
+  if [ -d "$out/r" ] || [ -d "$out/c" ]; then
+    [ $replace -eq 1 ] || die "unfold: $out already holds a table; say --replace to archive it under d/"
+    st=$(stamp); mkdir -p "$out/d/$st"
+    for f in r c a l i t n o s; do [ -e "$out/$f" ] && mv "$out/$f" "$out/d/$st/$f"; done
+    printf '%s: archived the prior table at %s/d/%s\n' "$me" "$out" "$st" >&2
+  fi
+  mkdir -p "$out"
+  # pass 1: shape.  Leading '#' lines are the NOTE; the first other line is the header (unless
+  # --cols); every later line is a row.  Refuse blank, comment, ragged, duplicate.
+  shape=$(COLS="$cols" awk -F"$TAB" -v OFS="$TAB" '
+    BEGIN { cols = ENVIRON["COLS"]; nc = 0; head = 0; rows = 0; if (cols != "") { nc = split(cols, L, ","); head = 1 } }
+    !rows && /^#/ && hl { print "FAULT", "comment line between the header and the first row at line " NR " (fold would put it above the header)"; exit 1 }
+    !rows && /^#/ { print "n", $0; next }
+    !head && /^$/ { print "FAULT", "blank line before the header at line " NR; exit 1 }
+    !head { head = 1; hl = 1; nc = NF; for (i = 1; i <= NF; i++) L[i] = $i; print "t", $0; next }
+    { rows = 1 }
+    /^$/ { print "FAULT", "blank line inside the table at line " NR; exit 1 }
+    /^#/ { tail[++nt] = $0; next }           # a comment after the rows is the trailing note (o)
+    nt { print "FAULT", "comment line inside the table at line " (NR - nt); exit 1 }
+    NF != nc { print "FAULT", "ragged row at line " NR ": " NF " fields, header has " nc; exit 1 }
+    { print "row", NR }
+    END { if (!head) { print "FAULT", "no header and no --cols"; exit 1 }
+          for (i = 1; i <= nc; i++) print "l", L[i]
+          for (i = 1; i <= nt; i++) print "o", tail[i] }' "$tsv") || true
+  f=$(printf '%s\n' "$shape" | awk -F"$TAB" '$1 == "FAULT" { print $2; exit }')
+  [ -z "$f" ] || die "unfold: $f"
+  # scratch lives outside the stem: the c4 mount can create and truncate but not rm
+  w=$(mktemp -d); trap 'rm -rf "$w"' EXIT
+  printf '%s\n' "$shape" | awk -F"$TAB" '$1 == "n" { sub(/^[^\t]*\t/, ""); print }' > "$w/n"
+  [ -s "$w/n" ] && cp "$w/n" "$out/n"
+  printf '%s\n' "$shape" | awk -F"$TAB" '$1 == "t" { sub(/^[^\t]*\t/, ""); print }' > "$w/t"
+  [ -s "$w/t" ] && cp "$w/t" "$out/t"
+  printf '%s\n' "$shape" | awk -F"$TAB" '$1 == "o" { sub(/^[^\t]*\t/, ""); print }' > "$w/o"
+  [ -s "$w/o" ] && cp "$w/o" "$out/o"
+  printf '%s\n' "$shape" | awk -F"$TAB" '$1 == "l" { sub(/^[^\t]*\t/, ""); print }' > "$out/l"
+  nc=$(grep -c '' "$out/l")
+  [ "$nc" -gt 0 ] || die "unfold: no columns"
+  [ -n "$key" ] || key=$(head -1 "$out/l")
+  : > "$w/i"; kn=""
+  # split on commas only: a column name may hold a space (a headless table's first cell does; found
+  # 2026-10-20 on c4-serve's ollama-known.tsv by t/tv1cr-corpus.rb)
+  printf '%s\n' "$key" | tr ',' '\n' > "$w/kparts"
+  while IFS= read -r part; do
+    n=$(colnum "$out" "$part"); [ -n "$n" ] || die "unfold: --key $part is not a column of $tsv"
+    printf '%s\n' "$part" >> "$w/i"; kn="$kn${kn:+,}$n"
+  done < "$w/kparts"
+  cp "$w/i" "$out/i"
+  # column dirs, encoded names in l's order
+  : > "$w/cenc"
+  while IFS= read -r c; do encl "$c" >> "$w/cenc"; done < "$out/l"
+  # pass 2: the rows.  awk emits one line per atom; sh makes dirs once, then awk writes.
+  skip=$(grep -c '' "$out/n" 2>/dev/null || echo 0); [ -f "$out/t" ] && skip=$((skip + 1))
+  : > "$out/a"
+  awk -F"$TAB" -v OFS="$TAB" -v skip="$skip" -v kn="$kn" 'BEGIN { np = split(kn, P, ",") }
+    NR > skip && !/^#/ { k = $P[1]; for (j = 2; j <= np; j++) k = k "\t" $P[j]; print k }' "$tsv" > "$w/keys"
+  dup=$(sort "$w/keys" | uniq -d | head -1)
+  [ -z "$dup" ] || die "unfold: duplicate key in column $key: $dup"
+  # encoded keys, one per line, same order
+  : > "$w/kenc"
+  while IFS= read -r k; do kenc "$k" >> "$w/kenc"; done < "$w/keys"
+  cp "$w/keys" "$out/a"
+  mkdir -p "$out/r" "$out/c"
+  while IFS= read -r e; do mkdir -p "$out/r/$e"; done < "$w/kenc"
+  while IFS= read -r e; do mkdir -p "$out/c/$e"; done < "$w/cenc"
+  # write the atoms: r/K/C <- v ; c/C/<enc v> <<- k.  Value names are encoded in awk by the
+  # same rule (the sh enc above is the reference; the spec holds them equal).
+  OUT="$out" W="$w" awk -F"$TAB" -v skip="$skip" '
+    function enc(s,   n, out, up, i, ch) {
+      n = length(s); out = ""; up = 0
+      for (i = 1; i <= n; i++) {
+        ch = substr(s, i, 1)
+        if (ch ~ /[A-Z]/) { if (!up) { out = out "^"; up = 1 }; out = out tolower(ch); continue }
+        if (up) { out = out "^"; up = 0 }
+        if (ch ~ /[a-z0-9._-]/) out = out ch
+        else out = out sprintf("%%%02X", ord[ch])
+      }
+      if (up) out = out "^"
+      if (out == "." || out == "..") gsub(/\./, "%2E", out)   # a name of . or .. is a folder, never a value (2026-10-20)
+    if (out == "") out = "%"
+      return out
+    }
+    BEGIN { for (i = 1; i < 256; i++) ord[sprintf("%c", i)] = i
+            out = ENVIRON["OUT"]
+            while ((getline l < (out "/l")) > 0) L[++nc] = l
+            w = ENVIRON["W"]
+            while ((getline e < (w "/cenc")) > 0) CE[++ne] = e
+            while ((getline e < (w "/kenc")) > 0) KE[++nk] = e
+            while ((getline e < (w "/keys")) > 0) KS[++ns] = e
+            longq = w "/longq" }
+    NR > skip && !/^#/ {
+      r = NR - skip; k = KE[r]; ks = KS[r]; rd = out "/r/" k
+      for (i = 1; i <= nc; i++) {
+        f = rd "/" CE[i]
+        if ($i == "") printf "" > f; else print $i > f
+        close(f)
+        ve = enc($i)
+        if (length(ve) > 200) { print CE[i] "\t" $i "\t" ks >> longq; close(longq); continue }
+        m = out "/c/" CE[i] "/" ve
+        print ks >> m; close(m)
+      }
+    }' "$tsv"
+  # the long values (over 200 bytes encoded) take the sha-capped name from encl
+  if [ -s "$w/longq" ]; then
+    while IFS="$TAB" read -r ce v k; do printf '%s\n' "$k" >> "$out/c/$ce/$(encl "$v")"; done < "$w/longq"
+  fi
+  stamp > "$out/s"      # written, not touched: touch rounds to the second on some mounts
+  printf '%s: unfolded %s -> %s (%s key(s), %s column(s); key: %s)\n' "$me" "$tsv" "$out" \
+    "$(grep -c '' "$out/a")" "$nc" "$key" >&2
+}
+
+# ---------------------------------------------------------------- fold
+fold() {
+  dir=${1:?DIR}; shift; where=""; to=""
+  while [ $# -gt 0 ]; do case $1 in --where) where=$2; shift 2 ;; --to) to=$2; shift 2 ;; *) die "fold: unknown option $1" ;; esac; done
+  need_stem "$dir"
+  if [ -n "$to" ]; then
+    [ -z "$where" ] || die "fold: --to writes the whole table; --where is a view"
+    fold_ "$dir" > "$to.fold.tmp" && mv -f "$to.fold.tmp" "$to" && stamp > "$dir/s"
+    printf '%s: folded %s -> %s (%s line(s)); s marked\n' "$me" "$dir" "$to" "$(grep -c '' "$to")" >&2
+    return
+  fi
+  fold_ "$dir" "$where"
+}
+fold_() {
+  dir=$1; where=${2-}
+  [ -f "$dir/n" ] && cat "$dir/n"
+  [ -f "$dir/t" ] && cat "$dir/t"
+  wc=""; wv=""
+  if [ -n "$where" ]; then wc=${where%%=*}; wv=${where#*=}; [ -n "$(colnum "$dir" "$wc")" ] || die "fold: --where names no column: $wc"; fi
+  while IFS= read -r k; do
+    ke=$(kenc "$k"); rd="$dir/r/$ke"; line=""; first=1
+    if [ -n "$wc" ]; then v=$(cell "$rd/$(encl "$wc")"); [ "$v" = "$wv" ] || continue; fi
+    while IFS= read -r c; do
+      v=$(cell "$rd/$(encl "$c")")
+      if [ $first -eq 1 ]; then line=$v; first=0; else line="$line$TAB$v"; fi
+    done < "$dir/l"
+    printf '%s\n' "$line"
+  done < "$dir/a"
+  [ -f "$dir/o" ] && cat "$dir/o"
+  return 0
+}
+
+# ---------------------------------------------------------------- set / get / who / col
+set_() {
+  dir=${1:?DIR}; k=${2:?KEY}; c=${3:?COL}; v=${4-}
+  need_stem "$dir"
+  [ -n "$(colnum "$dir" "$c")" ] || die "set: $c is not a column of $dir (tv1cr col $dir $c adds one)"
+  case $c$v in *"$TAB"*) die "set: a tab in a column or value" ;; esac
+  nparts=$(printf '%s\n' "$k" | awk -F"$TAB" '{ print NF }'); [ "$nparts" -eq "$(grep -c '' "$dir/i")" ] \
+    || die "set: the key has $nparts part(s); $dir/i names $(grep -c '' "$dir/i") (join parts with a tab)"
+  ke=$(kenc "$k"); ce=$(encl "$c"); ve=$(encl "$v")
+  rd="$dir/r/$ke"; f="$rd/$ce"
+  if [ ! -d "$rd" ]; then
+    mkdir -p "$rd"; printf '%s\n' "$k" >> "$dir/a"
+    rest=$k
+    while IFS= read -r kc; do   # each key part lands in its own column, both sides
+      case $rest in *"$TAB"*) part=${rest%%"$TAB"*}; rest=${rest#*"$TAB"} ;; *) part=$rest; rest="" ;; esac
+      kce=$(encl "$kc"); pe=$(encl "$part")
+      printf '%s\n' "$part" > "$rd/$kce"; mkdir -p "$dir/c/$kce"; printf '%s\n' "$k" >> "$dir/c/$kce/$pe"
+    done < "$dir/i"
+  fi
+  if [ -f "$f" ]; then
+    old=$(cell "$f"); oe=$(encl "$old")
+    st=$(stamp); mkdir -p "$dir/d/$st/r/$ke"; cp -p "$f" "$dir/d/$st/r/$ke/$ce"
+    m="$dir/c/$ce/$oe"
+    if [ -f "$m" ]; then
+      K="$k" awk 'BEGIN { k = ENVIRON["K"] } $0 != k' "$m" > "$m.tmp"
+      mv "$m.tmp" "$m"     # an empty member file lists nobody (the mount cannot rm; it can truncate)
+    fi
+  fi
+  if [ -z "$v" ]; then : > "$f"; else printf '%s\n' "$v" > "$f"; fi
+  mkdir -p "$dir/c/$ce"; printf '%s\n' "$k" >> "$dir/c/$ce/$ve"
+  printf '%s: set %s %s = %s (r/%s/%s, c/%s/%s)\n' "$me" "$k" "$c" "$v" "$ke" "$ce" "$ce" "$ve" >&2
+}
+get_() {
+  dir=${1:?DIR}; k=${2:?KEY}; c=${3-}
+  need_stem "$dir"; ke=$(kenc "$k"); rd="$dir/r/$ke"
+  [ -d "$rd" ] || die "get: no key $k in $dir" 1
+  if [ -n "$c" ]; then cell "$rd/$(encl "$c")"; printf '\n'; return; fi
+  while IFS= read -r col; do printf '%s\t%s\n' "$col" "$(cell "$rd/$(encl "$col")")"; done < "$dir/l"
+}
+who() {
+  dir=${1:?DIR}; c=${2:?COL}; v=${3-}
+  need_stem "$dir"; m="$dir/c/$(encl "$c")/$(encl "$v")"
+  [ -f "$m" ] && cat "$m" || exit 1
+}
+col() {
+  dir=${1:?DIR}; c=${2:?NAME}; need_stem "$dir"
+  [ -z "$(colnum "$dir" "$c")" ] || die "col: $c is already a column"
+  case $c in *"$TAB"*) die "col: a tab in a column name" ;; esac
+  printf '%s\n' "$c" >> "$dir/l"; mkdir -p "$dir/c/$(encl "$c")"
+  if [ -f "$dir/t" ]; then printf '%s\t%s\n' "$(cat "$dir/t")" "$c" > "$dir/t.tmp"; mv "$dir/t.tmp" "$dir/t"; fi
+  printf '%s: column %s added to %s\n' "$me" "$c" "$dir" >&2
+}
+
+# ---------------------------------------------------------------- route (Q609, built 2026-10-20)
+relpath() {  # relpath FROM TO -> TO relative to FROM (both made absolute; python-free: awk over the parts)
+  f=$(cd "$1" && pwd); t=$(cd "$2" && pwd)
+  awk -v f="$f" -v t="$t" 'BEGIN {
+    nf = split(f, F, "/"); nt = split(t, T, "/"); i = 1
+    while (i <= nf && i <= nt && F[i] == T[i]) i++
+    out = ""; for (j = i; j <= nf; j++) if (F[j] != "") out = out "../"
+    for (j = i; j <= nt; j++) if (T[j] != "") out = out T[j] "/"
+    sub(/\/$/, "", out); if (out == "") out = "."; print out }'
+}
+route() {
+  chk=0; [ "${1-}" = --check ] && { chk=1; shift; }
+  dir=${1:?DIR}; col=${2:?COL}; shift 2; root=""; name=""
+  while [ $# -gt 0 ]; do case $1 in --into) root=$2; shift 2 ;; --as) name=$2; shift 2 ;; *) die "route: unknown option $1" ;; esac; done
+  need_stem "$dir"; [ -n "$root" ] || die "route: say --into ROOT; the root is asserted, never searched"
+  [ -d "$root" ] || die "route: no such root: $root"
+  [ -n "$(colnum "$dir" "$col")" ] || die "route: $col is not a column of $dir"
+  [ -n "$name" ] || name=$col
+  ce=$(encl "$col"); ne=$(encl "$name"); rel=$(relpath "$root" "$dir"); faults=0; added=0
+  [ $chk -eq 1 ] || mkdir -p "$root/c/$ne"
+  while IFS= read -r k; do
+    ke=$(kenc "$k"); f="$dir/r/$ke/$ce"; v=$(cell "$f"); ve=$(encl "$v"); addr="$rel/r/$ke"; m="$root/c/$ne/$ve"
+    if [ $chk -eq 1 ]; then
+      if [ ! -f "$m" ] || ! A="$addr" awk 'BEGIN { a = ENVIRON["A"]; f = 1 } $0 == a { f = 0 } END { exit f }' "$m"; then
+        echo "FAULT $addr ($col = '$v') is not routed in c/$ne/$ve"; faults=$((faults+1)); fi
+      continue
+    fi
+    if [ -f "$m" ] && A="$addr" awk 'BEGIN { a = ENVIRON["A"]; f = 1 } $0 == a { f = 0 } END { exit f }' "$m"; then :; else
+      printf '%s\n' "$addr" >> "$m"; added=$((added+1)); fi
+  done < "$dir/a"
+  if [ $chk -eq 1 ]; then
+    # the other direction: every routed line under c/<name>/ that points into this table reads back
+    for m in "$root/c/$ne"/*; do
+      [ -f "$m" ] || continue; ve=$(basename "$m")
+      while IFS= read -r addr; do
+        case $addr in "$rel/r/"*) ;; *) continue ;; esac
+        f="$root/$addr/$ce"
+        if [ ! -f "$f" ]; then echo "FAULT c/$ne/$ve routes $addr but it has no $col atom"; faults=$((faults+1)); continue; fi
+        got=$(encl "$(cell "$f")"); [ "$got" = "$ve" ] || { echo "FAULT c/$ne/$ve routes $addr whose $col encodes to $got"; faults=$((faults+1)); }
+      done < "$m"
+    done
+    if [ $faults -eq 0 ]; then echo "route --check: holds ($col of $dir in $root/c/$ne)"; else echo "route --check: $faults fault(s)"; exit 1; fi
+    return
+  fi
+  printf '%s: routed %s of %s into %s/c/%s (%s line(s) added, %s key(s))\n' "$me" "$col" "$dir" "$root" "$ne" "$added" "$(grep -c '' "$dir/a")" >&2
+}
+
+# ---------------------------------------------------------------- check
+# check_each: the first check, one shell step per atom (2m57s for 11,406 atoms on the mount); kept as
+# check --each, a second reader of the one-pass check below, which the spec compares it with
+check_each() {
+  dir=${1:?DIR}; need_stem "$dir"; faults=0
+  # every key in a has a dir; every dir is in a
+  while IFS= read -r k; do ke=$(kenc "$k"); [ -d "$dir/r/$ke" ] || { echo "FAULT key in a without r/: $k (r/$ke)"; faults=$((faults+1)); }; done < "$dir/a"
+  for rd in "$dir"/r/*/; do
+    [ -d "$rd" ] || continue; ke=$(basename "$rd")
+    # r -> c: each atom's value is listed in its collection under the encoded name
+    for f in "$rd"*; do
+      [ -f "$f" ] || continue; ce=$(basename "$f"); v=$(cell "$f"); ve=$(encl "$v")
+      m="$dir/c/$ce/$ve"
+      if [ ! -f "$m" ]; then echo "FAULT r/$ke/$ce = '$v' has no c/$ce/$ve"; faults=$((faults+1)); continue; fi
+      k=$(keycell "$dir" "$rd")
+      K="$k" awk 'BEGIN { k = ENVIRON["K"]; f = 1 } $0 == k { f = 0 } END { exit f }' "$m" \
+        || { echo "FAULT r/$ke/$ce = '$v' but c/$ce/$ve does not list key '$k'"; faults=$((faults+1)); }
+    done
+  done
+  # c -> r: each line of each member file reads back to the same encoded name (case collisions
+  # on a folding disk show up here: the directory's name differs from the value's encoding)
+  for cd in "$dir"/c/*/; do
+    [ -d "$cd" ] || continue; ce=$(basename "$cd")
+    for m in "$cd"*; do
+      [ -f "$m" ] || continue; ve=$(basename "$m")
+      while IFS= read -r k; do
+        [ -n "$k" ] || continue
+        ke=$(kenc "$k"); f="$dir/r/$ke/$ce"
+        if [ ! -f "$f" ]; then echo "FAULT c/$ce/$ve lists '$k' but r/$ke/$ce is absent"; faults=$((faults+1)); continue; fi
+        got=$(encl "$(cell "$f")")
+        [ "$got" = "$ve" ] || { echo "FAULT c/$ce/$ve lists '$k' whose r/$ke/$ce encodes to $got"; faults=$((faults+1)); }
+      done < "$m"
+    done
+  done
+  if [ $faults -eq 0 ]; then echo "check: holds ($(grep -c '' "$dir/a") key(s), $(grep -c '' "$dir/l") column(s); r and c agree)"; else echo "check: $faults fault(s)"; exit 1; fi
+}
+
+# check: the same three questions in one awk pass over every atom (fold-up ENHANCE 1, 2026-10-20):
+# every key in a has a dir; each r atom is listed in its collection under its value's name; each
+# collection line reads back to an r atom whose value encodes to that name. Same FAULT lines.
+check() {
+  dir=${1:?DIR}; [ "${2:-}" = --each ] && { check_each "$dir"; return; }
+  need_stem "$dir"
+  w=$(mktemp -d "${TMPDIR:-/tmp}/tv1cr-check.XXXXXX")
+  ( cd "$dir" && find r -type f && find c -type f ) > "$w/files" 2>/dev/null || true
+  set +e
+  D="$dir" T="$w/v" awk -v TAB="$TAB" '
+    function enc(s,   n, out, up, i, ch) {
+      n = length(s); out = ""; up = 0
+      for (i = 1; i <= n; i++) {
+        ch = substr(s, i, 1)
+        if (ch ~ /[A-Z]/) { if (!up) { out = out "^"; up = 1 }; out = out tolower(ch); continue }
+        if (up) { out = out "^"; up = 0 }
+        if (ch ~ /[a-z0-9._-]/) out = out ch
+        else out = out sprintf("%%%02X", ord[ch])
+      }
+      if (up) out = out "^"
+      if (out == "." || out == "..") gsub(/\./, "%2E", out)
+      if (out == "") out = "%"
+      return out
+    }
+    function encl(s,   e, h, c) {
+      e = enc(s); if (length(e) <= 200) return e
+      printf "%s", s > ENVIRON["T"]; close(ENVIRON["T"])
+      c = "sha256sum < \"" ENVIRON["T"] "\""; c | getline h; close(c)
+      return substr(e, 1, 180) "%~" substr(h, 1, 16)
+    }
+    function kenc(k,   n, p, i, o) { n = split(k, p, TAB); o = ""; for (i = 1; i <= n; i++) o = o (i > 1 ? "+" : "") encl(p[i]); return o }
+    function cell(f,   l, v, n) { v = ""; n = 0; while ((getline l < f) > 0) { v = (n++ ? v "\n" : "") l } close(f); return v }
+    BEGIN {
+      for (i = 1; i < 256; i++) ord[sprintf("%c", i)] = i
+      d = ENVIRON["D"]; faults = 0
+      ni = 0; while ((getline l < (d "/i")) > 0) icol[++ni] = encl(l); close(d "/i")
+      nl = 0; while ((getline l < (d "/l")) > 0) nl++; close(d "/l")
+      while ((getline f < ARGV[1]) > 0) {
+        if (f ~ /^r\//) { rest = substr(f, 3); j = index(rest, "/"); if (!j) continue
+          ke = substr(rest, 1, j - 1); ce = substr(rest, j + 1); if (ce ~ /\//) continue
+          val[ke, ce] = cell(d "/" f); has[ke, ce] = 1; rdir[ke] = 1; ratom[++nr] = ke SUBSEP ce }
+        else if (f ~ /^c\//) { rest = substr(f, 3); j = index(rest, "/"); if (!j) continue
+          ce = substr(rest, 1, j - 1); ve = substr(rest, j + 1); if (ve ~ /\//) continue
+          cfile[ce, ve] = 1; nc++; cname[nc] = ce; vname[nc] = ve
+          m = 0; while ((getline k < (d "/" f)) > 0) { mem[ce, ve, k] = 1; lines[nc, ++m] = k } close(d "/" f); cl[nc] = m }
+      }
+      close(ARGV[1])
+      nk = 0; while ((getline k < (d "/a")) > 0) { nk++; ke = kenc(k); if (!(ke in rdir)) { print "FAULT key in a without r/: " k " (r/" ke ")"; faults++ } } close(d "/a")
+      for (x = 1; x <= nr; x++) {
+        split(ratom[x], pr, SUBSEP); ke = pr[1]; ce = pr[2]; v = val[ke, ce]; ve = encl(v)
+        if (!((ce, ve) in cfile)) { print "FAULT r/" ke "/" ce " = \047" v "\047 has no c/" ce "/" ve; faults++; continue }
+        k = ""; for (q = 1; q <= ni; q++) k = k (q > 1 ? TAB : "") val[ke, icol[q]]
+        if (!((ce, ve, k) in mem)) { print "FAULT r/" ke "/" ce " = \047" v "\047 but c/" ce "/" ve " does not list key \047" k "\047"; faults++ }
+      }
+      for (x = 1; x <= nc; x++) for (y = 1; y <= cl[x]; y++) {
+        k = lines[x, y]; if (k == "") continue; ce = cname[x]; ve = vname[x]; ke = kenc(k)
+        if (!((ke, ce) in has)) { print "FAULT c/" ce "/" ve " lists \047" k "\047 but r/" ke "/" ce " is absent"; faults++; continue }
+        got = encl(val[ke, ce]); if (got != ve) { print "FAULT c/" ce "/" ve " lists \047" k "\047 whose r/" ke "/" ce " encodes to " got; faults++ }
+      }
+      if (faults == 0) printf "check: holds (%d key(s), %d column(s); r and c agree)\n", nk, nl
+      else printf "check: %d fault(s)\n", faults
+      exit(faults ? 1 : 0)
+    }' "$w/files"
+  rc=$?; set -e; rm -rf "$w"; [ $rc -eq 0 ] || exit 1
+}
+
+# ---------------------------------------------------------------- stale
+stale() {
+  dir=${1:?DIR}; tsv=${2:-$dir.tsv}; need_stem "$dir"
+  [ -f "$tsv" ] || { echo "stale: no folded table at $tsv"; exit 2; }
+  mark=$tsv; [ -f "$dir/s" ] && [ "$dir/s" -nt "$tsv" ] && mark="$dir/s"
+  newest=$(find "$dir/r" "$dir/c" "$dir/a" "$dir/l" "$dir/i" -newer "$mark" 2>/dev/null | head -1)
+  if [ -n "$newest" ]; then echo "stale: $tsv is older than $newest"; exit 1; fi
+  echo "fresh: no atom under $dir is newer than $tsv"
+}
+
+# ---------------------------------------------------------------- selftest / prove-red
+selftest() {
+  t=$(mktemp -d); trap 'rm -rf "$t"' EXIT
+  printf '# a note\nid\tstate\tsense\nq1\tOPEN\tfirst, with a space\nq2\t\tSeam/seam %%\n' > "$t/x.tsv"
+  "$0" unfold "$t/x.tsv" 2>/dev/null
+  "$0" fold "$t/x" > "$t/y.tsv"; cmp -s "$t/x.tsv" "$t/y.tsv" || die "selftest: fold != unfold input"
+  "$0" check "$t/x" >/dev/null || die "selftest: check failed on a fresh unfold"
+  [ "$("$0" who "$t/x" state '')" = q2 ] || die "selftest: who on the empty value"
+  "$0" set "$t/x" q2 state RULED 2>/dev/null; "$0" check "$t/x" >/dev/null || die "selftest: check after set"
+  [ "$("$0" get "$t/x" q2 state)" = RULED ] || die "selftest: get after set"
+  [ -f "$t/x/d"/*/r/q2/state ] || die "selftest: set kept nothing under d/"
+  "$0" stale "$t/x" "$t/x.tsv" >/dev/null && die "selftest: stale said fresh after set"
+  if [ "${1:-}" = --prove-red ]; then
+    printf 'q3\n' >> "$t/x/c/state/^open^"      # a one-sided write: c says, r does not
+    "$0" check "$t/x" >/dev/null 2>&1 && die "PROVE-RED: check missed a one-sided c write"
+    printf 'OPEN\n' > "$t/x/r/q1/state.swap"; mv "$t/x/r/q1/state.swap" "$t/x/r/q1/state"
+    printf 'RULED\n' > "$t/x/r/q1/state"       # r changed, c not told
+    "$0" check "$t/x" >/dev/null 2>&1 && die "PROVE-RED: check missed a one-sided r write"
+    echo "PROVE-RED OK (2 planted faults, both caught)"
+  fi
+  echo "selftest OK (round trip, check, who, set, get, d/, stale)"
+}
+
+cmd=${1:-}; [ $# -gt 0 ] && shift
+case $cmd in
+  unfold) unfold "$@" ;;
+  fold) fold "$@" ;;
+  set) set_ "$@" ;;
+  get) get_ "$@" ;;
+  who) who "$@" ;;
+  col) col "$@" ;;
+  route) route "$@" ;;
+  check) check "$@" ;;
+  stale) stale "$@" ;;
+  enc) encl "${1-}" ;;
+  selftest) selftest ;;
+  --prove-red) selftest --prove-red ;;
+  -h|--help|'') usage ;;
+  *) usage >&2; die "unknown command: $cmd" ;;
+esac

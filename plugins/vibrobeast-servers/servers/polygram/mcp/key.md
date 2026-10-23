@@ -13,6 +13,10 @@ itself, as a tag in lower case. Then each key you keep is balanced against those
 counts one, each service it is for counts two, a name it says it binds wins outright. A tie at the
 top is never broken by the binder: it asks.
 
+*This file is a view, rendered from atoms: `polygram/mcp/key-words/` (one file per cell; the folded
+table is `key-words.tsv`) by `python3 -m polygram.keywords --render`. Change the atoms, not
+this file; `--check` says when it is stale.*
+
 Line form: ``- `NAME` what it is, in words. #tag #tag``. Lines not in that form are prose.
 
 ## M1 · a token a service gave you, by the name a program asks for it
@@ -50,6 +54,10 @@ Line form: ``- `NAME` what it is, in words. #tag #tag``. Lines not in that form 
 - `PASS` short for password. #password
 - `PW` short for password. #password
 - `PASSWORD` the kind itself. #password
+- `DOCKER` the container registry service (Docker Hub, or a registry docker logs in to). #docker
+- `DREAMHOST` the web host whose API keeps the inputloop.com DNS records. #dreamhost #dns
+- `DNS` the names a domain answers to. #dns
+- `DEPLOY` a deploy key: an ssh key one repository trusts, for git over ssh to that repository. #ssh-key #git
 
 ## M5 · a program that reads one of the names above
 
@@ -60,6 +68,11 @@ Line form: ``- `NAME` what it is, in words. #tag #tag``. Lines not in that form 
 - `scp` takes a key file with -i. #ssh #run
 - `npm` reads the token through .npmrc. #npm #run
 - `twine` reads TWINE_PASSWORD. #pypi #run
+- `docker` logs in with docker login --password-stdin: the door hands it the token on its input, never as -p. #docker #run
+- `curl` for an API that takes the key as a URL parameter (DreamHost's key=): the door writes the URL, key and all, into a config curl reads on its input (-K -), so the key is never an argument or a URL in the command line. #dreamhost #dns #run
+
+A deploy key needs no line of its own: a row of kind ssh-key, FOR `ssh git`, with the repository it
+opens written in its USAGE, is bound for git through GIT_SSH_COMMAND like any other key file.
 
 ---
 

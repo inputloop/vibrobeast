@@ -1,0 +1,5 @@
+# CONTEXTS.tsv -- EXAMPLE frames of reference for the example ledger. Hold yours to roles and to what each party has said.
+# Copyright (C) 2026 Corwin Brust <corwin@bru.st> and Contributors. SPDX-License-Identifier: CC-BY-SA-4.0
+party	who	role	runtime	cares-about	basis	voice
+keeper	person	the person who keeps this pmo	ours	kettle, garden	this file	their own words
+neighbours	public	the people who share the garden	theirs	garden	this file	construed

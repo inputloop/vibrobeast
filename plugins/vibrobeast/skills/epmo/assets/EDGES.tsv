@@ -1,0 +1,6 @@
+# EDGES.tsv -- EXAMPLE edges for the example ledger: what one project may name, lift or depend on of another, and until when.
+# relation: may-name | may-lift | may-depend. crosses: method, mechanism, name, data, or -. state: held | lifted | never.
+# Copyright (C) 2026 Corwin Brust <corwin@bru.st> and Contributors. SPDX-License-Identifier: CC-BY-SA-4.0
+src	dst	relation	crosses	withheld_ref	lifts_when	state	basis
+neighbours	garden	may-lift	data	-	the keeper clears a row and signs the export	held	how epmo-export works: nothing travels by default
+kettle	garden	may-depend	method	-	-	lifted	an example: one project borrows another's way of working

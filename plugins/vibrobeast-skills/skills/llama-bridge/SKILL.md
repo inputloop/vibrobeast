@@ -344,6 +344,31 @@ Bryant's rule picks a family, then a size. On a small card, size is also a quest
 - Whether to offload at all is Bryant's `frugal-offload` gate: the output is checkable, the stakes
   are low, the volume is real, and it is not judgment-heavy. Otherwise keep it on Claude.
 
+## Judgement tasks: split the verdict, let code make it (measured 2026-10-22)
+
+Rule 3 above, applied to judging rather than generating. When a small model is asked to judge a record
+against a rule and answer OK, RED or NOT CHECKED, the rule text moves its bias but does not teach it the
+third answer. Ask two yes/no questions instead and let code make the verdict:
+`scripts/split_verdict.py --prompt` prints the instruction; pipe the answer to
+`scripts/split_verdict.py`, which prints the verdict (PRESENT no → NOT CHECKED; PRESENT yes and MET
+yes → OK; MET no → RED; anything else UNPARSED, never a pass). `--selftest` and `--prove-red` check it.
+
+Receipt (Technology Architecture, `exp-2026-10-22-floor-ladder/RESULTS.md`; 17 cases by an independent
+planter; readers at temperature 0, thinking off):
+
+| reader | rules only | rules + split | false passes, rules only → split |
+|---|---|---|---|
+| qwen3:8b | 10–11 of 17 | **14 of 17** | 5 → 1 |
+| gemma4:12b | 11–13 of 17 | 12 of 17 | 0 → 0 |
+
+- It worked on qwen3:8b and did not help gemma4:12b, which almost never answers `PRESENT: no` and reads
+  a missing record as the rule broken (fail-closed). Say in the rule which of the two you want.
+- Count **false passes** (a fault or an unlooked-at record called OK), not accuracy: an error toward RED
+  or NOT CHECKED sends the work to a person; an error toward OK lets it through.
+- Hosted models were already at 16–17 of 17 with no rules; what the rules added there was the one rule
+  peculiar to the house. Keep judgement on a small model only where the false-pass count says so.
+- One planter, one case set, two local families: rerun before relying on it for a new kind of rule.
+
 ## Where the rest of the llama kit is
 
 `references/KIT.md` lists every part (server, switch, tests, this skill, houseboxer, the probe,
@@ -351,14 +376,18 @@ the cutover card) and where each lives in the plugin, in the source tree, and in
 
 ## Version note
 
+**1.0.1 (2026-10-22):** "Judgement tasks: split the verdict", with `scripts/split_verdict.py` (selftest
+8 of 8, prove-red 3 of 3) and the receipt from the Technology Architecture floor-ladder run. Bryant's
+text is unchanged.
+
 **1.4.0-vb.1 (2026-10-05):** first garden edition. Bryant's v1.4 manual carried whole; the vb.1
 additions, the fake and the smoke check written here. The bridge's own version string says
 `1.4.0-vb.1` so no one takes it for his.
 
 ---
-*Version 1.0.0: first edition on 2026-10-05; spine: 2026-07-04.*
+*Version 1.0.1: edition revised from 1.0.0 on 2026-10-22; spine: 2026-07-04.*
 
 Copyright 2026 Bryant Frankford <nathanielfrankford@gmail.com> (his manual, the text between the
 markers above) and Corwin Brust <corwin@bru.st> and Contributors (the additions); CC-BY-SA4:
-https://creativecommons.org/licenses/by-sa/4.0/ (scripts GPL-3.0-or-later); Mentat (for Corwin;
+https://creativecommons.org/licenses/by-sa/4.0/ (scripts GPL-3.0-or-later); Mentat (for Corwin,
 claude-opus-5-5)

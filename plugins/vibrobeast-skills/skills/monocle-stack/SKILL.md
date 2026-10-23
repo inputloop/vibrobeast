@@ -76,6 +76,9 @@ been left with nothing at all and a reader found it by hand (`c4/q/2026-10-15-gu
 - **lens** — the grid's views; the ladder lens, microscope, bubble chamber says when to climb.
 - **eclipse-pass** — keeps the losers of a deep pass; a stack keeps its set-aside questions.
 - **reformat-prompt** — lands the prompt verbatim; a stack grinds the landed copy.
+- **cxr** — the grid is a table: `mn1sk grid STACK` → `GRID.tsv` → `tv1cr unfold`, and `ls c/layer/1`,
+  `cat c/opening/*` read the stack cold; a first-layer question with no cell shows as `c/answered/%`.
+  Not optional once a stack is landed in C4: the atoms sit beside `GRID.md` (first: `q/2026-10-19-cxr-duality/`).
 
 ## How this skill can fail (falsifiers)
 
@@ -96,8 +99,8 @@ that seeks questions. Impetus: How many questions can you drive into the lens gr
 insight/framing/prompt/query given?"
 
 <!-- footer: minted by bin/ft1mt from conventions/house.env and conventions/FOOTERS.org; edit those, not this -->
-*Version 1.2: first edition 2026-10-15; spine: 2026-10-15.*
+*Version 1.2: first edition 2026-10-20; spine: 2026-10-15.*
 
-Copyright 2026 Corwin Brust <corwin@bru.st> and Contributors; CC-BY-SA4: https://creativecommons.org/licenses/by-sa/4.0/ (scripts GPL-3.0-or-later); Mentat (for Corwin; claude-opus-5-5)
+Copyright 2026 Corwin Brust <corwin@bru.st> and Contributors; CC-BY-SA4: https://creativecommons.org/licenses/by-sa/4.0/ (scripts: GNU General Public License, version 3 or any later version; SPDX GPL-3.0-or-later); Mentat (for Corwin, claude-opus-5-5)
 From the collection Corwin Brust and Bryant Frankford keep together, with K Smith as editor of the works she edited; thanks in ACKNOWLEDGEMENTS; home: https://github.com/inputloop
 <!-- /footer -->

@@ -64,6 +64,15 @@ def cases(tool):
         case("drop refuses without a reason", rc == 2 and "say why" in o, o)
         rc, o = run(tool, "drop", mklist(d, 9, name="range"), "12", "x")
         case("drop refuses an idea that is not there", rc == 2 and "no idea 12" in o, o)
+        words = mklist(d, 9, name="words")
+        rc, o = run(tool, "drop", words, "idea 0", "x")
+        case("drop by words refuses words more than one idea holds, and lists them", rc == 2 and "more than one" in o and "idea 05" in o, o)
+        rc, o = run(tool, "drop", words, "idea 05", "said twice")
+        lost = open(words + ".losers").read() if os.path.exists(words + ".losers") else ""
+        case("drop by words sets aside that idea and no other", rc == 0 and "idea 05" in lost and "idea 05" not in open(words).read() and "idea 06" in open(words).read(), o)
+        case("drop prints the list renumbered", "renumbered" in o and "  5: idea 06" in o, o)
+        rc, o = run(tool, "drop", words, "no such words", "x")
+        case("drop by words refuses words no idea holds", rc == 2 and "no idea holds" in o, o)
         rc, o = run(tool, "state", mklist(d, 17, inhibited=True, name="inh"))
         case("17 with sorting inhibited: STOP at GRAND", "STOP" in o and "inhibited" in o, o)
         rc, o = run(tool, "state", mklist(d, 17, name="g17"))
@@ -99,6 +108,7 @@ PLANTS = [
     ("a second GREAT removal passes", "[ \"$g\" -le 1 ]", "[ \"$g\" -le 9 ]"),
     ("early removal passes", "'$1 < G {f=1} END {exit f}'", "'END {exit 0}'"),
     ("drop needs no reason", "[ -n \"$why\" ] ||", "true ||"),
+    ("drop by words takes the first that holds them", "exit(c ? 3 : 1)", "exit(c ? 0 : 1)"),
 ]
 
 

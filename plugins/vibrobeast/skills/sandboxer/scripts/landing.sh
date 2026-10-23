@@ -12,9 +12,18 @@
 # usage: sh landing.sh RECEIPT [ROOT]            check (ROOT defaults to the receipt's folder)
 #        sh landing.sh --dir DIR RECEIPT [ROOT]   check, and name files under DIR not in the receipt
 #        sh landing.sh --make ROOT FILE...        print receipt lines for FILEs, relative to ROOT
+#        sh landing.sh --stage SRC [OUTDIR]       copy SRC to a staged path never used before,
+#                                                 OUTDIR/<stem>-<sha8>/<name> (OUTDIR default
+#                                                 /mnt/user-data/outputs), and print that path and
+#                                                 its sha256: commit from it, then hash the device side
 #        sh landing.sh --prove-red                planted cases must come out as planted
 # exit:  0 every file LANDED and no STRAY · 1 anything else · 2 usage
-# Writes nothing, except --prove-red, which works under ${TMPDIR:-/tmp} and cleans up after itself.
+# Writes nothing, except --stage (one new folder in OUTDIR) and --prove-red, which works under
+#   ${TMPDIR:-/tmp} and cleans up after itself.
+# Why --stage: device_commit_files keeps the bytes it first read under a staged path. A staged path
+#   reused after an edit landed the old bytes 3 times of 3 on 2026-10-19; a fresh staged path landed
+#   the new bytes 6 of 6. The sha8 in the folder name makes each version a new path, and a staged path
+#   that is already there is refused, so a name is never reused by accident.
 set -u
 
 sha() { sha256sum "$1" 2>/dev/null | cut -d' ' -f1; }
@@ -47,6 +56,17 @@ check() { # check RECEIPT ROOT [DIR] -> prints words, returns 0 or 1
   return "$bad"
 }
 
+stage() { src=$1; out=${2:-/mnt/user-data/outputs}
+  [ -f "$src" ] || { printf 'landing: no such file to stage: %s\n' "$src" >&2; return 2; }
+  [ -d "$out" ] || { printf 'landing: no outputs folder: %s\n' "$out" >&2; return 2; }
+  h=$(sha "$src"); name=${src##*/}; stem=${name%.*}; [ -n "$stem" ] || stem=$name
+  dest=$out/$stem-$(printf '%.8s' "$h")/$name
+  if [ -e "$dest" ] || [ -e "${dest%/*}" ]; then
+    printf 'landing: %s is already a staged path; a staged path is used once (commit from it as it is, or edit and stage again)\n' "$dest" >&2; return 1; fi
+  mkdir -p "${dest%/*}" && cp "$src" "$dest" || return 1
+  [ "$(sha "$dest")" = "$h" ] || { printf 'landing: the staged copy does not hash like its source: %s\n' "$dest" >&2; return 1; }
+  printf '%s\n%s\n' "$dest" "$h"; }
+
 make_receipt() { root=$1; shift; for f in "$@"; do
     case $f in "$root"/*) rel=${f#"$root"/} ;; *) rel=$f ;; esac
     ( cd "$root" && sha256sum "$rel" ) || return 1; done; }
@@ -69,15 +89,21 @@ prove_red() {
   case_ 'a stray reads STRAY' yes "$(printf '%s' "$o" | grep -q '^STRAY    h/t.12' && echo yes || echo no)"
   check "$T/root/r.sha256" "$T/root" >/dev/null; case_ 'without --dir a stray is not looked for (exit 0)' 0 $?
   ( cd "$T/root" && sha256sum -c r.sha256 >/dev/null 2>&1 ); case_ 'the receipt is plain sha256sum -c format (second reader agrees)' 0 $?
+  mkdir -p "$T/out"; o=$(stage "$T/root/h/a.md" "$T/out"); e=$?; d=$(printf '%s\n' "$o" | sed -n 1p)
+  case_ '--stage copies to <stem>-<sha8>/<name> with the same bytes' yes "$( [ $e = 0 ] && cmp -s "$d" "$T/root/h/a.md" && case $d in "$T/out"/a-????????/a.md) echo yes;; *) echo no;; esac || echo no)"
+  stage "$T/root/h/a.md" "$T/out" >/dev/null 2>&1; case_ '--stage refuses a staged path that is already there (no reuse)' 1 $?
+  printf 'one, edited\n' > "$T/root/h/a.md"; o2=$(stage "$T/root/h/a.md" "$T/out"); d2=$(printf '%s\n' "$o2" | sed -n 1p)
+  case_ '--stage after an edit gives a new path' yes "$( [ -n "$d2" ] && [ "$d2" != "$d" ] && echo yes || echo no)"
   printf -- '-- prove-red: %s ok, %s red --\n' "$ok" "$red"; [ "$red" = 0 ]
 }
 
 case ${1:-} in
   --prove-red) prove_red; exit $? ;;
+  --stage) shift; [ $# -ge 1 ] || { echo 'usage: landing.sh --stage SRC [OUTDIR]' >&2; exit 2; }; stage "$@"; exit $? ;;
   --make) shift; [ $# -ge 2 ] || { echo 'usage: landing.sh --make ROOT FILE...' >&2; exit 2; }; make_receipt "$@"; exit $? ;;
   --dir) [ $# -ge 3 ] || { echo 'usage: landing.sh --dir DIR RECEIPT [ROOT]' >&2; exit 2; }
          d=$2; r=$3; root=${4:-$(dirname "$r")}; check "$r" "$root" "$d"; exit $? ;;
-  -h|--help) sed -n '2,17p' "$0"; exit 0 ;;
-  '') sed -n '2,17p' "$0" >&2; exit 2 ;;
+  -h|--help) sed -n '2,26p' "$0"; exit 0 ;;
+  '') sed -n '2,26p' "$0" >&2; exit 2 ;;
   *) r=$1; root=${2:-$(dirname "$r")}; check "$r" "$root"; exit $? ;;
 esac

@@ -185,6 +185,9 @@ a stranger's assistant with no context at all.
 - [[countable-gauge]] — pressure is a gauge, so it prints a number and not a
   verdict. What the number means is your judgement, not the tool's.
 - [[import-memory]] — the other direction, when notes are arriving.
+- [[cxr]] — a notes table with `first-seen` and `pressure` columns is a table: unfolded, `who DIR first-seen PATH`
+  is "everything we learned there", and `ls c/pressure` is the gauge's range without a query. Reach for it when
+  the table outgrows one screen; say the atom count when you do.
 
 ## Provenance
 
@@ -200,8 +203,8 @@ served over MCP by `mentcached`; this skill is the version that works with
 none of that installed. **Mint status: unblessed**, nothing installed.
 
 <!-- footer: minted by bin/ft1mt from conventions/house.env and conventions/FOOTERS.org; edit those, not this -->
-*Version 1.1.0: edition revised from 1.0.1 on 2026-10-10; spine: 2026-09-14.*
+*Version 1.2: edition revised from 1.1.0 on 2026-10-20; spine: 2026-09-14.*
 
-Copyright 2026 Corwin Brust <corwin@bru.st> and Contributors; CC-BY-SA4: https://creativecommons.org/licenses/by-sa/4.0/ (scripts GPL-3.0-or-later); Mentat (for Corwin; claude-opus-5-5)
+Copyright 2026 Corwin Brust <corwin@bru.st> and Contributors; CC-BY-SA4: https://creativecommons.org/licenses/by-sa/4.0/ (scripts: GNU General Public License, version 3 or any later version; SPDX GPL-3.0-or-later); Mentat (for Corwin, claude-opus-5-5)
 From the collection Corwin Brust and Bryant Frankford keep together, with K Smith as editor of the works she edited; thanks in ACKNOWLEDGEMENTS; home: https://github.com/inputloop
 <!-- /footer -->

@@ -64,6 +64,11 @@ check() {
   case "$base" in *.*) ext=".${base##*.}";; esac
   case "$base" in
     *.deck.md) form=DECK; prefix='(none: .deck.md)'; stem=${base%.deck.md};;
+    # the GNU release forms carry no prefix: GNU names the file, so the name is the form (2026-10-20)
+    NEWS|NEWS.md|NEWS.org) form=NEWS; prefix='(none: the GNU name)';;
+    ChangeLog|CHANGELOG|CHANGELOG.md) form=CHANGELOG; prefix='(none: the GNU name)';;
+    INSTALL|INSTALL.md) form=INSTALL; prefix='(none: the GNU name)';;
+    *.texi) form=MANUAL; prefix='(none: a Texinfo manual)';;
   esac
   if [ -z "$form" ] && [ "$pdir" = c ];     then form=REGISTER; prefix='(none: under c/)'; fi
   if [ -z "$form" ] && [ "$pdir" = facts ]; then form=FACT;     prefix='(none: under facts/)'; fi
@@ -75,9 +80,9 @@ check() {
       return 1
     fi
     rest=${base#"$prefix"-}
-    if ! printf '%s\n' "$rest" | grep -Eq '^([0-9]{4}-[0-9]{2}-[0-9]{2}|[0-9]{8}T[0-9]{4}Z)'; then
+    if ! printf '%s\n' "$rest" | grep -Eq '^([0-9]{4}-[0-9]{2}-[0-9]{2}|[0-9]{8}T[0-9]{4}Z|[0-9]{8}([-.]|$))'; then
       say 'prefix:' "$prefix"
-      say 'date:' "NONE after the prefix (want YYYY-MM-DD or YYYYMMDDTHHMMZ; got '$rest')"
+      say 'date:' "NONE after the prefix (want YYYY-MM-DD, YYYYMMDD or YYYYMMDDTHHMMZ; got '$rest')"
       say 'verdict:' 'RED (no date after the prefix)'
       return 1
     fi
@@ -176,6 +181,10 @@ WAVE|-brief
 SEAL|SCORE
 SCORE|SEAL
 REGISTER|d/
+NEWS|-
+CHANGELOG|-
+INSTALL|-
+MANUAL|-
 ROWS
   REG="$t/.reg/c/wf"; DESC="$t/.reg/d/c/wf"
   case_() {  # case_ LABEL WANT-EXIT WANT-TEXT PATH
@@ -206,6 +215,15 @@ ROWS
   case_ 'control: SEAL scored later (pending)' 0 'PENDING' "$t/seal/SEAL-2026-09-09-hypothesis-c4actual.sha256"
   : > "$t/seal/SCORE-2026-09-11-sealed-hypotheses.md"
   case_ 'control: SEAL with its SCORE beside it' 0 'PRESENT' "$t/seal/SEAL-2026-09-09-hypothesis-c4actual.sha256"
+  : > "$t/NOTE-20261020-advice-ledger-date.md"
+  case_ 'control: a YYYYMMDD date, as the advice ledger writes it' 0 'verdict:   OK' "$t/NOTE-20261020-advice-ledger-date.md"
+  : > "$t/NOTE-2026102-seven-digits.md"
+  case_ 'mutant: seven digits are not a date' 1 'no date after the prefix' "$t/NOTE-2026102-seven-digits.md"
+  mkdir -p "$t/gnu/doc"; : > "$t/gnu/NEWS"; : > "$t/gnu/ChangeLog"; : > "$t/gnu/INSTALL"; : > "$t/gnu/doc/g.texi"
+  case_ 'control: NEWS is the NEWS form' 0 'the GNU name' "$t/gnu/NEWS"
+  case_ 'control: ChangeLog is the CHANGELOG form' 0 'the GNU name' "$t/gnu/ChangeLog"
+  case_ 'control: INSTALL is the INSTALL form' 0 'the GNU name' "$t/gnu/INSTALL"
+  case_ 'control: a .texi is the MANUAL form' 0 'a Texinfo manual' "$t/gnu/doc/g.texi"
   mkdir -p "$t/c" "$t/d/c"; : > "$t/c/p"
   case_ 'mutant: register without its descriptor' 1 'ABSENT' "$t/c/p"
   : > "$t/d/c/p"

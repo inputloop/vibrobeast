@@ -547,8 +547,14 @@ def build(by: str | None = None, seat: Path | None = None,
     _prefs.register(srv, by=st.by)   # the switches, by default on (2026-09-23)
     _softskills.register(srv)        # the dynaloader: SOFT-SKILLS folders served live (2026-09-23)
     _words.register(srv, by=st.by)   # the word-path registry, a second reader of C4's g/<word>/ (2026-09-24)
+    from . import epmo as _epmo
+    _epmo.register(srv, by=st.by)    # EPMO: the capability lens, tokenization over r/epmo (2026-10-19)
     from . import keys as _keys
     _keys.register(srv)              # the keys you keep, the names they answer to, key_run (2026-10-12)
+    from . import mode as _mode
+    _mode.register(srv, by=st.by)    # LAB or WORKSHOP: the settings page's default, a bounded switch from chat (2026-10-23)
+    from . import orglimits as _org
+    _org.register(srv)               # a group's ORG.md: what it limits here, read only (2026-10-23)
     return srv
 
 

@@ -329,7 +329,7 @@ def _prove_red() -> int:
             _gp26.getuser = lambda: "user"
             _g26 = _pf26.keeper_and_how()
             _pfile26.write_text("ts\tkey\tvalue\tby\twhy\tturn\tconsent\n"
-                                "2026-10-01\tkeys.standing\t\tclaude\tx\tcorwin\t\n", encoding="utf-8")
+                                "2026-10-01\tkeys.standing\t\tclaude\tx\tcorwin\t\n", encoding="utf-8", newline="\n")
             _gp26.getuser = lambda: "bryant"
             _s26 = _pf26.keeper_and_how()
             _os26.environ["MENTCACHED_KEEPER"] = "bryant"
@@ -345,8 +345,9 @@ def _prove_red() -> int:
              _a26[0] == "bryant" and "account name" in _a26[1], f"{_a26!r}")
         want("a generic account name (user) is not taken for a person",
              _g26[0] != "user" and "old default" in _g26[1], f"{_g26!r}")
-        want("a seat that records its keeper keeps that keeper when the field is empty",
-             _s26[0] == "corwin" and "seat" in _s26[1], f"{_s26!r}")
+        want("a seat's own rows never name the keeper: an empty field takes the account name, not the "
+             "turn that wrote the first keeper-only row (2026-10-23)",
+             _s26[0] == "bryant" and "account name" in _s26[1], f"{_s26!r}")
         want("the Keeper field wins over the seat's record",
              _f26 == ("bryant", "the Keeper setting"), f"{_f26!r}")
 

@@ -55,7 +55,7 @@ The answers:
 4. **Sign.**  `persona_byline NAME PRINCIPAL [owns]` gives `Author: NAME (for PRINCIPAL)` and the
    copyright line in the principal's name; when the principal owns the content, the split line
    `PRINCIPAL (owns), transcribed & formalized by NAME`.  In the garden the footer is minted
-   (`Mentat (for Corwin; MODEL)`) by `bin/ft1mt`; do not hand-write it.
+   (`Mentat (for Corwin, MODEL)`) by `bin/ft1mt`; do not hand-write it.
 5. **Change a sheet only by appending.**  `persona_mutate NAME entry evidence would_change`: the
    entry is the persona's own (from its session or its principal), the evidence is what happened,
    and would_change says what it changes.  All three, or no generation.  Never overwrite.
@@ -146,4 +146,4 @@ fantasy-operational-boundary (a fiction persona near a real system), the persona
 
 *Version 0.3: edition revised from 0.2 on 2026-10-05; spine: 2026-10-04.*
 
-Copyright 2026 Corwin Brust <corwin@bru.st> and Contributors; CC-BY-SA4: https://creativecommons.org/licenses/by-sa/4.0/ (scripts GPL-3.0-or-later); Mentat (for Corwin; claude-opus-5-5)
+Copyright 2026 Corwin Brust <corwin@bru.st> and Contributors; CC-BY-SA4: https://creativecommons.org/licenses/by-sa/4.0/ (scripts GPL-3.0-or-later); Mentat (for Corwin, claude-opus-5-5)

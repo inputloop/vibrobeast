@@ -1,0 +1,43 @@
+# SCHEMAS.tsv -- the mapping document: each first-tier application's fields, mapped onto the lens.
+# This file IS the "map" frame (their runtime): anyone can apply it by hand or in any language.
+# bin/ep1mo is the "transformer" frame (our runtime) and reads its rules from here, never from code.
+# app: pmo.todos | pmo.projects | tavern.task | kiosk.stack | epmo.export (EPMO Convention v0.1).
+# rule:  a=b;c=d   value map onto the lens dim (left = the app's value, right = a LENS.tsv value)
+#        placement  take the dim from r/epmo/PLACEMENTS.tsv by the row's project key
+#        quote      carried verbatim as the first of the three layers (the quote layer)
+#        key        the row's identity in its own app; carried, never reinterpreted
+#        provenance a signature, chain or receipt: carried so the row can be checked at its source
+# loss: what the arrow drops, said in words. "none" is a claim ep1mo roundtrip tests.
+# Sources: pmo/bin/pmo-lib.sh and doc/LEDGER-SPEC.md; tavern.py 2.3.1 (Room.tasks, task_priority, DUE_TAG);
+#   inputloop/c4-draw-kiosk door/data/stack.tsv header; pmo/bin/epmo-export header.
+# Copyright (C) 2026 Corwin Brust <corwin@bru.st> and Contributors. SPDX-License-Identifier: CC-BY-SA-4.0
+app	field	values	dim	rule	loss
+pmo.todos	id	sequenced integer	-	key	the order the id implies was never negotiated (facts/pmo-is-two-compatibility-layers-below-the-heuristic.md)
+pmo.todos	project	roster key	who	placement	none
+pmo.todos	project	roster key	band	placement	none
+pmo.todos	project	roster key	layer	placement	none
+pmo.todos	project	roster key	frame	placement	none
+pmo.todos	state	TODO DOING DONE (any word)	stance	TODO=guess;DOING=bet;DONE=bet;*=guess	DONE and DOING both read as bet; a word outside the three reads as guess and its spelling is lost
+pmo.todos	priority	A B C	-	key	an unweighted rank; no cardinality, so it is carried, not mapped
+pmo.todos	tags	comma words	-	key	a tag that is a proper gap (tx1lk) carries no meaning yet
+pmo.todos	text	free text	-	quote	none
+pmo.projects	key	roster key	-	key	none
+pmo.projects	status	active idle maintenance planning	stance	active=bet;maintenance=bet;planning=forecast;idle=guess	maintenance and active both read as bet
+pmo.projects	home	path or -	layer	placement	the path itself is carried as key, not interpreted
+tavern.task	id	event id	-	key	none
+tavern.task	title	text with #p and #due tags	-	quote	none
+tavern.task	status	open claimed closed	stance	open=guess;claimed=bet;closed=bet	claimed and closed both read as bet
+tavern.task	priority	1 2 3 or 0	-	key	an unweighted rank, as pmo's
+tavern.task	due	YYYY-MM-DD or empty	stance	*=forecast	the date is carried as key; any due date marks the row forecast too
+tavern.task	room	room name	who	main=team;*=team	a room's membership is not in the task, so every room reads as team
+tavern.task	claimers	member ids	who	*=team	who claimed is carried as key
+tavern.task	notes.kind	human agent	-	key	none
+tavern.task	sig	signed event chain	-	provenance	none
+kiosk.stack	leg	arch parabola guix proxmox	layer	*=os	none
+kiosk.stack	layer	base boot kernel php nextcloud ...	band	*=form	the layer's name is carried as key
+kiosk.stack	status	proven built planned to-verify open	stance	proven=bet;built=bet;planned=forecast;to-verify=guess;open=guess	open is a held tension, not a guess; the distinction is kept in key
+kiosk.stack	note	text with a receipts/ path	-	provenance	none
+epmo.export	garden	stable lowercase name	who	*=org	none
+epmo.export	state	TODO DOING DONE HOLD	stance	TODO=guess;DOING=bet;DONE=bet;HOLD=proscribe	HOLD covers every unknown state word upstream
+epmo.export	updated	YYYY-MM-DD (git blame)	-	key	none
+tavern.task	project	not a Tavern field	who	placement	Tavern tasks carry no project; the export assigns one (judged), and a wrong key places the row wrongly

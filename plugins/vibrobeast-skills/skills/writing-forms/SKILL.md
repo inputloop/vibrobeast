@@ -6,9 +6,10 @@ description: >-
   "write it up", "land a note / card / model / lens", "what shape does a … take", "is there a form
   for this", or when a new PREFIX-date-slug filename is about to be minted. Carries the rule that a
   deliverable picks ONE form and says so in its filename, points at the register c/wf (columns
-  d/c/wf) as the source of truth, names the most-used forms, the five cross-cutting techniques
-  (two piles · cite at the act · a falsifier on every concern · the pair rule · his words), how a new form is
-  born, and the fence on notes other sessions wrote. Not rolls (report kinds and their guards), not
+  d/c/wf) as the source of truth, names the most-used forms and the GNU release forms (a manual,
+  NEWS, a ChangeLog, INSTALL, --help and --version), the six cross-cutting techniques (two piles ·
+  cite at the act · a falsifier on every concern · the pair rule · his words · the reader's gain
+  first), how a new form is born, and the fence on notes other sessions wrote. Not rolls (report kinds and their guards), not
   reformat-prompt (the REFORMAT pair), not run-card (the RUNCARD), not skill-creator (skills).
   Owns the FORM, not the content.
 metadata:
@@ -18,8 +19,11 @@ metadata:
 
 # writing-forms — one form per deliverable, said in the filename
 
-The shop keeps its prose in dated, prefixed files: `<FORM>-<date>-<slug>.md` under `h/`, facts
-under `facts/`, doctrine under `decks/`, rows under `c/` with their columns in `d/`. Each form
+The shop keeps its prose in dated, prefixed files, `<FORM>-<date>-<slug>.md`, filed where their
+subject lives: a project's own folder, the seat's `advice/` ledger for ENHANCE queues and retro
+records, facts under `facts/`, doctrine under `decks/`, rows under `c/` with their columns in `d/`.
+Not piled in the seat's `h/`: its INDEX names `h/` the keeper's scratch-pad, not a home, and
+skilltank says the same ("Never `h/`"). Each form
 answers one question and opens with its own first section, so a reader who knows the prefix knows
 what the file will do for them before opening it. This skill is the discipline that keeps that
 true: it makes a writer choose a form before writing, name it in the filename, and open with the
@@ -35,7 +39,10 @@ A deliverable takes exactly one form, and the filename carries it:
 - `FORM` is an upper-case prefix from the register (below). One prefix, never two joined by a
   hyphen: `MEMORY-SORT-2026-09-11.md` reads as prefix `MEMORY` with no date after it, and the check
   script says so.
-- The date is `YYYY-MM-DD`. Dispatched work (a card, a wave brief, a rendered view) uses the stamp
+- The date is `YYYY-MM-DD`, or `YYYYMMDD` where the form's home already writes it that way (the
+  advice ledger's `ENHANCE-20261020-…` and `20261018-retro-…` records, as skilltank names them).
+  Both are kept and the check accepts both: two homes each had a rule, and the house default for a
+  tension where both work is to support both (his preference, 2026-10-09). Dispatched work (a card, a wave brief, a rendered view) uses the stamp
   form `YYYYMMDDTHHMMZ` so parallel arms cannot overwrite each other.
 - The slug says what, in a few lowercase words. Dispatched work adds the arm at the end.
 - The H1 repeats the form and the date in words, and the first section is the one the register's
@@ -77,7 +84,20 @@ is `c/<name>` with its columns in `d/c/<name>`. Rows whose NOTE begins `[MINE]` 
 the filename alone, not from an opened exemplar; treat them as proposals and fix them on the
 form's next use.
 
-## Five techniques that cut across every form
+## The GNU release forms (no prefix: GNU names the file)
+
+A program meant for free-software readers ships five forms they already know how to read, and the
+register has a row for each: **MANUAL** (a Texinfo manual in `doc/NAME.texi`: how a person uses the
+thing, start to finish), **NEWS** (what changed for the people who use it, release by release),
+**CHANGELOG** (what changed, file by file, written before each commit), **INSTALL** (how to build it,
+install it with DESTDIR and take it off again), and **CLI** (what `--help` and `--version` say; not a
+file, the program's own output). Like a FACT or a DECK, they carry no prefix and no date: the name is
+the form, and `wf-check.sh` reads `NEWS`, `ChangeLog`, `INSTALL` and any `.texi` that way. The
+examples are theseus's own (`doc/theseus.texi`, `NEWS`, `ChangeLog`, `INSTALL`, `python recipe.py
+--help`). The nongnu-steward soft skill says what each must contain for a GNU review; kid-glove's kit
+has the matching topics (manual, cli, install) for a house that has none.
+
+## Six techniques that cut across every form
 
 1. **Two piles.** Keep OBSERVED (what a source says, quoted, with its path and line or the command
    that produced it) apart from JUDGED (your reading, saying in words whose it is and citing its
@@ -114,6 +134,15 @@ form's next use.
 
    A prompt of his gets the full REFORMAT pair (reformat-prompt); this technique is the general rule
    that pair is one case of. Building the contrast persona itself is persona work, not a form.
+6. **The reader's gain first.** Lead with what the reader can do with the thing; put who made it at
+   the credits depth (copyright notices, AUTHORS, THANKS, a footer, a colophon). His words of
+   2026-10-18: the work "should sing about itself (what readers gain), not about its makers". It can
+   be measured: the kiosk's voice gauge, `tools/vo1ga` in c4-draw-kiosk (its words in
+   `door/data/voice-words.tsv`, `tests/voice-peer.py` its second reader), counts the words a reader
+   meets before the first thing they can press, and how often our own names appear. A page rewritten
+   by this technique reads lower on both; one that reads no lower than before was not rewritten by it. The seam with kid-glove: its kit puts a
+   persona line in the footer, and that is the credits depth, so the two agree on where; the person
+   now outranks both, as kid-glove's order says.
 
 ## How a new form is born
 
@@ -197,13 +226,15 @@ missing half, and does not add a row.
 - His words drift: a deliverable quotes him, and the quote does not match its source byte for byte
   (`grep -F` the quoted line in the cited file), or a smoothed wording stands where the record
   should hold his. Either means technique 5 was skipped.
-- Off-switch: say "no form, just write it" (or "scratch"), or drop the prefix and land the file
-  outside `h/` — the skill applies to prefixed, dated files under the shop's `h/`, `facts/`,
-  `decks/` and `c/`, and to nothing else.
+- A manual, NEWS, ChangeLog or INSTALL lands in a tree nongnu-steward tends and `wf-check.sh` cannot
+  name its form: the GNU rows or their name rules are missing (this was the case until 2026-10-20).
+- Off-switch: say "no form, just write it" (or "scratch") — the skill applies to prefixed, dated
+  files, to the GNU release forms by their names, and to `facts/`, `decks/` and `c/`, and to nothing
+  else.
 
 <!-- footer: minted by bin/ft1mt from conventions/house.env and conventions/FOOTERS.org; edit those, not this -->
-*Version 1.1.2: edition revised from 1.1.0 on 2026-10-10; spine: 2026-08-09.*
+*Version 1.2: edition revised from 1.1.2 on 2026-10-20; spine: 2026-08-09.*
 
-Copyright 2026 Corwin Brust <corwin@bru.st> and Contributors; CC-BY-SA4: https://creativecommons.org/licenses/by-sa/4.0/ (scripts GPL-3.0-or-later); Mentat (for Corwin; claude-opus-5-5)
+Copyright 2026 Corwin Brust <corwin@bru.st> and Contributors; CC-BY-SA4: https://creativecommons.org/licenses/by-sa/4.0/ (scripts: GNU General Public License, version 3 or any later version; SPDX GPL-3.0-or-later); Mentat (for Corwin, claude-opus-5-5)
 From the collection Corwin Brust and Bryant Frankford keep together, with K Smith as editor of the works she edited; thanks in ACKNOWLEDGEMENTS; home: https://github.com/inputloop
 <!-- /footer -->
