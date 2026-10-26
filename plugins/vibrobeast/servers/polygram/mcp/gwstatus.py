@@ -227,6 +227,39 @@ def resolve(r: dict, d: dict) -> dict:
             "auth_method": d["auth_method"], "valid": valid_name(name) and auth in AUTHS, "how": how}
 
 
+def page_meaning(d: dict | None = None) -> dict:
+    """The page's words for every Ghostwheel field (pagewords), and what each comes to on each host.
+
+    2026-10-26 05:32, Corwin and Bryant: an empty field must reach the agent with the meaning the page
+    gives it.  "applies_here" is computed by resolve(), the same code that logs in, so the sentence and
+    the behaviour can be compared (tests: t/pagewords-check.sh and its second reader)."""
+    from . import pagewords
+    d = d or defaults()
+    out = pagewords.explain(fields=None)
+    hs = [h for h in hosts(d) if h["enabled"]]
+    def each(f):
+        return "; ".join(f(h) for h in hs) or "no hosts listed yet"
+    here = {
+        "gw_domain": lambda: each(lambda h: f"{h['name']} is {h['fqdn']}"),
+        "gw_auth": lambda: f"{d['auth']} (" + ("an SSH key is set" if d["key"] else "no SSH key is set") + ")",
+        "gw_user": lambda: each(lambda h: f"{h['short']} logs in as {h['user']}"),
+        "gw_method": lambda: each(lambda h: f"{h['name']}: {h['method']}"),
+        "gw_port": lambda: each(lambda h: f"{h['name']}: {h['port']}"),
+        "gw_auth_method": lambda: d["auth_method"],
+        "gw_refresh": lambda: f"{d['refresh']} seconds",
+        "gw_hosts_file": lambda: str(hosts_file()),
+    }
+    rows = [r for r in out["fields"] if r["field"].startswith("gw_")]
+    for r in rows:
+        if r["field"] in here:
+            try:
+                r["applies_here"] = here[r["field"]]()
+            except Exception as e:                          # noqa: BLE001
+                r["applies_here"] = f"could not work it out ({e.__class__.__name__})"
+    out["fields"] = rows
+    return out
+
+
 def _plan(auth: str, d: dict, uses_default_auth: bool) -> tuple[str, int]:
     if uses_default_auth and d["method"]:
         method = d["method"]
@@ -601,11 +634,14 @@ def build():
                     "any name lookup or new host key unless you said always", "sent": "nothing"}
         return srv
 
-    @srv.tool("gw_settings", "The ghostwheel status defaults and permission switches as this server "
-              "reads them, in words. Secrets are said as set or not set, never shown.")
+    @srv.tool("gw_settings", "The ghostwheel settings as the settings page says them: each field's title "
+              "and words, whether it was filled in, and when it was not, the page's own Left empty "
+              "sentence and what that comes to on each host (gw33 logs in as gw33). Say an empty field "
+              "by that sentence, never as missing. Secrets are said as set or not set, never shown.")
     def _settings(_a):
         d = defaults()
-        return {"defaults": {k: v for k, v in d.items() if k not in ("problems",)},
+        return {"page": page_meaning(d),
+                "defaults": {k: v for k, v in d.items() if k not in ("problems",)},
                 "problems": d["problems"], "hosts_file": str(hosts_file()),
                 "outputs": {"svg": str(OUT_SVG), "page": str(OUT_HTML), "last": str(LAST)},
                 "known_hosts_file": str(KNOWN),

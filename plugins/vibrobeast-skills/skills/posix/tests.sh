@@ -9,7 +9,7 @@
 # tests.sh --- tool.py against small shell files planted in a temp dir.
 #
 #   sh tests.sh              a clean POSIX script reads OK; each planted smell is reported
-#   sh tests.sh --prove-red  the above, then break tool.py seven ways in a temp copy;
+#   sh tests.sh --prove-red  the above, then break tool.py eight ways in a temp copy;
 #                            exit 0 only if the real tool is green AND every break goes red
 #
 # What tool.py promises (its header; SKILL.md): under #!/bin/sh it names each bashism by line;
@@ -54,6 +54,7 @@ B
 	printf 'set -eu\n:\n' >"$f/noshebang.sh"
 	printf '#!/bin/sh\n:\n' >"$f/noset.sh"
 	printf '#!/bin/sh\nset -eu\nif then fi fi\n' >"$f/syntax.sh"
+	mkdir -p "$tmp/two"; printf '#!/bin/sh\n:\n' >"$tmp/two/a.sh"; printf '#!/usr/bin/bash\n:\n' >"$tmp/two/b.sh"
 }
 
 expect() { # expect NAME FILE WANT_PRESENT[|...] [WANT_ABSENT]
@@ -84,6 +85,9 @@ suite() { # suite TOOL_PATH
 	expect "no shebang is noted" noshebang.sh "[NOTE] no shebang"
 	expect "no set -e/-u is noted" noset.sh "[NOTE] no set -e/-u"
 	expect "a syntax error is reported" syntax.sh "[SYNTAX] sh -n"
+	notes=$("$PY" -B "$tool" "$tmp/two/a.sh" "$tmp/two/b.sh" 2>&1 | grep -c 'no set -e/-u' || true)
+	if [ "${notes:-0}" = 1 ]; then pass=$((pass + 1)); echo "PASS  two files with no set -e/-u in one directory draw ONE note"
+	else fail=$((fail + 1)); echo "FAIL  two files with no set -e/-u in one directory drew $notes notes (want 1)"; fi
 	expect "a file that is not there: READ, still exit 0" absent.sh "[READ] cannot read"
 	after=$(cd "$f" && cksum ./* | sort)
 	[ "$before" = "$after" ] && { pass=$((pass + 1)); echo "PASS  read-only: every planted file byte-identical after"; } ||
@@ -101,6 +105,7 @@ CRLF check off	    if b'\r\n' in data:	    if False:
 final-newline check off	    if data and not data.endswith(b'\n'):	    if False:
 syntax failure called clean	        if r.returncode == 0:	        if True:
 advisory tool exits non-zero	    return 0  # advisory, always	    return 1  # advisory, always
+set -e/-u note per file again	    for d, names in noset.items():	    for d, names in [(d, [x]) for d, ns in noset.items() for x in ns]:
 M
 }
 mutate() {

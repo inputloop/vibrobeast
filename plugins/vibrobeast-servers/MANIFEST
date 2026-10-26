@@ -1,8 +1,8 @@
-3829622def7265a630515e8ce97982d511ba33fe8463d58a1a93f9799a0cfb85  ./.claude-plugin/plugin.json
+d444eade218ed56830e9a806df2951c62af2365f472dafdc707b7904af3f6857  ./.claude-plugin/plugin.json
 78d7e842b83bb9af4640006ee4484bb664500f9757837250c77d91fb42881bd0  ./.mcp.json
 f274c92648b23e8508d8c90e8a87d705e0407dac2f1c25be10b79180c4c7e13f  ./COPYING
 4072b1c2e4d1d57e34ceecd3229719e8bfefdb00a31235a4d34864e1d23720f3  ./FRAME.md
-0dca5d6b31e2df340782bd2bdef895946782822dddd566af0a35b1e7633fcb49  ./GRAMMARY.md
+7a7be7ca08e6f6b80c9cef2ddab2e494af77c7ff11f46db75a2cc8de335a0c8f  ./GRAMMARY.md
 5acf5c90773c075a62c6ece64878efc5def05f59e41f31831117aa28069223ab  ./README.md
 6be6b7c388ce0cc31c6d62857d83fbef25c3221bc1286a7b15e5637a723bc6f6  ./check-interpreter-prove-red.sh
 7e335ceecfcda97617c369ac3aea4cea9d982d2285f789f2920643baac7bcfeb  ./check-interpreter.sh
@@ -16,7 +16,7 @@ aeae9464534cce9bae271c3ac13266e9698a4beba8fec082be120a83ebdd502e  ./servers/bin/
 39f99f08c324dec293df567038f04cc2809e8c05ae5a3214c7971108ef932fe4  ./servers/bin/witness-signature.sh
 de1b199f318896662051391e2beef37f62a2c5af53fd81e25df186f23a03e53a  ./servers/launch.cmd
 75ed9090b351e9f960d677150f9d41a3ed8e540326c9ddacdf79b970c2cd39c0  ./servers/launch.py
-e7c2e7d8351aa894539e1099fb15ab1315b683239ebfec276e8c375f0449c816  ./servers/polygram/__init__.py
+bc1439f79c25880a6b4aa2b4c1ae5c2e321fd88fb2c47f2a6018c6f949403b73  ./servers/polygram/__init__.py
 6f2c049ffb668f3d84b4ad5e6ec25d9781542f1e79db93685527653f2c637684  ./servers/polygram/mcp/NOTICE-llama_bridge
 15dc90d22b531572ea22ff83d5b6bb269cd7a1dda4b2c41a3e3c024cf12ad09f  ./servers/polygram/mcp/NOTICE-tavern
 2265762a8918d4885d5858af882371bfe03504260df48c9d1d00afdf7983e13e  ./servers/polygram/mcp/__init__.py
@@ -29,9 +29,9 @@ f1f15c9182544b317c9d0aba3d6a96294a9efcf9889ee79e6c3706e1dee136e0  ./servers/poly
 a972a8911c21ff9673a7b08cc2fb1193a3a06475abd351ce55e0e709df902a80  ./servers/polygram/mcp/freshness.py
 e36fec2ba0f9cf7845d99056553df6573c2b97485a4159f88dfbb950784a1563  ./servers/polygram/mcp/gwicon.js
 35155de24cba0c7808b3650f576c3b716c34b2873f715a296e834434f82c8b63  ./servers/polygram/mcp/gwicon.py
-646fb9522e5ae55f11a7690ea15402abb3cae277419ad759a47f9938a5fd858a  ./servers/polygram/mcp/gwstatus.py
-22f1f2d1e7462c0206f4c83d7c7eeb7f8c60ca546a913e899482ce3c38474bf1  ./servers/polygram/mcp/hub.py
-c5ad2bd7efa75951c80a7cd6182f5d83d466739dc3d82533fa06af7264363bad  ./servers/polygram/mcp/key.md
+e88a31fa91d60468118e527852dc0e0c707a6356265fa4268e9060cfcb144a03  ./servers/polygram/mcp/gwstatus.py
+d703f17b75664af7c30b5a6a132ee921bf02d3d4707cc2cc4cd7e40611ae2e54  ./servers/polygram/mcp/hub.py
+68f30ed00bcb34d7b398868fcce1802551ab4e841f5a3f95003dc6cec892b835  ./servers/polygram/mcp/key.md
 825ba31c5a730bd419be49e0bbccde47116c5b1101399a797093b74e890b358d  ./servers/polygram/mcp/keys.py
 da51f6b7574767f0a0e95c6a2938ad3b6d34f3f3a2937d5ed2d7f4d568c252dd  ./servers/polygram/mcp/llama_bridge.py
 bdcf4cfe609c84bd1cab202a43cb91502f7a1512ba872222043eafa167770a9d  ./servers/polygram/mcp/llamabridge.py
@@ -39,6 +39,7 @@ f9570343f19fcc029a94d11ba854a7b89515a2225124e5d598aa56b10a317a34  ./servers/poly
 6a8f64b9bb26d1dd568aa05d6e9dac467d524ff921f6f9efe237d14cdbb17c55  ./servers/polygram/mcp/metrics.py
 4f1c80428a1726a961cecb9efcc4e1c9c0622099c6fcc140ab84bb3196b4f3b8  ./servers/polygram/mcp/mode.py
 21674e3c32b08470cee52e2951cbea5e1aab7f58fd86b5004c76f6b3a61344b8  ./servers/polygram/mcp/orglimits.py
+69cb0381d5c080bfb6d94a02b1c1cc385c3d72a6139b85e09ee5eacf4091afc3  ./servers/polygram/mcp/pagewords.py
 c17c9beb7ef1cd1ddce0014a8dd0bc33f13a1270c713f0e39876773638d7bb7e  ./servers/polygram/mcp/persona.py
 d0a930830d5b7a09a01c17486c0e3334b0dc1ae15ac372bd85b842db5eddfcbc  ./servers/polygram/mcp/prefs.py
 22b8921db8f346ab74fb85c96b0cc958cd4f440aff8092ee8a48355bf911aa02  ./servers/polygram/mcp/pushyes.py

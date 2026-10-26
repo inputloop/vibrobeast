@@ -43,5 +43,5 @@ supports one of those three.
 ---
 *Version 1.0.0: first edition on 2026-10-05; spine: 2026-07-04.*
 
-Copyright 2026 Corwin Brust <corwin@bru.st> and Contributors; CC-BY-SA4:
+Copyright 2026 Corwin Brust <corwin@bru.st> and Contributors; CC-BY-SA-4.0:
 https://creativecommons.org/licenses/by-sa/4.0/; Mentat (for Corwin; claude-opus-5-5)

@@ -388,6 +388,6 @@ additions, the fake and the smoke check written here. The bridge's own version s
 *Version 1.0.1: edition revised from 1.0.0 on 2026-10-22; spine: 2026-07-04.*
 
 Copyright 2026 Bryant Frankford <nathanielfrankford@gmail.com> (his manual, the text between the
-markers above) and Corwin Brust <corwin@bru.st> and Contributors (the additions); CC-BY-SA4:
+markers above) and Corwin Brust <corwin@bru.st> and Contributors (the additions); CC-BY-SA-4.0:
 https://creativecommons.org/licenses/by-sa/4.0/ (scripts GPL-3.0-or-later); Mentat (for Corwin,
 claude-opus-5-5)

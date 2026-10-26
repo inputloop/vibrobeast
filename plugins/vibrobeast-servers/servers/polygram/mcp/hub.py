@@ -66,16 +66,22 @@ def unset_template(value: str | None) -> bool:
     return not v or "${" in v
 
 
+#: How a field left empty is reported.  Not "unset": an empty field means what the page's Left empty
+#: sentence says (2026-10-26 05:32), and vibrobeast_settings gives that sentence.
+LEFT_EMPTY = "left empty: the page's own sentence applies (vibrobeast_settings)"
+
+
 def switches_said(seen: dict) -> str:
     """The settings the servers saw, in words: what is set, and how many were left empty -- not one line
     per empty name (2026-10-14: "how can we drive down the number of configuration settings"; an empty
     field is the normal state of an optional setting, so listing each one was noise).  The table stays
     in switches_seen for anyone who wants it."""
-    on = sorted(k for k, v in seen.items() if v != "unset (dropped)")
-    empty = sum(1 for v in seen.values() if v == "unset (dropped)")
+    on = sorted(k for k, v in seen.items() if v != LEFT_EMPTY)
+    empty = sum(1 for v in seen.values() if v == LEFT_EMPTY)
     return ("Set: " + (", ".join(on) if on else "nothing") + ". "
-            + (f"{empty} optional field(s) left empty on the settings page, which is normal unless you meant "
-               "to fill one (each is listed in switches_seen)." if empty else "No field was left empty."))
+            + (f"{empty} field(s) left empty on the settings page; each means what the page says it does "
+               "when left empty (vibrobeast_settings gives each one's sentence, word for word)."
+               if empty else "No field was left empty."))
 
 
 def clean_env(env: dict | None = None) -> tuple[dict, dict]:
@@ -86,7 +92,7 @@ def clean_env(env: dict | None = None) -> tuple[dict, dict]:
         if k not in env:
             continue
         if unset_template(env[k]):
-            seen[k] = "unset (dropped)"
+            seen[k] = LEFT_EMPTY
             del env[k]
         else:
             seen[k] = env[k] if k in SWITCH_VARS else "set"
@@ -215,6 +221,29 @@ SETUP_TOOL = {
 }
 SKILLS_PLUGIN_FILE = "vibrobeast-skills.plugin"
 
+SETTINGS_TOOL = {
+    "name": "vibrobeast_settings",
+    "description": ("Every field on this extension's settings page, in the page's own words: its title "
+                    "and description word for word, whether it was filled in, and, when it was not, the "
+                    "page's Left empty (or Off/On by default) sentence, which is what that field means. "
+                    "Read this before saying any setting is unset, and explain a setting in these words. "
+                    "Secrets are said as set, never shown. For what the Ghostwheel fields come to on each "
+                    "host, gw_settings. Sends nothing anywhere."),
+    "inputSchema": {"type": "object", "properties": {
+        "field": {"type": "string", "description": "one field (gw_user) or a section's start (gw_); empty: all"}}},
+}
+
+
+def settings(raw_env: dict, args: dict) -> dict:
+    """2026-10-26 05:32, Corwin and Bryant: the page's meaning reaches the agent with the same force."""
+    from . import pagewords
+    out = pagewords.explain(raw_env)
+    want = (args.get("field") or "").strip()
+    if want:
+        out["fields"] = [r for r in out["fields"] if r["field"] == want or
+                         (want.endswith("_") and r["field"].startswith(want))]
+    return out
+
 
 def skills_plugin_path() -> Path | None:
     """The skills plugin the extension carries (<ext>/skills-plugin/), or a tree's minted one."""
@@ -264,8 +293,12 @@ def setup(args: dict) -> dict:
     return out
 
 
+OWN_TOOLS = (STATUS_TOOL["name"], SETUP_TOOL["name"], SETTINGS_TOOL["name"])
+
+
 class Hub:
     def __init__(self, names=SERVERS, env: dict | None = None):
+        self.raw_env = dict(os.environ if env is None else env)
         self.env, self.seen = clean_env(env)
         self.children = [Child(n, self.env) for n in names]
         threads = [threading.Thread(target=c.start) for c in self.children]
@@ -277,14 +310,14 @@ class Hub:
         self.clashes: list = []
         for c in self.children:
             for t in c.tools:
-                if t["name"] in self.route or t["name"] in (STATUS_TOOL["name"], SETUP_TOOL["name"]):
+                if t["name"] in self.route or t["name"] in OWN_TOOLS:
                     self.clashes.append({"tool": t["name"], "kept_by": self.route.get(t["name"], "hub").name
                                          if t["name"] in self.route else "hub", "also": c.name})
                     continue
                 self.route[t["name"]] = c
 
     def tools(self) -> list:
-        out = [STATUS_TOOL, SETUP_TOOL]
+        out = [STATUS_TOOL, SETUP_TOOL, SETTINGS_TOOL]
         for c in self.children:
             out += [t for t in c.tools if self.route.get(t["name"]) is c]
         return out
@@ -312,9 +345,11 @@ class Hub:
         if method == "tools/call":
             p = msg.get("params") or {}
             name = p.get("name", "")
-            if name in (STATUS_TOOL["name"], SETUP_TOOL["name"]):
+            if name in OWN_TOOLS:
                 try:
-                    res = self.status() if name == STATUS_TOOL["name"] else setup(p.get("arguments") or {})
+                    res = (self.status() if name == STATUS_TOOL["name"] else
+                           settings(self.raw_env, p.get("arguments") or {}) if name == SETTINGS_TOOL["name"]
+                           else setup(p.get("arguments") or {}))
                 except Exception as exc:                    # noqa: BLE001
                     return {"jsonrpc": "2.0", "id": mid, "result": {"isError": True, "content": [
                         {"type": "text", "text": f"{type(exc).__name__}: {exc}"}]}}

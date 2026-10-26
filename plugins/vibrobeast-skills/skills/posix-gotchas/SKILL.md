@@ -16,6 +16,7 @@ anger** — and a checker tuned against a real corpus rather than against intuit
 | 4 clean hand-written tools | **14 findings, all false positives** | 0 |
 | 3 planted real bugs | **0 of 3** | **3 of 3** |
 | 167 real shop shell files | — | 0 FN-COLLIDE · 10 GREP-C-ZERO · 30 PIPE-STATUS |
+| 666 shop shell files, 2026-10-26 (c4 + AS4CE0001) | — | PIPE-STATUS 201 → 186 after the `$( )` narrowing; the 15 dropped were all output tests, none a lost bug · TEE-STATUS 3, exactly the three live ones in build-tree-sitter.sh |
 
 All 14 false positives were inside **embedded awk** — `while ((getline`, `function esc(s, t)`
 — read as bash arithmetic and the bash `function` keyword. **A checker with a high
@@ -47,6 +48,21 @@ dangerous when a **string from a command** meets a name used as a **number**.
 never fires. Vicious because it can make a `--prove-red` report PASS while the tool accepts
 input it just refused. **Fix:** materialise first — `awk … > "$tmp"` then `sort "$tmp"`.
 
+**Not when the pipeline sits inside `$( … )`.** In `if [ "$(a | b)" = x ]` or
+`if [[ $(ls | wc -l) -gt 0 ]]` the test reads the substitution's *output*, not the pipeline's
+status, so `sh1ck` no longer reports it (2026-10-26: 5 of 5 such hits on Corwin's Windows CI
+were false; on the shop corpus the narrowing dropped 15, every one an output test).
+
+### 2b · TEE-STATUS — `$?` after `| tee` is tee's
+
+    make 2>&1 | tee -a "$log"
+    RC=$?                         # tee's status: a failed build is announced OK
+
+The logging shape of PIPE-STATUS, and a live bug the day it was named: build-tree-sitter.sh
+(lines 61-62, 78-79, 81-82) reported failed grammars as OK; a test proved it. Under
+`#!/bin/sh` there is no fix in the pipeline — write the log another way (`cmd >"$tmp" 2>&1;
+RC=$?; cat "$tmp" >>"$log"`). Under bash, see the bash paragraph below.
+
 ### 3 · GREP-C-ZERO — `grep -c` prints its count *and* exits non-zero
 
     n=$(grep -c PAT f || echo 0)   # no match: grep prints "0" AND exits 1 -> n is "0\n0"
@@ -72,6 +88,23 @@ line-based shell parser: it must drop whole-line comments *before* counting quot
 prose apostrophe opens a phantom string that swallows everything after it.
 **`sh -n` catches this — run it.**
 
+### 5 · FN-COLLIDE's Perl twin — `while (<$h>)` writes the global `$_`
+
+A Perl helper that reads with `while (<$h>)` assigns the global `$_`. Called from inside a
+caller's `grep`/`map`/`for`, where `$_` is an alias for the list element, it overwrites the
+caller's list: the list silently fills with undef. Receipt: check-warn-new.pl `complete()`,
+2026-10-26 — the lane's previous log came back as "none" until `local $_;`. **Fix:** `local $_;`
+at the top of the sub, or `while (my $l = <$h>)`. Same lesson as FN-COLLIDE: a name you did not
+declare is the caller's.
+
+## Under `#!/bin/bash` (most of Corwin's CI is)
+
+The checks above are written for POSIX sh, and the fixes say so. A bash script has the real
+fix for pipeline status: `${PIPESTATUS[0]}` read immediately after the pipeline (before any
+other command resets it), or `set -o pipefail` for the script. `sh1ck`'s PIPE-STATUS and
+TEE-STATUS stay quiet on the `${PIPESTATUS[0]}` form. Syntax-check a bash script with
+`bash -n`; `dash -n` does not apply there (it rejects bash on purpose).
+
 ## The move
 
 1. **`sh -n` first**, from fresh bytes (a stale read syntax-fails good code).
@@ -95,7 +128,8 @@ prose apostrophe opens a phantom string that swallows everything after it.
 | code | meaning |
 |---|---|
 | `FN-COLLIDE` | a command substitution inside a function lands in a name the top level does arithmetic on |
-| `PIPE-STATUS` | a pipeline's exit status is being consumed by `if`/`while`/`until` |
+| `PIPE-STATUS` | a pipeline's exit status is being consumed by `if`/`while`/`until` (not one wholly inside `$( )`) |
+| `TEE-STATUS` | `$?` read on the same line after `\| tee`, or on the next line — it is tee's status |
 | `GREP-C-ZERO` | `grep -c … \|\| echo 0` — two lines where one was wanted |
 
 ## Limits, stated
@@ -121,6 +155,6 @@ prose apostrophe opens a phantom string that swallows everything after it.
 <!-- footer: minted by bin/ft1mt from conventions/house.env and conventions/FOOTERS.org; edit those, not this -->
 *Version 1.1.0: edition revised from 1.0.1 on 2026-10-10; spine: 2026-09-23.*
 
-Copyright 2026 Corwin Brust <corwin@bru.st> and Contributors; CC-BY-SA4: https://creativecommons.org/licenses/by-sa/4.0/ (scripts: GNU General Public License, version 3 or any later version; SPDX GPL-3.0-or-later); Mentat (for Corwin, claude-opus-5-5)
+Copyright 2026 Corwin Brust <corwin@bru.st> and Contributors; CC-BY-SA-4.0: https://creativecommons.org/licenses/by-sa/4.0/ (scripts: GNU General Public License, version 3 or any later version; SPDX GPL-3.0-or-later); Mentat (for Corwin, claude-opus-5-5)
 From the collection Corwin Brust and Bryant Frankford keep together, with K Smith as editor of the works she edited; thanks in ACKNOWLEDGEMENTS; home: https://github.com/inputloop
 <!-- /footer -->

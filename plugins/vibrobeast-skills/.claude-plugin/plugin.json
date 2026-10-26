@@ -1,6 +1,6 @@
 {
   "name": "vibrobeast-skills",
-  "version": "1.2.78",
+  "version": "1.2.79",
   "description": "Written ways of working Claude reads when a task calls for them: careful hand-backs, plain-language checks, honest testing, writing forms. The skills alone; starts no server.",
   "author": {
     "name": "Corwin and Bryant",

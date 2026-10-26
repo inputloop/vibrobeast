@@ -61,7 +61,7 @@ Each skill is a folder with a `SKILL.md`. Claude reads one when the task calls f
 | `rewire-order` | A design rule for ORDERING a migration of several projects onto a shared model, framework, or substrate — which one to convert FIRST, and why. |
 | `rolls` | Draft and render report kinds over a tree that keeps its work in registers or folders — the session close/roll report, the intake report, the situation report, and the dashboard. |
 | `run-card` | The door for "help me run this": a job aid for steps at a screen, a paste card for a shell, or a .rc file the machine runs, picked by who is at the keyboard and what cannot be undone. |
-| `sandboxer` | Crossing between Claude's workspace and the keeper's disk. |
+| `sandboxer` | Crossing from Claude's workspace to the keeper's disk. |
 | `savane-forensics` | Use for forensic security review or breach-notification work on GNU Savane / Savannah, or when extending the svhck-forensics suite. |
 | `seams` | The universal seam doctrine — what counts as evidence when two representations of one truth can silently split. |
 | `seatkeeper` | Keep MAIN MEMORY continuous across sessions — mount the fenced auto-memory, hash-diff it against the durable project seat, reseat (copy) stranded notes home, mirror offsite, and grow new notes by content-identity. |

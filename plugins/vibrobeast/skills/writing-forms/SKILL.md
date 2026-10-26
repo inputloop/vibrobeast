@@ -134,6 +134,23 @@ has the matching topics (manual, cli, install) for a house that has none.
 
    A prompt of his gets the full REFORMAT pair (reformat-prompt); this technique is the general rule
    that pair is one case of. Building the contrast persona itself is persona work, not a form.
+   **Spelling: count the laps; fix it and park it.** A dated quote of a person is lap 0 and is kept
+   byte for byte. Every later lap is ours: his words carried into our own prose, an identifier we
+   minted, text we typed into someone else's file. Ours is fixed without asking. Asking is earned
+   once, never several times, and only when the spelling is a live identifier others reference (a
+   file, host or domain name, a tag), or the person defined or reused it on purpose. Interest never
+   keeps an error in place without evidence of intent: fix it, and park the suggestive reading, with
+   its source, in a parking lot (`advice/<run>/PARKING-LOT.md`). Spelling is an accessibility point
+   first. His rulings, verbatim (2026-10-09 18:26, `c4 spells/extension/chapters/01-his-words.md`
+   line 31, opening; and 2026-10-24 09:32, blessing the lap rule of `c4 h/NOTE-2026-10-24-spelling-laps.md`):
+   > * fix the spelling, this is a point of accessibility as we have discussed a few times: absolutely critical to get that right in this context.
+
+   > proposal loos very good: fix it and part is is perfect, allowing me to go full Dr. Sues *later*, when it isn't in the way of clarity toward an instruction that is actionable.  It make perfect sense to me that the writing-forms skill hosts the most strongly famed and each sharper of refinement around spelling and inventiveness.
+
+   The second quote is lap 0 and shows the rule at work: it stays as typed here, and a reading beside
+   it says "fix it and park it is perfect". Falsifier: a `git grep` of a parked spelling finds it in
+   our own prose outside a quote.
+
 6. **The reader's gain first.** Lead with what the reader can do with the thing; put who made it at
    the credits depth (copyright notices, AUTHORS, THANKS, a footer, a colophon). His words of
    2026-10-18: the work "should sing about itself (what readers gain), not about its makers". It can
@@ -233,8 +250,8 @@ missing half, and does not add a row.
   else.
 
 <!-- footer: minted by bin/ft1mt from conventions/house.env and conventions/FOOTERS.org; edit those, not this -->
-*Version 1.2: edition revised from 1.1.2 on 2026-10-20; spine: 2026-08-09.*
+*Version 1.3: edition revised from 1.2 on 2026-10-24; spine: 2026-08-09.*
 
-Copyright 2026 Corwin Brust <corwin@bru.st> and Contributors; CC-BY-SA4: https://creativecommons.org/licenses/by-sa/4.0/ (scripts: GNU General Public License, version 3 or any later version; SPDX GPL-3.0-or-later); Mentat (for Corwin, claude-opus-5-5)
+Copyright 2026 Corwin Brust <corwin@bru.st> and Contributors; CC-BY-SA-4.0: https://creativecommons.org/licenses/by-sa/4.0/ (scripts: GNU General Public License, version 3 or any later version; SPDX GPL-3.0-or-later); Mentat (for Corwin, claude-opus-5-5)
 From the collection Corwin Brust and Bryant Frankford keep together, with K Smith as editor of the works she edited; thanks in ACKNOWLEDGEMENTS; home: https://github.com/inputloop
 <!-- /footer -->

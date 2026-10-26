@@ -37,6 +37,15 @@
 #                "0" and exits 1), so `[ "$(...)" -eq 0 ]` sees "0\n0" -> "Illegal number".
 #                Q5's original entry. Use n=$(grep -c ...); n=${n:-0}  -- or count with wc -l.
 #
+#   TEE-STATUS   (2026-10-26, Corwin's Windows CI) `cmd | tee -a $log` then `RC=$?` reads TEE's
+#                status, so a failed build was announced OK (build-tree-sitter.sh l.61-62). The
+#                same footgun as PIPE-STATUS, in the shape logging scripts take. In bash the fix
+#                is ${PIPESTATUS[0]} or `set -o pipefail`; in sh, write to the log another way.
+#
+# PIPE-STATUS NARROWED (same day): a pipeline wholly inside $( ... ) is not reported. There the
+# test reads the substitution's OUTPUT, not the pipeline's status: 5 of 5 hits on that CI were
+# `if [[ $(a | b) ... ]]`, all false.
+#
 # usage: sh1ck FILE...        report findings, one per line
 #        sh1ck --prove-red    each check must fire on a planted bug and stay quiet on clean code
 #
@@ -75,6 +84,17 @@ scan() {
 		return line
 	}
 	function strip(line) { sub(/#.*$/, "", line); return line }
+	# Drop every $( ... ) (balanced) from a line: what is inside is consumed as output.
+	function drop_subst(line,   out, i, c, d) {
+		out = ""; d = 0
+		for (i = 1; i <= length(line); i++) {
+			c = substr(line, i, 1)
+			if (d == 0 && c == "$" && substr(line, i + 1, 1) == "(") { d = 1; i++; continue }
+			if (d > 0) { if (c == "(") d++; else if (c == ")") d--; continue }
+			out = out c
+		}
+		return out
+	}
 
 	BEGIN { depth = 0 }
 	{
@@ -149,10 +169,21 @@ scan() {
 		# ---- PIPE-STATUS: a pipeline whose exit status is being consumed ---------------------
 		# Only when the pipeline IS the tested expression. `if have x; then a | b` puts the pipe
 		# in the branch, not the condition -- flagging that was a false positive on run one.
-		nseg2 = split(s, seg2, /;/)
+		nseg2 = split(drop_subst(s), seg2, /;/)
 		for (q = 1; q <= nseg2; q++) {
 			if (seg2[q] ~ /^[ \t]*(if|while|until)[ \t]/ && seg2[q] ~ /\|/ && seg2[q] !~ /\|\|/)
 				finding("PIPE-STATUS", FNR, "the pipeline status is the LAST command only; sh has no pipefail")
+		}
+
+		# ---- TEE-STATUS: $? read right after a pipeline into tee -----------------------------
+		# Same line (after the tee) or the next shell line. ${PIPESTATUS[0]} is the bash fix and
+		# stays quiet: it does not contain "$?".
+		if (teepend && s ~ /\$\?/) finding("TEE-STATUS", FNR, "$? here is tee\x27s status (line " teepend "), not the command\x27s; bash: ${PIPESTATUS[0]}")
+		teepend = 0
+		if (match(s, /\|[ \t]*tee([ \t]|$)/)) {
+			after = substr(s, RSTART + RLENGTH)
+			if (after ~ /\$\?/) finding("TEE-STATUS", FNR, "$? here is tee\x27s status, not the command\x27s; bash: ${PIPESTATUS[0]}")
+			else teepend = FNR
 		}
 
 		# ---- GREP-C-ZERO ---------------------------------------------------------------------
@@ -202,6 +233,21 @@ XEOF
 	n=$(scan "$tmp/grepc" | grep -c 'GREP-C-ZERO' || true)
 	t "GREP-C-ZERO fires on Q5's own example" "$n" "1"
 
+	# 2b. PIPE-STATUS stays quiet when the pipeline is wholly inside $( ) -- its output is tested
+	printf '#!/bin/sh\nif [ "$(a | b)" = x ]; then echo ok; fi\nwhile [ -n "$(ls | head -1)" ]; do break; done\n' > "$tmp/subst"
+	n=$(scan "$tmp/subst" | grep -c 'PIPE-STATUS' || true)
+	t "PIPE-STATUS quiet on a pipeline inside \$( ) (its output is what is tested)" "$n" "0"
+
+	# 3b. TEE-STATUS fires on the build-tree-sitter shape, next line and same line
+	printf '#!/usr/bin/bash\nmake 2>&1 | tee -a "$log"\nRC=$?\nmake | tee x; [ $? -eq 0 ] || echo bad\n' > "$tmp/tee"
+	n=$(scan "$tmp/tee" | grep -c 'TEE-STATUS' || true)
+	t "TEE-STATUS fires on \$? after a pipe into tee (next line, and same line)" "$n" "2"
+
+	# 3c. TEE-STATUS quiet on the PIPESTATUS form and on a tee whose status nobody reads
+	printf '#!/usr/bin/bash\nmake | tee log; RC=${PIPESTATUS[0]}\nmake | tee log\necho done\n' > "$tmp/teeok"
+	n=$(scan "$tmp/teeok" | grep -c 'TEE-STATUS' || true)
+	t "TEE-STATUS quiet on \${PIPESTATUS[0]} and on an unread tee" "$n" "0"
+
 	# 4. THE SUPPRESSION. Clean code that embeds awk must produce ZERO findings -- this is the
 	#    check the previous tool failed 14 times out of 14.
 	cat > "$tmp/clean" <<'XEOF'
@@ -222,7 +268,7 @@ XEOF
 	n=$(scan "$tmp/hd" | wc -l)
 	t "heredoc content is not linted as shell" "$n" "0"
 
-	[ "$fails" -eq 0 ] && { echo "prove-red OK: three checks fire on planted bugs; embedded languages stay quiet"; exit 0; }
+	[ "$fails" -eq 0 ] && { echo "prove-red OK: four checks fire on planted bugs, stay quiet on their clean twins; embedded languages stay quiet"; exit 0; }
 	echo "prove-red FAILED: $fails" >&2; exit 1
 fi
 

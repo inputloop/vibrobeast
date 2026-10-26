@@ -16,13 +16,16 @@ Reports, per file:
   - dialect mismatch: bashisms in a #!/bin/sh file (heuristic, named)
   - transport smells: CRLF line endings, missing final newline, NUL bytes
     (torn write / stale-mount fingerprints — see MODEL-readers-and-mounts)
-  - notes: set -e/-u presence (a prompt, not a demand)
+  - notes: set -e/-u presence (a prompt, not a demand), said ONCE per directory
+    per run, naming the files (2026-10-26: 9 of 9 files in a warn-don't-die repo
+    drew the same note nine times)
   - sh -n / bash -n syntax check when the interpreter is on PATH
 
 Heuristics prompt the review loop in SKILL.md; they never replace it.
 """
 from __future__ import annotations
 
+import os
 import re
 import shutil
 import subprocess
@@ -68,7 +71,8 @@ def strip_comments(line: str) -> str:
     return ''.join(out)
 
 
-def check(path: str) -> None:
+def check(path: str) -> bool:
+    """Report on one file; True when it is sh/bash with no set -e/-u (main says so per directory)."""
     def say(level: str, msg: str) -> None:
         print(f"posix: {path}: [{level}] {msg}")
 
@@ -77,7 +81,7 @@ def check(path: str) -> None:
             data = f.read()
     except OSError as e:
         say("READ", f"cannot read: {e}")
-        return
+        return False
 
     # transport smells first — a torn file lints as nonsense
     nuls = data.count(b'\x00')
@@ -112,11 +116,10 @@ def check(path: str) -> None:
                 if pat.search(code):
                     say("BASHISM", f"line {n}: {name} under #!/bin/sh")
 
+    noset = False
     if is_sh or is_bash:
         body = '\n'.join(strip_comments(l) for l in lines)
-        if not re.search(r'set\s+(-\w*[eu]\b|-o\s+(errexit|nounset))', body):
-            say("NOTE", "no set -e/-u — deliberate is fine (warn-don't-die "
-                "is a live house idiom); accidental is not. Which is it?")
+        noset = not re.search(r'set\s+(-\w*[eu]\b|-o\s+(errexit|nounset))', body)
 
     checker = 'bash' if is_bash else 'sh'
     if shutil.which(checker):
@@ -131,14 +134,24 @@ def check(path: str) -> None:
                 "mount, re-check from fresh bytes before trusting this")
     else:
         say("SKIP", f"{checker} not on PATH; syntax unchecked")
+    return noset
 
 
 def main(argv: list[str]) -> int:
     if not argv:
         print(__doc__)
         return 0
+    noset: dict[str, list[str]] = {}
+    seen: dict[str, int] = {}
     for p in argv:
-        check(p)
+        d = os.path.dirname(p) or "."
+        seen[d] = seen.get(d, 0) + 1
+        if check(p):
+            noset.setdefault(d, []).append(os.path.basename(p))
+    for d, names in noset.items():
+        print(f"posix: {d}/: [NOTE] no set -e/-u in {len(names)} of {seen[d]} "
+              f"file(s) here ({', '.join(names)}) — deliberate is fine (warn-don't-die "
+              "is a live house idiom); accidental is not. Which is it?")
     return 0  # advisory, always
 
 

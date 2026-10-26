@@ -1,7 +1,7 @@
 ---
 name: sandboxer
 description: >
-  Crossing between Claude's workspace and the keeper's disk. Landing: a file built in the cloud workspace is delivered only when it sits in his connected folder, named by its full host path, with sha256 equal on both sides and a sha256sum -c receipt he can run (landing.sh names strays; landing.sh --stage gives each version a fresh staged path, since a reused one can land old bytes); if his computer is usually linked but unreachable, attempt first, then list what waits to land. Write-side: an Edit/Write can report success while the bytes never land — for a LARGE file or a burst of edits, write via /tmp, then verify. Read-side: bash can serve stale bytes — cross-read two paths; a bash cp of a pinned path copies the phantom; mtime is no tiebreaker; absence from one reader is not absence; git on the mount is object-reads only. Also: which memory store is reachable. Triggers: "where did the files land", "did that write land", "is this read stale", "file looks truncated", "stale pyc", "which memory is this".
+  Crossing from Claude's workspace to the keeper's disk. Landing: a file built in the cloud workspace is delivered only when it sits in his connected folder, by full host path, with sha256 equal on both sides and a sha256sum -c receipt he can run (landing.sh; --stage gives each version a fresh path, as a reused one lands old bytes); if his computer is unreachable, attempt first, then list what waits to land. Write-side: Edit/Write can report success with no bytes landed — for a large file or many edits, write via /tmp, then verify. Read-side: bash can serve stale bytes — cross-read two paths; cp of a pinned path copies the phantom; mtime breaks no tie; absent to one reader is not absent; git on the mount is object-reads only. Before a command naming paths on his folders, c4 bin/pf1lt says which are misplaced and the right spelling. Also which memory store is reachable. Triggers: "where did the files land", "did that write land", "is this read stale", "file looks truncated", "stale pyc", "which memory is this".
 ---
 
 # Sandboxer — crossing the sand
@@ -89,6 +89,23 @@ validity check (compile/parse), so "intact" is raised to "intact *and*
 valid". A line count that *drops* after an additive edit is truncation until
 proven otherwise. Use two or more of these signals together; no single check
 is proof.
+
+## Before a command that names paths
+
+A command that names a path in the wrong tree (c4 for AS4CE0001), the wrong folder (`skills/` for
+`SOFT-SKILLS/`), one `../` off, a copy that lacks the part, or a mount's other spelling fails one tool
+call later with "No such file", and the next call guesses again.  On 2026-10-24 that was 22 of the 99
+"No such file" results in one session's jobs (most of the rest were looks whose answer was "absent");
+the count and its classes are in c4 `h/PROJ-2026-10-24-pathfirst/`.  Put the command to c4's
+`bin/pf1lt` before running it:
+
+    python3 $HOME/mnt/claude/c4/bin/pf1lt --cwd DIR -- 'THE COMMAND'          device shell
+    python3 /f/claude/c4/bin/pf1lt --for gitbash -- 'THE COMMAND'              his Git Bash
+    python3 $HOME/mnt/claude/c4/bin/pf1lt --for keyrun --cwd 'F:\claude\c4' --paths PATH...   a key_run argv
+
+It prints a line for each path that is not where the command thinks, with the spelling that is,
+and asks bin/sn1rd before it looks at anything.  Exit 0: nothing to trip on.  It does not see a path
+named only inside a script, or a folder removed while the command runs.
 
 ## Landing — from the cloud workspace onto his disk
 
@@ -669,8 +686,8 @@ need is *occasional*; never merge what is only *sometimes* shared.
 - **A check stopped checking.** fails if `sh tests-validators.sh --prove-red` or `python3 tests-sig-fresh.py --prove-red` (skill root) does not end `PROVE-RED OK`; each plants broken files in a temp dir and breaks its script in a temp copy.
 
 <!-- footer: minted by bin/ft1mt from conventions/house.env and conventions/FOOTERS.org; edit those, not this -->
-*Version 1.2: edition revised from 1.1.2 on 2026-10-22; spine: 2026-07-07.*
+*Version 1.2: edition revised from 1.1.2 on 2026-10-24; spine: 2026-07-07.*
 
-Copyright 2026 Corwin Brust <corwin@bru.st> and Contributors; CC-BY-SA4: https://creativecommons.org/licenses/by-sa/4.0/ (scripts: GNU General Public License, version 3 or any later version; SPDX GPL-3.0-or-later); Mentat (for Corwin, claude-opus-5-5)
+Copyright 2026 Corwin Brust <corwin@bru.st> and Contributors; CC-BY-SA-4.0: https://creativecommons.org/licenses/by-sa/4.0/ (scripts: GNU General Public License, version 3 or any later version; SPDX GPL-3.0-or-later); Mentat (for Corwin, claude-opus-5-5)
 From the collection Corwin Brust and Bryant Frankford keep together, with K Smith as editor of the works she edited; thanks in ACKNOWLEDGEMENTS; home: https://github.com/inputloop
 <!-- /footer -->

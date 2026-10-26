@@ -56,8 +56,13 @@ trigger or the skill fires always and means nothing. The line:
    could be. A scorer or test harness is only trustworthy if it can go
    red: give it a `--prove-red` mode — corrupt a copy of the known-good
    fixture and confirm the named check actually FAILs, the shape
-   `bin/landcheck.sh --prove-red` uses. If a test *should* exist but had
-   nowhere to land, say so and offer to help create the place.
+   `bin/landcheck.sh --prove-red` uses. When a mutation cannot change the
+   verdict, assert the diagnosis (the label or line it names) too; and if
+   a rule's mutation is unobservable even then, the rule is redundant
+   (another rule implies it) or untestable as written — say which
+   (2026-10-26: check-unidata's all-NUL rule, implied by its header rule).
+   If a test *should* exist but had nowhere to land, say so and offer to
+   help create the place.
 4. **Land with honest risk talk.** Name what was mitigated and what could
    not be — the keeper's code may carry risks he doesn't know he's taking.
    Gently, per rapport: no alarmism, no scolding, no burying the lede.
@@ -79,7 +84,14 @@ MEMORY) so the preference trail is one hop from the index.
 `tool.py` — advisory POSIX check, stdlib-only, always exits 0:
 `python3 tool.py FILE...` reports shebang/dialect mismatches (bashisms
 under `#!/bin/sh`), CRLF and truncation smells, and set-flag notes.
+The set -e/-u note comes once per directory per run, naming the files.
 Advisory means advisory: it prompts the review loop, never replaces it.
+
+**Bash targets.** Under `#!/bin/bash` (or `#!/usr/bin/bash`) the fix for
+pipeline status is `${PIPESTATUS[0]}`, read straight after the pipeline,
+or `set -o pipefail`; `cmd | tee log; RC=$?` reads tee's status. Check
+syntax with `bash -n`; `dash -n` does not apply to a bash script.
+`posix-gotchas`' `sh1ck` reports PIPE-STATUS and TEE-STATUS shapes.
 
 ## The gotchas ledger
 
@@ -97,6 +109,13 @@ not a substitute for it.
   comment names the rule inline — "grep -c prints 0 AND exits 1 on no
   match — never '|| echo 0'"); the first test run's own output,
   `[: Illegal number: 0`.
+- **2026-10-26 · a harness that passes `VAR=value` through `"$@"`
+  after other words turns it into a command name.** `run() { … "$@"
+  bash …; }` called as `run DRY=1 script` made `DRY=1` the command, and
+  the checks that depended on the dry run passed vacuously until one
+  failed. Use `env VAR=value cmd`, and give the harness a guard that
+  proves the loop was reached. Receipt: t/test-crude-ci.sh (emacs-local-ci),
+  2026-10-26.
 
 ## How this skill can fail (falsifiers)
 
@@ -111,7 +130,7 @@ not a substitute for it.
   by design and never fails the run; if a report treats "tool.py ran
   clean" as sign-off instead of a prompt for the five-step review loop,
   the skill's own stance broke.
-- **`tool.py` stopped seeing.** fails if `sh tests.sh --prove-red` does not end `PROVE-RED OK`; it plants one smell per check in a temp dir and breaks `tool.py` seven ways.
+- **`tool.py` stopped seeing.** fails if `sh tests.sh --prove-red` does not end `PROVE-RED OK`; it plants one smell per check in a temp dir and breaks `tool.py` eight ways.
 - **Off-switch:** say "skip posix" or "just run it, don't review it" — or
   note that the shell in play is only the means to another task, not the
   deliverable itself.
@@ -129,6 +148,6 @@ not a substitute for it.
 <!-- footer: minted by bin/ft1mt from conventions/house.env and conventions/FOOTERS.org; edit those, not this -->
 *Version 1.1.2: edition revised from 1.1.0 on 2026-10-10; spine: 2026-07-04.*
 
-Copyright 2026 Corwin Brust <corwin@bru.st> and Contributors; CC-BY-SA4: https://creativecommons.org/licenses/by-sa/4.0/ (scripts: GNU General Public License, version 3 or any later version; SPDX GPL-3.0-or-later); Mentat (for Corwin, claude-opus-5-5)
+Copyright 2026 Corwin Brust <corwin@bru.st> and Contributors; CC-BY-SA-4.0: https://creativecommons.org/licenses/by-sa/4.0/ (scripts: GNU General Public License, version 3 or any later version; SPDX GPL-3.0-or-later); Mentat (for Corwin, claude-opus-5-5)
 From the collection Corwin Brust and Bryant Frankford keep together, with K Smith as editor of the works she edited; thanks in ACKNOWLEDGEMENTS; home: https://github.com/inputloop
 <!-- /footer -->
