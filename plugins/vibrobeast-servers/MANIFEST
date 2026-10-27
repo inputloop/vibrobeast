@@ -1,4 +1,4 @@
-c9e480064a93ebc75955417807c45af4ec66fb94702d3dc1a1f9c3b99073df7e  ./.claude-plugin/plugin.json
+17c3205568f5ce6279b9ebfc8aa42c65793891e3394f9360341ef7a07dd3d172  ./.claude-plugin/plugin.json
 4a7e171d804b0b1484f54a646c51137efeb05ae1c3fa2dbf5c6387a96d49558e  ./.mcp.json
 f274c92648b23e8508d8c90e8a87d705e0407dac2f1c25be10b79180c4c7e13f  ./COPYING
 4072b1c2e4d1d57e34ceecd3229719e8bfefdb00a31235a4d34864e1d23720f3  ./FRAME.md
@@ -16,7 +16,7 @@ aeae9464534cce9bae271c3ac13266e9698a4beba8fec082be120a83ebdd502e  ./servers/bin/
 39f99f08c324dec293df567038f04cc2809e8c05ae5a3214c7971108ef932fe4  ./servers/bin/witness-signature.sh
 522d48d24ff916db5261eaf2b885175efb5b22a8d1df03ec2b30e99ab8124e0f  ./servers/launch.cmd
 a85ea22467553fd26b190dee58d28febb8a01f69e7fecd6c81bdaa8448d8fe0b  ./servers/launch.py
-6977a6a76a37c3747bb8ecca849876a8236e5db78d911df46ed31c0a412cf5de  ./servers/polygram/__init__.py
+c6be1f58ed0803368b539e5351f8d2b3e08fa218c5ce863c1849245c7842daf2  ./servers/polygram/__init__.py
 6f2c049ffb668f3d84b4ad5e6ec25d9781542f1e79db93685527653f2c637684  ./servers/polygram/mcp/NOTICE-llama_bridge
 15dc90d22b531572ea22ff83d5b6bb269cd7a1dda4b2c41a3e3c024cf12ad09f  ./servers/polygram/mcp/NOTICE-tavern
 2265762a8918d4885d5858af882371bfe03504260df48c9d1d00afdf7983e13e  ./servers/polygram/mcp/__init__.py
@@ -32,7 +32,7 @@ e36fec2ba0f9cf7845d99056553df6573c2b97485a4159f88dfbb950784a1563  ./servers/poly
 e9f8a378f13b2adef4b9b502e19e7ede824da908196b8b44b196d9000cc574dc  ./servers/polygram/mcp/gwstatus.py
 d703f17b75664af7c30b5a6a132ee921bf02d3d4707cc2cc4cd7e40611ae2e54  ./servers/polygram/mcp/hub.py
 68f30ed00bcb34d7b398868fcce1802551ab4e841f5a3f95003dc6cec892b835  ./servers/polygram/mcp/key.md
-39e476ce110999a6667f3958ac3f5d3e5ee791946896408a786730eb5ef6cf6f  ./servers/polygram/mcp/keys.py
+4cf6f0d1f8025393215dcffd72fba4ccf596a78869c4a28facb5054b85f49988  ./servers/polygram/mcp/keys.py
 da51f6b7574767f0a0e95c6a2938ad3b6d34f3f3a2937d5ed2d7f4d568c252dd  ./servers/polygram/mcp/llama_bridge.py
 64e880995b0e44357d960bc5b265f9f885d3ebbe7ba73a03b6544b3ca36b0af8  ./servers/polygram/mcp/llamabridge.py
 f9570343f19fcc029a94d11ba854a7b89515a2225124e5d598aa56b10a317a34  ./servers/polygram/mcp/mentcached.py

@@ -10,7 +10,7 @@ Edit that, not this; a pull request against this file is carried back there by b
 A memory Claude keeps on your own computer, in plain files you can read, with the skills, persona sheets and shared rooms a small free-software shop built around it.
 
 > [!NOTE]
-> Version 1.2.83, built 2026-10-27 from source commit `81a4b32+uncommitted`. This is working software used daily by its two makers, not yet reviewed by anyone else. It runs on Claude Desktop (Windows and macOS) and Claude Code. It is not a security boundary: anything Claude can do with your files, it can still do. The parts that reach the network are off until you switch them on.
+> Version 1.2.84, built 2026-10-27 from source commit `27ac797+uncommitted`. This is working software used daily by its two makers, not yet reviewed by anyone else. It runs on Claude Desktop (Windows and macOS) and Claude Code. It is not a security boundary: anything Claude can do with your files, it can still do. The parts that reach the network are off until you switch them on.
 
 ## What you get
 
@@ -86,7 +86,7 @@ This is free software, and it is built so the choices stay with you, in practice
 
 - **Your words.** Call things what you call them. Tell Claude the word you use and it uses yours; to make it last, `word_register` writes down what a word means to you (one small file per word, never overwritten), and `word_where` finds it again. The project's own terms are explained where they ship (`GRAMMARY.md`), as a glossary, not a rule.
 - **Your defaults.** Every default is a preference you can change by asking in plain words (`pref_set`, `pref_list`); the extension's settings page wins over anything set elsewhere.
-- **Your keeper.** The keeper is the person an install is for, whose say decides what is kept about people. Put your own name in the settings page's **Keeper** field. Left empty, the keeper is the one your seat already records (the person who first set its keeper-only preferences), else this computer's account name when it is a person's name; `seat_mode` says which, and why.
+- **Your keeper.** The keeper is the person an install is for, whose say decides what is kept about people. Put your own name in the settings page's **Keeper** field. Left empty, the keeper is this computer's account name when it is a person's name, else the old default; the seat's own rows never name the keeper (since 2026-10-23: whoever wrote the first keeper-only row must not become the keeper by writing it). `seat_mode` says which source was used, and why.
 - **Your byline.** When an agent writes for you, it signs as itself, for you: `persona_byline` gives `Author: NAME (for YOU)`, and the copyright line stays yours. You choose the name, or withhold one. Nothing here signs as you.
 - **Your consent.** Doors start closed. The ghostwheel door asks before it looks anything up or trusts a new key; "always" is a separate switch, and only you set it.
 - **Your copy.** Everything is plain files you can read, move or delete, under licences that let you run, study, change and share all of it, these words included.

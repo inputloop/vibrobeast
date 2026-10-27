@@ -721,11 +721,17 @@ def standing_decision(row: dict, program: str, argv: list[str], cwd: str | None 
 # ---- the child's environment: a floor, not the server's own (the 2026-10-19 audit, BLOCK item 1) ----
 #: What a child may inherit from this process.  Everything else -- every other key the server holds, the API
 #: token, a password -- stays here.  The bound names are added on top.  Windows needs SystemRoot to open a
-#: socket and COMSPEC/PATHEXT to find programs; both platforms need PATH and a home.
+#: socket, COMSPEC/PATHEXT to find programs and ProgramData for Windows OpenSSH (without it ssh.exe exits 255
+#: and prints nothing); both platforms need PATH and a home.  On Windows the names are matched without regard
+#: to case: os.environ there hands every key back in upper case, so "ProgramData" written here never matched
+#: PROGRAMDATA, and the first ssh under the floor (2026-10-26, 1.2.83 installed) failed with no message.
 ENV_FLOOR = ("PATH", "HOME", "USERPROFILE", "HOMEDRIVE", "HOMEPATH", "USER", "USERNAME", "LOGNAME", "SHELL",
              "LANG", "LANGUAGE", "LC_ALL", "LC_CTYPE", "TERM", "TZ", "TMPDIR", "TEMP", "TMP",
              "SystemRoot", "SYSTEMROOT", "SystemDrive", "COMSPEC", "ComSpec", "PATHEXT", "windir",
-             "APPDATA", "LOCALAPPDATA", "ProgramData", "ProgramFiles", "ProgramFiles(x86)", "ProgramW6432",
+             "APPDATA", "LOCALAPPDATA", "ProgramData", "ALLUSERSPROFILE", "PUBLIC",
+             "ProgramFiles", "ProgramFiles(x86)", "ProgramW6432",
+             "CommonProgramFiles", "CommonProgramFiles(x86)", "CommonProgramW6432",
+             "OS", "NUMBER_OF_PROCESSORS", "PROCESSOR_ARCHITECTURE",
              "XDG_CONFIG_HOME", "XDG_DATA_HOME", "XDG_CACHE_HOME", "XDG_RUNTIME_DIR",
              "SSL_CERT_FILE", "SSL_CERT_DIR", "REQUESTS_CA_BUNDLE", "CURL_CA_BUNDLE", "GIT_SSL_CAINFO",
              "HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY", "http_proxy", "https_proxy", "no_proxy",
@@ -733,11 +739,18 @@ ENV_FLOOR = ("PATH", "HOME", "USERPROFILE", "HOMEDRIVE", "HOMEPATH", "USER", "US
              "PAGER", "EDITOR", "GIT_EDITOR", "PYTHONIOENCODING")
 
 
-def child_env(add: dict) -> dict:
+def child_env(add: dict, environ: dict | None = None, nt: bool | None = None) -> dict:
     """The environment one run gets: the floor from this process, then the bound names.  Found 2026-10-19
     (the audit, BLOCK item 1): the child used to get the whole of os.environ plus the bound names, so a run with one key
-    handed every other secret the server held to the program, and back out in its output."""
-    env = {k: v for k, v in os.environ.items() if k in ENV_FLOOR}
+    handed every other secret the server held to the program, and back out in its output.
+    On Windows (nt) a floor name matches the process's key in any case, since os.environ upper-cases them there;
+    elsewhere the names are exact (http_proxy and HTTP_PROXY are two variables).  environ and nt are for tests."""
+    src = os.environ if environ is None else environ
+    if (os.name == "nt") if nt is None else nt:
+        floor = {k.upper() for k in ENV_FLOOR}
+        env = {k: v for k, v in src.items() if k.upper() in floor}
+    else:
+        env = {k: v for k, v in src.items() if k in ENV_FLOOR}
     env.update(add)
     return env
 

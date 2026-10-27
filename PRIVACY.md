@@ -1,4 +1,4 @@
-# Privacy Policy -- vibrobeast 1.2.83
+# Privacy Policy -- vibrobeast 1.2.84
 
 *Minted 2026-10-27 by `bin/tp2mt` for this build and no other. Every sentence about what the servers
 do was checked against their source when this was minted:*
