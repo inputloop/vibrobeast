@@ -80,8 +80,25 @@ def main(argv=None) -> int:
     if not is_on():
         build().serve()
         return 0
+    # Two things the wrapper sets around Bryant's code, which stays byte for byte (the 2026-10-19 audit, HOLD
+    # item 9).  (a) A loopback Ollama is reached directly: with HTTP_PROXY set, urllib on Linux/3.13 did not
+    # bypass the proxy for 127.0.0.1, so delegated prompts could leave for the proxy.  no_proxy names the
+    # loopback here, for this process only.  (b) The log keeps whole prompts and answers; it is the person's
+    # own file and is made 0600 before the bridge opens it, where the platform has modes.
+    import os
+    for k in ("no_proxy", "NO_PROXY"):
+        have = [x for x in os.environ.get(k, "").split(",") if x]
+        for lo in ("127.0.0.1", "localhost", "::1"):
+            if lo not in have:
+                have.append(lo)
+        os.environ[k] = ",".join(have)
     from . import llama_bridge
     DB.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        DB.touch(mode=0o600, exist_ok=True)
+        os.chmod(DB, 0o600)
+    except OSError:
+        pass   # Windows has no such mode; the folder under the profile is the person's own
     sys.argv = ["llama_bridge", "mcp", "--db", str(DB)] + argv
     llama_bridge.main()
     return 0

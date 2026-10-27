@@ -342,6 +342,24 @@ def known(fqdn: str, port: int) -> bool:
     return any(l.split(" ", 1)[0].lower() == hf for l in KNOWN.read_text(encoding="utf-8").splitlines())
 
 
+def known_fingerprints(fqdn: str, port: int) -> list[str]:
+    """The fingerprints of every key gw_known_hosts holds for this host and port (the 2026-10-19 audit, HOLD
+    item 5: the pin was compared only on the first contact, and a host already known ran with whatever its
+    known_hosts line said; now the pin is compared against that line on every probe)."""
+    if not KNOWN.is_file():
+        return []
+    hf = _hostfield(fqdn, port).lower()
+    out = []
+    for l in KNOWN.read_text(encoding="utf-8").splitlines():
+        parts = l.split()
+        if len(parts) >= 3 and parts[0].lower() == hf:
+            try:
+                out.append(fingerprint(parts[2]))
+            except Exception:   # noqa: BLE001 -- a line that is not a key is not a fingerprint
+                pass
+    return out
+
+
 #: Why the last keyscan offered no key, in the scanner's own words; probe says it with the DOWN.
 SCAN_WHY = {"why": ""}
 
@@ -482,10 +500,19 @@ def http_get(h: dict, d: dict) -> int:
     url = f"{h['method']}://{h['fqdn']}:{h['port']}{path}"
     req = urllib.request.Request(url, method="GET", headers={"User-Agent": "vibrobeast-gwstatus/" + VERSION})
     if h["auth"] == "basic":
+        if h["method"] != "https" and h["fqdn"] not in ("127.0.0.1", "localhost", "::1"):
+            raise ValueError("basic auth over plain http would send the password in clear across the network; use https, "
+                             "or a tunnel to 127.0.0.1 (the 2026-10-19 audit, item 11)")
         pw = _env("GW_PASSWORD")
         req.add_header("Authorization", "Basic " + base64.b64encode(f"{h['user']}:{pw}".encode()).decode())
+    # No redirect is followed: urllib would re-send the Authorization header to wherever the host pointed
+    # (item 11).  A 3xx is answered as its own status, which the caller already reads as not-200.
+    class _NoRedirect(urllib.request.HTTPRedirectHandler):
+        def redirect_request(self, req, fp, code, msg, headers, newurl):   # noqa: N802 -- urllib's name
+            return None
+    opener = urllib.request.build_opener(_NoRedirect, urllib.request.HTTPSHandler(context=ssl.create_default_context()))
     try:
-        with urllib.request.urlopen(req, timeout=TIMEOUT, context=ssl.create_default_context()) as r:
+        with opener.open(req, timeout=TIMEOUT) as r:
             return r.status
     except urllib.error.HTTPError as e:
         return e.code
@@ -507,6 +534,10 @@ def probe(h: dict, d: dict) -> dict:
                             else "hostname lookups are switched off (GW_LOOKUPS)")}
     try:
         if h["method"] == "ssh":
+            if known(h["fqdn"], h["port"]) and h["fingerprint"] and h["fingerprint"] not in known_fingerprints(h["fqdn"], h["port"]):
+                return {"state": "BLOCKED", "pairs": [["hostkey", 0]],
+                        "say": f"the host key gw_known_hosts holds for {h['fqdn']} does not match the pinned {h['fingerprint']}: refused "
+                               "(the pin is compared on every probe, not only the first; remove the stale known_hosts line or fix the pin)"}
             if not known(h["fqdn"], h["port"]):
                 SCAN_WHY["why"] = ""
                 keys = keyscan(h["fqdn"], h["port"])
@@ -705,9 +736,15 @@ def build():
         kind, host = a.get("kind"), (a.get("host") or "").strip()
         if kind not in ("lookup", "hostkey") or not valid_name(host):
             raise ToolError("kind must be lookup or hostkey, and host a valid name")
-        fp = a.get("fingerprint") or ""
+        fp = (a.get("fingerprint") or "").strip()
         if kind == "hostkey" and not fp:
             raise ToolError("a host key is allowed by its fingerprint: pass the one gw_probe showed")
+        # One row per yes, and only the shape ssh-keygen prints (the 2026-10-19 audit, HOLD item 6: a fingerprint
+        # carrying a tab or a newline wrote extra approval rows and turned a lookup gate GO).
+        if fp and not re.fullmatch(r"SHA256:[A-Za-z0-9+/]{43}", fp):
+            raise ToolError("fingerprint must look like SHA256:<43 base64 characters>, exactly as gw_probe showed it")
+        if kind == "lookup" and fp:
+            raise ToolError("a lookup yes carries no fingerprint; pass one only for kind=hostkey")
         _approve(kind, host, "always" if a.get("always") else "once", fp)
         return {"recorded": {"kind": kind, "host": host.lower(), "how": "always" if a.get("always") else "once",
                              "fingerprint": fp or None}, "next": "run gw_probe"}

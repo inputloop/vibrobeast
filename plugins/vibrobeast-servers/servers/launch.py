@@ -55,6 +55,10 @@ for _stream, _errors in ((sys.stdin, "replace"), (sys.stdout, "strict")):
         pass
 
 _HERE = os.path.dirname(os.path.realpath(__file__))
+# THIRD: the folder Claude was opened in is never an import path (the 2026-10-19 audit, S6).  The mint starts
+# this file with -I, which already drops '' and PYTHONPATH; this line keeps the rule when someone starts it by
+# hand without -I.
+sys.path[:] = [p for p in sys.path if p not in ("", ".", os.getcwd())]
 if _HERE not in sys.path:
     sys.path.insert(0, _HERE)
 

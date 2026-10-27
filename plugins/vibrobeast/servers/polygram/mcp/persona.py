@@ -370,9 +370,20 @@ def _num(n: int) -> str:
     return f"{w} ({n})"
 
 
+def _guard(path) -> Path:
+    """The one rule every read in this server keeps: a file whose name says SECRET is never opened, whatever
+    pointed at it (a shelf row, a `proposed` path, a `source:` pointer).  Found 2026-10-19 (the audit, HOLD
+    item 10): classify() kept the rule and six other reads did not.  Raises OSError, which every caller
+    already treats as 'not readable'."""
+    p = Path(path)
+    if "SECRET" in p.name.upper():
+        raise OSError(f"refused: {p.name} says SECRET in its name, and this server never opens such a file")
+    return p
+
+
 def _head(path: Path) -> list[str]:
     try:
-        with path.open(encoding="utf-8", errors="replace") as fh:
+        with _guard(path).open(encoding="utf-8", errors="replace") as fh:
             return [fh.readline() for _ in range(HEAD_LINES)]
     except OSError:
         return []
@@ -390,7 +401,7 @@ def _version(path: Path) -> str:
     parts), else a plain 'no version line'.  Version lines only (L5)."""
     last = ""
     try:
-        for raw in path.read_text(encoding="utf-8", errors="replace").splitlines():
+        for raw in _guard(path).read_text(encoding="utf-8", errors="replace").splitlines():
             m = _VERSION_FOOT.match(raw.strip())
             if m:
                 last = m.group(1).strip()
@@ -416,7 +427,7 @@ def _inverse_lines(path: Path) -> tuple[list[tuple[int, str, str]], bool]:
     """([(line number, target cell, words)], section present?) from the sheet's own section."""
     out, inside, present = [], False, False
     try:
-        lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
+        lines = _guard(path).read_text(encoding="utf-8", errors="replace").splitlines()
     except OSError:
         return out, False
     for i, raw in enumerate(lines, 1):
@@ -439,7 +450,7 @@ def _proposed_edges(src: Path) -> list[dict]:
     out = []
     src = Path(os.path.abspath(src))
     try:
-        lines = src.read_text(encoding="utf-8", errors="replace").splitlines()
+        lines = _guard(src).read_text(encoding="utf-8", errors="replace").splitlines()
     except OSError as exc:
         return [{"fault": f"proposed source not readable: {exc}", "src": src, "line": 0}]
     i = 0
@@ -461,7 +472,7 @@ def _proposed_edges(src: Path) -> list[dict]:
             f = Path(os.path.normpath(src.parent / c.group(1)))
             a = int(c.group(2)); b = int(c.group(3) or a)
             try:
-                got = f.read_text(encoding="utf-8", errors="replace").splitlines()[a - 1:b]
+                got = _guard(f).read_text(encoding="utf-8", errors="replace").splitlines()[a - 1:b]
             except OSError:
                 got = []
             text = " ".join(" ".join(got).split())
@@ -585,7 +596,7 @@ def ledger(proposed: list | None = None, today: str | None = None) -> dict:
     hands = set()
     for f in sorted(hand_files):
         try:
-            txt = Path(f).read_text(encoding="utf-8", errors="replace")
+            txt = _guard(f).read_text(encoding="utf-8", errors="replace")
         except OSError:
             continue
         for h in re.findall(r"\(for Corwin; ([A-Za-z0-9._-]+)\)", txt):
@@ -778,7 +789,7 @@ def build(by: str | None = None, root: Path | None = None,
                     raise ToolError(f"{p} is {row['bytes']} bytes, over the "
                                     f"{MAX_SHEET_BYTES}-byte read cap")
                 sheet = {**row, "found": True, "gen": None,
-                         "note": p.read_text(encoding="utf-8", errors="replace"),
+                         "note": _guard(p).read_text(encoding="utf-8", errors="replace"),
                          "say": f"{row['name']}: read from the shelf, read-only "
                                 f"({p}); not a chained generation -- its gauge is bin/cs1gk"}
                 if out.get("found"):

@@ -510,15 +510,19 @@ def main(argv=None) -> int:
         return 0
     js = str(Path(st["c4"]) / "mcp" / "c4-mcp.js")
     cmd = [st["node"], js] + argv
+    # node gets a floor of the environment plus C4's own names, never the plugin's keys, token or password
+    # (the 2026-10-19 audit, HOLD item 12 and S3: c4face execs node with the full environment).
+    from .keys import child_env
+    env = child_env({k: v for k, v in os.environ.items() if k.startswith(("C4_", "C4OK_", "NODE_"))})
     sys.stdout.flush()
     sys.stderr.write(f"c4face: serving {js} with {st['node']}\n")
     sys.stderr.flush()
     if os.name == "nt":
         # os.exec* on Windows starts a new process and ENDS this one, and the app would see its
         # server exit.  So wait on the child instead; stdin, stdout and stderr are inherited.
-        return subprocess.call(cmd)
+        return subprocess.call(cmd, env=env)
     try:
-        os.execv(st["node"], cmd)               # this process becomes node; nothing in between
+        os.execve(st["node"], cmd, env)               # this process becomes node; nothing in between
     except OSError as e:                        # pragma: no cover -- probe said it runs
         sys.stderr.write(f"c4face: could not start node ({e}); serving c4_status instead\n")
         build().serve()

@@ -71,7 +71,7 @@ exit /b 1
 
 :VB_RUN
 >&2 echo vibrobeast: starting the %~1 server with "%VB_PY%"
-"%VB_PY%" -B "%VB_HERE%launch.py" "%~1"
+"%VB_PY%" -I -B "%VB_HERE%launch.py" "%~1"
 exit /b %errorlevel%
 
 :VB_USAGE

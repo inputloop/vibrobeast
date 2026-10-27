@@ -1,6 +1,6 @@
-# Privacy Policy -- vibrobeast 1.2.79
+# Privacy Policy -- vibrobeast 1.2.83
 
-*Minted 2026-10-26 by `bin/tp2mt` for this build and no other. Every sentence about what the servers
+*Minted 2026-10-27 by `bin/tp2mt` for this build and no other. Every sentence about what the servers
 do was checked against their source when this was minted:*
 
 - no server but llamabridge, tavernface and gwstatus opens a network connection: none imports a network library (urllib.parse, which only reads a URL's text, is not one)
@@ -33,6 +33,9 @@ do was checked against their source when this was minted:*
 - key_run starts only the programs a key allows (by default gh, git, glab, ssh, scp, npm or twine, as the key's service needs)
 - key_run's output has the key's value replaced by [key NAME] before Claude sees it, in each way a program may spell it (slashes turned, backslashes doubled)
 - when key_run hands a second key to a program (gh secret set), it goes to the program's input as bytes, never its arguments, and the confirmation names it with its own usage constraints
+- the program key_run starts sees a floor of this computer's environment (PATH, your home, locale, temp folders, proxies and the Windows system names) plus the one key you bound, and no other key, token or password the plugin holds (the 2026-10-19 audit's item 1, closed 2026-10-26)
+- key_run runs a program by its bare name as PATH finds it, never a path typed into the call, so a file named ssh in some folder cannot pass as ssh (audit item 2, closed 2026-10-26)
+- a door switch (tavern.on, gw.on, c4.on, llamabridge.on), a keeper-only row (keys.standing, people.named) and the roots skills and personas are read from change only after you see the row and confirm it with a one-use code: the turn a call names is the record of who asked, never the yes (audit item 3, closed 2026-10-26)
 - a Docker token goes to docker login on its input (--password-stdin), never as -p
 - a DreamHost key goes to curl in a config on its input (-K -), never in its arguments or a logged URL
 - git started with the ssh key is told its ssh is OpenSSH, whatever ssh.variant a gitconfig names

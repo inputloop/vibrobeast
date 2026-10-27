@@ -87,6 +87,7 @@ KNOWN: dict[str, tuple[str, str]] = {
     "tavern.on": ("off", "tavern: off until set to on; when on, Claude can read and post in your Tavern rooms, and what is posted is copied to every member machine's disk. Restart the plugin after changing it (the README's Words say how)"),
     "tavern.as": ("claude", "tavern: the agent name Claude uses in the Tavern (Tavern adds this machine's address, e.g. claude-192.0.2.7, a documentation address). When unset, it is the agent already registered in the Tavern for this machine's person, else claude"),
     "tavern.data": ("", "tavern: the Tavern data folder, when it is not where Tavern's installer or a download would put it; else $TAVERN_DATA, else found by itself"),
+    "tavern.face": ("", "tavernface: which tavern.py speaks for a Tavern that runs the garden-pony build. Empty: the stock 2.3.1 this plugin carries. sha256:<the whole hash>: this Tavern's own tavern.py, imported only while its bytes match that hash (the status words say the hash to pin). bundled: the stock copy, on purpose. A pin is code the plugin will run, so pref_set asks for a code first (2026-10-26; the 10-19 audit's item 4)"),
     "gw.on": ("off", "gwstatus: off until set to on; when on, Claude can ask your listed hosts (GW_HOSTS, the hosts register) how they are and draw the ghostwheel status icon, asking first before any name lookup or new host key unless told always. Restart the plugin after changing it"),
     "c4.on": ("off", "c4face: off until set to on; when on, Claude can use your C4 work surface by running C4's own server (mcp/c4-mcp.js in your C4 folder) with node, after a check at every start. Restart the plugin after changing it (the README's Words say how)"),
     "c4.root": ("", "c4face: your C4 folder (the one holding mcp/c4-mcp.js), when it is not found by itself; else $C4_ROOT, else words.root, else a c4 folder near the seat or the shelf, else the usual places"),
@@ -95,12 +96,22 @@ KNOWN: dict[str, tuple[str, str]] = {
     "tone.dial": ("0/0, 0/0", "tone: where the voice sits on two axes, answer length and narration, as signals seen / signals total on each; the default is the origin (no signals yet), which is plain voice"),
     "tone.show": ("words", "tone: how the tone reading is shown to you: words (a plain sentence, no numbers) or numbers"),
     "persona.on_threshold": ("off", "persona: what happens when someone crosses a threshold (used twice outside a test run; cited twice in seat notes; shipped through a cut with their credit): off (nothing; the default, his standing rule), propose (persona_list names the crossing and asks, in words), draft (persona_list names it and a draft may be written to the holding shelf ~/.mentcached/seat/persona/drafts, marked not-his-instruction and kept out of the index). No value mints a sheet: saying yes to a proposal or a draft is the instruction his rule asks for (2026-10-14)"),
-    "keys.standing": ("", "key_run: standing yeses, so routine runs on the keeper's own hosts need no confirmation each time. Entries KEY PROGRAM TARGET, separated by ';' (e.g. 'ssh ssh vibrobeast@gw33.bru.st; ssh scp vibrobeast@gw33.bru.st'). ssh: the host argument is exactly TARGET. scp: pushes to TARGET only (a pull could write this computer's files). git: TARGET is a folder, and only `git pull` (run fast-forward only) or `git fetch`, alone, run in exactly that folder (e.g. 'ssh git /home/you/projects/c4-draw-kiosk'). Any argument starting with - still asks. Every standing run says so in its result. Only the keeper's own turn changes it"),
-    "people.named": ("", "the people whose person.<name>.* rows this server keeps, besides the keeper, who is always one of them: the participants the keeper named, comma-separated. Only the keeper's own turn changes it"),
+    "keys.standing": ("", "key_run: standing yeses, so routine runs on the keeper's own hosts need no confirmation each time. Entries KEY PROGRAM TARGET, separated by ';' (e.g. 'ssh ssh vibrobeast@gw33.bru.st; ssh scp vibrobeast@gw33.bru.st'). ssh: the host argument is exactly TARGET. scp: pushes to TARGET only (a pull could write this computer's files). git: TARGET is a folder, and only `git pull` (run fast-forward only) or `git fetch`, alone, run in exactly that folder (e.g. 'ssh git /home/you/projects/c4-draw-kiosk'). Any argument starting with - still asks. Every standing run says so in its result. Only the keeper's own turn changes it, and only with a code the person saw beside the row (pref_set asks first)"),
+    "people.named": ("", "the people whose person.<name>.* rows this server keeps, besides the keeper, who is always one of them: the participants the keeper named, comma-separated. Only the keeper's own turn changes it, and only with a code the person saw beside the row (pref_set asks first)"),
 }
 
 #: keys only the keeper's own turn writes; a row in the file that another turn wrote is not read
 KEEPER_ONLY = ("people.named", "keys.standing")
+#: keys whose write goes through the confirm-code door (the 2026-10-19 audit, BLOCK item 3): the keeper's
+#: "own turn" is a string the caller types, and MCP carries no speaker, so ``turn`` is the record of who
+#: asked and never the gate.  The gate is a code the person saw beside the row: the first pref_set call
+#: returns the row in words and a code; the second, with the code, writes.  The doors (every *.on), where
+#: the plugin's reach is set, and the roots a skill or persona is read from, go through it as well.
+CONFIRMED = KEEPER_ONLY + ("softskills.roots", "persona.sheets", "words.root", "tavern.face")
+
+
+def needs_confirm(key: str) -> bool:
+    return key in CONFIRMED or key.endswith(".on")
 
 #: prefix -> the key's shape, who reads it, and the name check.  A key under a prefix is read by
 #: that reader; a key under no prefix and not in KNOWN needs a skill that declares it.
@@ -510,17 +521,48 @@ def register(srv, by: str) -> None:
                               "why": {"type": "string", "description": "one line"},
                               "turn": {"type": "string", "description": "whose turn asked for this, by name"},
                               "consent": {"type": "string", "description": "a consent row's id, when the person did not ask on their own turn"},
-                              "room": {"type": "string", "description": "the room (tavern) this turn is in, for a room.<tavern> key"}},
+                              "room": {"type": "string", "description": "the room (tavern) this turn is in, for a room.<tavern> key"},
+                              "confirm": {"type": "string", "description": "the code from the first call, once the person has seen the row (doors, keeper-only keys and reader roots ask for one)"}},
                "required": ["key", "value"]})
     def _set(args):
         key = args.get("key", "")
         cur = (current().get(key, {}).get("value") if key in KNOWN
                else (applied().get(key) or {}).get("value"))
+        value = " ".join(str(args.get("value", "")).split())
+        skipped = os.environ.get("MENTCACHED_PREFS_NO_CONFIRM") == "test"   # the host's test harness only: a fresh
+        # server per call cannot hold a code across two calls; the result says the door was skipped
+        if needs_confirm(key) and not skipped:
+            # whose turn may write is decided first, and a refusal is said at once; the code door comes after,
+            # so a turn that may not write is never shown a code to come back with
+            refused = writer(key, args.get("turn") or "", args.get("consent") or "", room=args.get("room") or "")
+            if refused:
+                raise ToolError(refused)
+            # The door: the person sees the row before it lands.  Same shape as key_run's (keys.Codes): a
+            # random one-use code, good for these words, for a while.
+            from .keys import CODES
+            fp = "pref|" + key + "|" + value + "|" + (args.get("turn") or "") + "|" + (args.get("room") or "")
+            took = CODES.take(args.get("confirm") or "", fp)
+            if took == "used" or took == "expired":
+                raise ToolError(f"that code was {took}; ask again and show the person the row once more")
+            if took != "ok":
+                who, _ = reader(key)
+                return {"ok": None, "confirm": CODES.issue(fp),
+                        "present": (f"About to set {key} = {value!r} (was {cur!r}; read by {who or 'this server'})"
+                                    + (f" on {args.get('turn')}'s turn" if args.get("turn") else "")
+                                    + f". {KNOWN[key][1]}" if key in KNOWN else
+                                    f"About to set {key} = {value!r} (was {cur!r})"),
+                        "say": "Show the person this row, and call pref_set again with confirm set to the code "
+                               "only if they agree. The code is good for one write, within 15 minutes. "
+                               "The turn you name is the record of who asked; the code is the yes."}
         out = set_(key, args.get("value", ""), by, args.get("why") or "",
                    turn=args.get("turn") or "", consent=args.get("consent") or "",
                    room=args.get("room") or "")
         out["was"] = cur
+        out["ok"] = True                                   # the door's first call answers ok: None; a write is ok: True
         out["say"] = f"{out['key']} = {out['value']!r} (was {cur!r}; read by {out['reader']})"
+        if needs_confirm(key):
+            out["door"] = "skipped: MENTCACHED_PREFS_NO_CONFIRM=test (the host's test harness)" if skipped else "confirmed by code"
+            out["say"] += "; door " + out["door"]
         return out
 
     @srv.tool("pref_unset",

@@ -279,10 +279,20 @@ def face_of(data):
         return None, "the stock 2.3.1 this plugin carries (preference tavern.face=bundled)"
     bld = build_of(data)
     if data is not None and "garden-pony" in bld:
+        # A Tavern's own tavern.py runs IN this server once imported, so it is code, and code found beside a
+        # data folder in Downloads or Documents is not trusted by its VERSION line (the 2026-10-19 audit, HOLD
+        # item 4: a planted file with "+gp." in VERSION became plugin code).  It runs only when the keeper has
+        # pinned its bytes: tavern.face=sha256:<the whole hash>.  Until then the stock copy speaks, and the
+        # words say the hash to pin.
         py = Path(data).parent / "tavern.py"
         import hashlib
-        return py, "this Tavern's own tavern.py, %s, sha256 %s" % (bld.split(" (")[0],
-                                                                     hashlib.sha256(py.read_bytes()).hexdigest()[:16])
+        h = hashlib.sha256(py.read_bytes()).hexdigest()
+        pin = _pref("tavern.face").lower()
+        if pin == "sha256:" + h:
+            return py, "this Tavern's own tavern.py, %s, sha256 %s (pinned by tavern.face)" % (bld.split(" (")[0], h[:16])
+        return None, ("the stock 2.3.1 this plugin carries: this Tavern's own tavern.py (%s, sha256 %s) is not pinned, "
+                      "and unpinned code beside a data folder is never imported; to speak through it, set "
+                      "tavern.face=sha256:%s on your turn" % (bld.split(" (")[0], h[:16], h))
     return None, "the stock 2.3.1 this plugin carries (this Tavern is %s)" % bld
 
 

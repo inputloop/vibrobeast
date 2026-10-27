@@ -66,6 +66,7 @@ import hmac
 import os
 import re
 import secrets as _secrets
+import shutil
 import subprocess
 import time
 from pathlib import Path
@@ -717,13 +718,55 @@ def standing_decision(row: dict, program: str, argv: list[str], cwd: str | None 
     return stand, note
 
 
+# ---- the child's environment: a floor, not the server's own (the 2026-10-19 audit, BLOCK item 1) ----
+#: What a child may inherit from this process.  Everything else -- every other key the server holds, the API
+#: token, a password -- stays here.  The bound names are added on top.  Windows needs SystemRoot to open a
+#: socket and COMSPEC/PATHEXT to find programs; both platforms need PATH and a home.
+ENV_FLOOR = ("PATH", "HOME", "USERPROFILE", "HOMEDRIVE", "HOMEPATH", "USER", "USERNAME", "LOGNAME", "SHELL",
+             "LANG", "LANGUAGE", "LC_ALL", "LC_CTYPE", "TERM", "TZ", "TMPDIR", "TEMP", "TMP",
+             "SystemRoot", "SYSTEMROOT", "SystemDrive", "COMSPEC", "ComSpec", "PATHEXT", "windir",
+             "APPDATA", "LOCALAPPDATA", "ProgramData", "ProgramFiles", "ProgramFiles(x86)", "ProgramW6432",
+             "XDG_CONFIG_HOME", "XDG_DATA_HOME", "XDG_CACHE_HOME", "XDG_RUNTIME_DIR",
+             "SSL_CERT_FILE", "SSL_CERT_DIR", "REQUESTS_CA_BUNDLE", "CURL_CA_BUNDLE", "GIT_SSL_CAINFO",
+             "HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY", "http_proxy", "https_proxy", "no_proxy",
+             "SSH_AUTH_SOCK", "GIT_TERMINAL_PROMPT", "GIT_CONFIG_NOSYSTEM", "GH_HOST", "GH_PAGER", "GIT_PAGER",
+             "PAGER", "EDITOR", "GIT_EDITOR", "PYTHONIOENCODING")
+
+
+def child_env(add: dict) -> dict:
+    """The environment one run gets: the floor from this process, then the bound names.  Found 2026-10-19
+    (the audit, BLOCK item 1): the child used to get the whole of os.environ plus the bound names, so a run with one key
+    handed every other secret the server held to the program, and back out in its output."""
+    env = {k: v for k, v in os.environ.items() if k in ENV_FLOOR}
+    env.update(add)
+    return env
+
+
+def resolve_program(argv0: str) -> tuple[str, str, str]:
+    """(name, path, problem): the program's bare name, where PATH says it is, and why not.  A caller names
+    a program; it never gives a path.  Found 2026-10-19 (the audit, BLOCK item 2): RUN was checked against
+    the basename and the path ran as given, so any file called ssh in any folder passed as ssh."""
+    a = (argv0 or "").strip()
+    if not a:
+        return "", "", "nothing to run: argv is empty"
+    if "/" in a or "\\" in a or a in (".", ".."):
+        return "", "", (f"name the program, not a path: {a!r} has a slash, and only a program found on PATH "
+                        "under its own name may run with a key bound")
+    name = a
+    for suffix in (".exe", ".cmd", ".bat"):
+        name = name.removesuffix(suffix)
+    # Where PATH says it is, so the result can say what ran.  When PATH has no such program the bare name
+    # goes to the process start as before and its FileNotFoundError says so; a bare name can only be
+    # found on PATH, which is the point.
+    path = shutil.which(a) or (shutil.which(name) if name != a else "") or a
+    return name, path, ""
+
+
 def run(row: dict, argv: list[str], cwd: str, confirm: str, lex, timeout: float = RUN_TIMEOUT,
         stdin_row: dict | None = None) -> dict:
-    program = os.path.basename(argv[0]) if argv else ""
-    for suffix in (".exe", ".cmd", ".bat"):
-        program = program.removesuffix(suffix)
-    if not argv:
-        return {"ok": False, "say": "nothing to run: argv is empty"}
+    program, exe, problem = resolve_program(argv[0] if argv else "")
+    if problem:
+        return {"ok": False, "say": problem}
     if program not in row["run_list"]:
         return {"ok": False, "say": f"the key {row['name']!r} may start {', '.join(row['run_list']) or 'nothing'}; "
                                    f"not {program}. Add it to the key's RUN to allow it."}
@@ -793,7 +836,7 @@ def run(row: dict, argv: list[str], cwd: str, confirm: str, lex, timeout: float 
     if own_feed:
         feed = own_feed
     add, extra = bound_env(row, value, program, lex)
-    env = {**os.environ, **add}
+    env = child_env(add)                             # the floor plus the bound names; never the server's own
     login_secret = ""
     if row["kind"] == "login":
         drop, ask = LOGINS[row["source"][6:]]
@@ -810,7 +853,7 @@ def run(row: dict, argv: list[str], cwd: str, confirm: str, lex, timeout: float 
         env["SystemRoot"] = r"C:\Windows"
     t0 = time.time()
     try:
-        p = subprocess.run([argv[0], *extra, *argv[1:]], cwd=cwd, env=env, capture_output=True,
+        p = subprocess.run([exe, *extra, *argv[1:]], cwd=cwd, env=env, capture_output=True,
                            # always an input of our own: inherited, it would be the server's own
                            # protocol pipe, and a prompt could sit on it until the bridge gave up.
                            # Bytes, not text: in text mode Windows writes every \n as \r\n, and a
@@ -834,7 +877,7 @@ def run(row: dict, argv: list[str], cwd: str, confirm: str, lex, timeout: float 
         for sp in spellings(s or ""):
             out, err = out.replace(sp, mask), err.replace(sp, mask)
     return {"ok": rc == 0, "exit": rc, "stdout": out[-20000:], "stderr": err[-8000:],
-            "seconds": round(time.time() - t0, 2), "bound": sorted(add), "scrubber": scrubbed_by,
+            "seconds": round(time.time() - t0, 2), "bound": sorted(add), "scrubber": scrubbed_by, "ran": exe,
             "say": f"{program} exited {rc} after {time.time() - t0:.1f} s with {row['name']!r} bound "
                    f"as {', '.join(sorted(k for k in add if not k.startswith('GIT_CONFIG')))}"
                    + (f"; ran on a {stand}, no confirmation asked" if stand else "")
