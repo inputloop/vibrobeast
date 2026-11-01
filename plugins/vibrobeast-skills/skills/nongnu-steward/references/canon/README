@@ -1,0 +1,70 @@
+covers: *
+
+Copyright and licence notices for the files in this directory
+=============================================================
+
+Every file here is a text extraction of somebody else's page, kept so that
+`sh scripts/ns2cn --diff SLUG` can show what changed when the page moves.  None
+was written by this project; none may be edited (a snapshot that is not the page
+is worthless, and several sources are no-derivatives).  The copyright is the
+source's; the permission to keep a copy is stated by each source as follows.
+Pages whose licence is not stated on the page (the Savannah maintenance wiki,
+savannah.gnu.org/maintenance/*) are NOT copied here: their rows in
+`../canon.tsv` are `SNAP=sha` -- hashed for change detection, never stored.
+
+  sv-requirements.txt
+      savane.git : frontend/site-specific/gnu/register/requirements.php (the source
+      of https://savannah.gnu.org/register/requirements.php).  Copyright (C) 1999-2026
+      the Savane authors as listed in the file; GNU AGPL v3 or later (code after
+      2008-03-30) / GNU GPL v3 or later -- the notices are in the file.
+
+  gnu-gpl-howto.txt  gnu-fdl-howto.txt  gnu-license-recommendations.txt  gnu-devel.txt
+      https://www.gnu.org/licenses/gpl-howto.html  (and the pages named by the slugs)
+      Copyright (C) Free Software Foundation, Inc.  Each page: "This page is
+      licensed under a Creative Commons Attribution-NoDerivatives 4.0
+      International License."  Kept as a verbatim text extraction; not modified.
+
+  gnu-maintain-*.txt
+      https://www.gnu.org/prep/maintain/html_node/  (Information for Maintainers of
+      GNU Software).  Copyright (C) Free Software Foundation, Inc.  GNU Free
+      Documentation License, Version 1.3 or any later version (the manual's own
+      notice; see its front page).
+
+  gnu-standards-releases.txt  gnu-standards-references.txt
+      https://www.gnu.org/prep/standards/html_node/  (GNU Coding Standards).
+      Copyright (C) Free Software Foundation, Inc.  GNU FDL 1.3 or later (the
+      manual's notice).
+
+  emacs-contribute.txt  emacs-admin-copyright.txt
+      emacs.git : CONTRIBUTE, admin/notes/copyright.  Copyright (C) 2006-2026 /
+      2007-2026 Free Software Foundation, Inc.  Part of GNU Emacs: GNU General
+      Public License, version 3 or (at your option) any later version -- the
+      notice is at the end of each file.  THESE TWO WERE LAST READ THROUGH cgit's
+      /plain export on 2026-09-23; their manifest rows are pinned at commit level
+      only (pinned-no-body) until `ns2cn --refresh` fetches the blobs on a day the
+      server is calm -- see INQUIRE.md §3.
+
+  coreutils-hacking.txt
+      coreutils.git : HACKING.  Copyright (C) 2009-2026 Free Software Foundation,
+      Inc.  GNU FDL 1.3 or any later version (notice at the end of the file).
+      Same standing as the Emacs files: read via cgit 2026-09-23, blob not yet pinned.
+
+  gcc-contribute.txt
+      gcc-wwwdocs.git : htdocs/contribute.html (the source of
+      https://gcc.gnu.org/contribute.html).  Copyright (C) Free Software
+      Foundation, Inc.  "Verbatim copying and distribution of this entire article
+      is permitted in any medium, provided this notice is preserved."
+
+Forms: a `git` row's snapshot is the blob's text (verbatim for a plain file; markup
+stripped for HTML); a `static` row's is the published file with markup stripped.
+The extraction drops HTML markup, scripts and styles and squeezes blank lines
+(`scripts/ns2cn`, function `to_text`); it adds nothing.  When a page's stated
+licence changes, this README changes with it, and a page whose notice no longer
+permits a copy is dropped to `SNAP=sha`.
+
+This README itself: Copyright (C) 2026 Corwin Brust <corwin@bru.st>.  Authored
+by Mentat (for Corwin).
+Copying and distribution of this file, with or without modification,
+are permitted in any medium without royalty provided the copyright
+notice and this notice are preserved.  This file is offered as-is,
+without any warranty.

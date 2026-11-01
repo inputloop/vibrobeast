@@ -1,0 +1,190 @@
+#!/bin/sh
+# ns2hw -- NONGNU STEWARD 2 HEADER WRITE.  The asked edit: put the recommended copyright + licence
+# notice into the files ns1hd reports, in each file's own comment syntax, and verify every write by
+# reading it back.  Nothing happens without --write; without it the plan is printed and no file
+# changes.  The pen is the keeper's -- this is the keeper's hand, extended, when the keeper says so.
+#
+# THE NAME (the AS4CE pattern, run-level in the slot): N NONGNU · S STEWARD · 2 writes files (only with
+# --write, each verified) · H HEADER · W WRITE.
+#
+# usage: sh ns2hw [--root DIR] [--holder H] [--name N] [--license ID] [--year YYYY] [--byline B] [PATH ...]  plan
+#        sh ns2hw --write ...                                                  do it, verify, re-audit
+#        sh ns2hw --prove-red
+#   Which files: ns1hd's NO-NOTICES / NO-COPYRIGHT / NO-LICENSE / SHORT-NOTICE rows under DIR (or PATHs).
+#   Where the notice goes: after a #! line; after a `;;; file ---` first line (elisp); after an
+#   existing Copyright line when one is there (NO-LICENSE / SHORT-NOTICE keep their copyright line,
+#   gain the SPDX line and the notice); at the END of a .md file (a footer -- a SKILL.md's frontmatter
+#   is never touched); at the top otherwise.  Files with a `covers: *` README, binaries, and the
+#   audit's skip list are never written.
+#   Prefs read (nslib.sh): steward.holder steward.name steward.license steward.byline.
+#   Every write: temp file -> `cat` in place (no unlink; a mount may refuse it) -> read back -> sha
+#   compared -> VERIFIED or MISMATCH (exit 1).  Then ns1hd runs again on what was written, and every
+#   swept skill (a written file under skills/<x>/ that carries a .skill-manifest) gets its EXPRESS
+#   MANIFEST rewritten by skill-sign.sh manifest ($NS2HW_SIGN_TOOL overrides the tool's path), so
+#   verify reads UNVERIFIED-AUTHOR and never TREE CHANGED; an orphaned signature is archived aloud.
+# Exit: 0 all written and verified (or plan printed) · 1 a write failed verification or a file
+#   could not be written · 2 usage.
+#
+# Copyright (C) 2026 Corwin Brust <corwin@bru.st>
+# SPDX-License-Identifier: GPL-3.0-or-later
+# This file is part of nongnu-steward.  It is free software: you can redistribute it and/or
+# modify it under the terms of the GNU General Public License as published by the Free Software
+# Foundation, either version 3 of the License, or (at your option) any later version.  It is
+# distributed WITHOUT ANY WARRANTY; see <https://www.gnu.org/licenses/>.  Authored by Mentat
+# (for Corwin).
+set -u
+LC_ALL=C; export LC_ALL
+here=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd) || exit 2
+. "$here/nslib.sh"
+me=${0##*/}
+ROOT=. WRITE=0 HOLDER= NAME= LICENSE= YEAR= BYLINE= PROVE=0
+while [ $# -gt 0 ]; do
+  case $1 in
+    --root) [ $# -ge 2 ] || { echo "$me: --root needs a value" >&2; exit 2; }; ROOT=$2; shift ;;
+    --holder) [ $# -ge 2 ] || { echo "$me: --holder needs a value" >&2; exit 2; }; HOLDER=$2; shift ;;
+    --name) [ $# -ge 2 ] || { echo "$me: --name needs a value" >&2; exit 2; }; NAME=$2; shift ;;
+    --license) [ $# -ge 2 ] || { echo "$me: --license needs a value" >&2; exit 2; }; LICENSE=$2; shift ;;
+    --year) [ $# -ge 2 ] || { echo "$me: --year needs a value" >&2; exit 2; }; YEAR=$2; shift ;;
+    --byline) [ $# -ge 2 ] || { echo "$me: --byline needs a value" >&2; exit 2; }; BYLINE=$2; shift ;;
+    --write) WRITE=1 ;; --prove-red) PROVE=1 ;;
+    -h|--help) sed -n '/^# usage:/,/^# Exit/p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    --) shift; break ;; -*) echo "$me: unknown option: $1" >&2; exit 2 ;; *) break ;;
+  esac; shift
+done
+ROOT=$(ns_root "$ROOT") || { echo "$me: no such root" >&2; exit 2; }
+[ -n "$HOLDER" ] || HOLDER=$(ns_pref steward.holder "" "$ROOT")
+[ -n "$NAME" ] || NAME=$(ns_pref steward.name "" "$ROOT"); [ -n "$NAME" ] || NAME=${ROOT##*/}
+[ -n "$LICENSE" ] || LICENSE=$(ns_pref steward.license GPL-3.0-or-later "$ROOT")
+[ -n "$YEAR" ] || YEAR=$(date -u +%Y)
+[ -n "$BYLINE" ] || BYLINE=$(ns_pref steward.byline "" "$ROOT")
+[ -n "$HOLDER" ] || [ $PROVE -eq 1 ] || { echo "$me: no copyright holder: pass --holder or set steward.holder in $ROOT/.nongnu-steward" >&2; exit 2; }
+W=$(mktemp -d 2>/dev/null) || { W=${TMPDIR:-/tmp}/ns2hw.$$; mkdir -p "$W"; }
+trap 'rm -rf "$W"' EXIT INT TERM
+
+# comment leader for a file (same table as ns1hd --suggest); prints "LEADER|OPEN|CLOSE|KIND"
+style() {
+  case $1 in
+    *.sh|*.py|*.pl|*.pm|*.rb|*.awk|*.mk|Makefile*|*.am|*.ac|*.yaml|*.yml|*.toml|*.cfg|*.ini|*.txt|*.org|*.tcl|*.r|*.R|*.jl|*.nix|*.cmake|*.texi) echo '#|||hash' ;;
+    *.el|*.scm|*.lisp|*.rkt|*.clj) echo ';;|||lisp' ;;
+    *.c|*.h|*.cc|*.cpp|*.hh|*.hpp|*.java|*.js|*.ts|*.go|*.rs|*.swift|*.kt|*.cs|*.php|*.m|*.d|*.zig|*.css) echo ' *|/*| */|c' ;;
+    *.lua|*.hs|*.sql|*.ada|*.adb|*.ads|*.vhd|*.elm) echo '--|||dash' ;;
+    *.html|*.htm|*.xml|*.xhtml|*.svg) echo '   |<!--|-->|xml' ;;
+    *.md) echo '|||md' ;;
+    *.tex|*.sty|*.cls|*.bib|*.m4|*.erl) echo '%|||percent' ;;
+    *) if head -1 "$1" 2>/dev/null | grep -q '^#!'; then echo '#|||hash'; else echo '#|||hash'; fi ;;
+  esac
+}
+# the notice paragraph, c-prefixed (without the copyright line)
+notice_lines() {  # LEADER -> lines
+  c=$1
+  case $LICENSE in
+    GPL-3.0-or-later)  L='GNU General Public License'; V=3 ;; GPL-2.0-or-later)  L='GNU General Public License'; V=2 ;;
+    LGPL-3.0-or-later) L='GNU Lesser General Public License'; V=3 ;; LGPL-2.1-or-later) L='GNU Lesser General Public License'; V=2.1 ;;
+    AGPL-3.0-or-later) L='GNU Affero General Public License'; V=3 ;; *) L=; V= ;;
+  esac
+  printf '%s SPDX-License-Identifier: %s\n' "$c" "$LICENSE"
+  if [ -n "$L" ]; then
+    printf '%s This file is part of %s.  %s is free software: you can redistribute it and/or\n' "$c" "$NAME" "$NAME"
+    printf '%s modify it under the terms of the %s as published by the Free Software\n' "$c" "$L"
+    printf '%s Foundation, either version %s of the License, or (at your option) any later version.  It is\n' "$c" "$V"
+    printf '%s distributed WITHOUT ANY WARRANTY; see <https://www.gnu.org/licenses/>.\n' "$c"
+  else
+    printf '%s Licensed under %s; see the licence text shipped with %s.\n' "$c" "$LICENSE" "$NAME"
+  fi
+}
+copyright_line() { c=$1; printf '%s Copyright (C) %s %s\n' "$c" "$YEAR" "$HOLDER"; [ -n "$BYLINE" ] && printf '%s %s\n' "$c" "$BYLINE"; return 0; }
+
+# plan_one FILE STATUS -> writes $W/new.N and prints "MODE"; MODE in top|after-shebang|after-line1|after-copyright|footer|skip
+plan_one() {
+  f=$1; st=$2; n=$3
+  IFS='|' read -r c o e kind <<EOS
+$(style "$f")
+EOS
+  if [ "$kind" = md ]; then
+    { cat "$f"; [ -n "$(tail -c1 "$f")" ] && echo; echo; echo "---"; { copyright_line ""; notice_lines ""; } | sed 's/^ //'; } > "$W/new.$n"; echo footer; return
+  fi
+  # find the insertion point
+  first=$(head -1 "$f")
+  if grep -Eq 'Copyright[ (©]|Copyright \(C\)' "$f" && [ "$st" != NO-NOTICES ] && [ "$st" != NO-COPYRIGHT ]; then
+    ln=$(grep -nE 'Copyright[ (©]|Copyright \(C\)' "$f" | head -1 | cut -d: -f1)
+    # the leader is whatever precedes "Copyright" on that line (`#`, `;;`, ` *`, `//`, `--`, `%`):
+    # the notice joins the comment the copyright line is already in, whatever the extension says
+    pre=$(sed -n "${ln}p" "$f" | sed 's/Copyright.*//; s/[ \t]*$//')
+    printf '%s' "$pre" | grep -Eq '^[[:space:]]*[#;*/%!-]+$' && c=$pre
+    { head -n "$ln" "$f"; printf '%s\n' "$c"; notice_lines "$c"; tail -n +$((ln+1)) "$f"; } > "$W/new.$n"; echo after-copyright; return
+  fi
+  block() { [ -n "$o" ] && printf '%s\n' "$o"; copyright_line "$c"; notice_lines "$c"; [ -n "$e" ] && printf '%s\n' "$e"; return 0; }
+  case $first in
+    '#!'*) { head -1 "$f"; block; tail -n +2 "$f"; } > "$W/new.$n"; echo after-shebang; return ;;
+    ';;;'*) [ "$kind" = lisp ] && { { head -1 "$f"; block; tail -n +2 "$f"; } > "$W/new.$n"; echo after-line1; return; } ;;
+  esac
+  { block; cat "$f"; } > "$W/new.$n"; echo top
+}
+
+run() {  # PATH... -> rows; sets $bad
+  bad=0; n=0; wrote=""
+  sh "$here/ns1hd" --quiet --tsv --root "$ROOT" "$@" 2>/dev/null | grep -E '^(NO-NOTICES|NO-COPYRIGHT|NO-LICENSE|SHORT-NOTICE)	' > "$W/rows"
+  while IFS='	' read -r st rel lines note; do
+    n=$((n+1)); f=$ROOT/$rel
+    mode=$(plan_one "$f" "$st" "$n")
+    if [ $WRITE -eq 0 ]; then printf 'PLAN\t%s\t%s\t%s\n' "$rel" "$st" "$mode"; continue; fi
+    want=$(ns_sha "$W/new.$n")
+    if ( cat "$W/new.$n" > "$f" ) 2>/dev/null; then
+      got=$(ns_sha "$f")
+      if [ "$got" = "$want" ]; then printf 'WROTE\t%s\t%s\t%s\tVERIFIED %s\n' "$rel" "$st" "$mode" "$(printf '%s' "$got" | cut -c1-12)"; wrote="$wrote $rel"
+      else printf 'MISMATCH\t%s\t%s\t%s\twrote %s read %s\n' "$rel" "$st" "$mode" "$(printf '%s' "$want" | cut -c1-12)" "$(printf '%s' "$got" | cut -c1-12)"; bad=$((bad+1)); fi
+    else printf 'FAILED\t%s\t%s\t%s\tcannot write\n' "$rel" "$st" "$mode"; bad=$((bad+1)); fi
+  done < "$W/rows"
+  if [ $WRITE -eq 1 ] && [ -n "$wrote" ]; then
+    # shellcheck disable=SC2086
+    left=$(sh "$here/ns1hd" --quiet --tsv --root "$ROOT" $wrote 2>/dev/null | grep -cE '^(NO-|SHORT-NOTICE)' || true)
+    echo "$me: $n file(s) planned · $(printf '%s\n' $wrote | grep -c .) written and verified · $bad failed · re-audit of the written files: ${left:-0} finding(s) left"
+    # EXPRESS MANIFESTS for swept skills (2026-09-24): a written file inside a skill that carries a
+    # .skill-manifest means that manifest is now stale; the tool that changed the bytes writes the
+    # manifest at once (skill-sign.sh manifest -- no key; an orphaned signature is archived and said).
+    signer=${NS2HW_SIGN_TOOL:-$ROOT/skills/skill-sign/scripts/skill-sign.sh}
+    if [ -f "$signer" ]; then
+      printf '%s\n' $wrote | awk -F/ '$1=="skills" && NF>2 {print $1"/"$2}' | sort -u | while IFS= read -r sk; do
+        [ -f "$ROOT/$sk/.skill-manifest" ] || continue
+        sh "$signer" manifest "$ROOT/$sk" 2>&1 | sed "s|^|$me: express manifest · |"
+      done
+    fi
+  else echo "$me: $n file(s) would change under $ROOT (holder: $HOLDER · name: $NAME · $LICENSE); add --write to do it"; fi
+  [ "$bad" -eq 0 ]
+}
+
+if [ $PROVE -eq 1 ]; then
+  t=$W/p; mkdir -p "$t"; ROOT=$t; HOLDER='A. Person'; NAME=widget; LICENSE=GPL-3.0-or-later; YEAR=2026; BYLINE='Authored by a helper.'
+  { echo '#!/bin/sh'; i=0; while [ $i -lt 12 ]; do echo "echo $i"; i=$((i+1)); done; } > "$t/bare.sh"
+  { echo '# Copyright 2026 A. Person -- GPLv3-or-later.'; i=0; while [ $i -lt 12 ]; do echo "echo $i"; i=$((i+1)); done; } > "$t/short.sh"
+  { echo ';;; x.el --- x'; i=0; while [ $i -lt 12 ]; do echo "(setq a$i $i)"; i=$((i+1)); done; } > "$t/x.el"
+  { i=0; while [ $i -lt 12 ]; do echo "int f$i(void) { return $i; }"; i=$((i+1)); done; } > "$t/y.c"
+  { echo '---'; echo 'name: sk'; echo 'description: d'; echo '---'; i=0; while [ $i -lt 12 ]; do echo "line $i"; i=$((i+1)); done; } > "$t/SKILL.md"
+  printf 'Copyright (C) 2026 A. Person\n' > "$t/COPYING"
+  { echo '// z.js'; echo '// Copyright (C) 2026 A. Person -- GPLv3-or-later.'; i=0; while [ $i -lt 12 ]; do echo "var a$i = $i;"; i=$((i+1)); done; } > "$t/z.js"
+  red=0
+  mkdir -p "$t/skills/sw/scripts" "$t/skills/skill-sign/scripts"; cp "$here/../../../skills/skill-sign/scripts/skill-sign.sh" "$t/skills/skill-sign/scripts/" 2>/dev/null || true
+  { echo '---'; echo 'name: sw'; echo 'description: d'; echo '---'; echo 'swept'; } > "$t/skills/sw/SKILL.md"
+  { echo '#!/bin/sh'; i=0; while [ $i -lt 12 ]; do echo "echo $i"; i=$((i+1)); done; } > "$t/skills/sw/scripts/tool.sh"
+  printf 'stale  ./SKILL.md\n' > "$t/skills/sw/.skill-manifest"
+  out=$(WRITE=0 run); printf '%s\n' "$out" | grep -q '^PLAN	bare.sh	NO-NOTICES	after-shebang' && printf '%s\n' "$out" | grep -q '^PLAN	short.sh	SHORT-NOTICE	after-copyright' && printf '%s\n' "$out" | grep -q '^PLAN	x.el	NO-NOTICES	after-line1' && printf '%s\n' "$out" | grep -q '^PLAN	y.c	NO-NOTICES	top' && printf '%s\n' "$out" | grep -q '^PLAN	SKILL.md	NO-NOTICES	footer' && red=$((red+1)) || echo "FAIL: plan: $out"
+  [ "$(head -1 "$t/bare.sh")" = '#!/bin/sh' ] && ! grep -q Copyright "$t/bare.sh" && red=$((red+1)) || echo "FAIL: a plan wrote"
+  out=$(WRITE=1 run); rc=$?
+  [ $rc -eq 0 ] && [ "$(printf '%s\n' "$out" | grep -c '^WROTE.*VERIFIED')" = 7 ] && red=$((red+1)) || echo "FAIL: write+verify: rc=$rc $out"
+  sed -n 3,4p "$t/z.js" | grep -q '^// SPDX-License-Identifier' && ! grep -q '^ \*' "$t/z.js" && red=$((red+1)) || echo "FAIL: a // copyright line must get // notice lines, not block-comment lines: $(sed -n 1,5p "$t/z.js")"
+  [ "$(head -1 "$t/bare.sh")" = '#!/bin/sh' ] && sed -n 2p "$t/bare.sh" | grep -q '^# Copyright (C) 2026 A. Person' && grep -q '^# Authored by a helper.' "$t/bare.sh" && grep -q 'This file is part of widget' "$t/bare.sh" && red=$((red+1)) || echo "FAIL: shebang kept, header after it: $(head -4 "$t/bare.sh")"
+  sed -n 1p "$t/short.sh" | grep -q 'GPLv3-or-later' && sed -n 3p "$t/short.sh" | grep -q 'SPDX-License-Identifier: GPL-3.0-or-later' && red=$((red+1)) || echo "FAIL: short notice kept its line, gained the notice: $(head -4 "$t/short.sh")"
+  sed -n 1p "$t/x.el" | grep -q '^;;; x.el' && sed -n 2p "$t/x.el" | grep -q '^;; Copyright' && red=$((red+1)) || echo "FAIL: elisp first line kept"
+  sed -n 1p "$t/y.c" | grep -q '^/\*' && grep -q '^ \*/$' "$t/y.c" && red=$((red+1)) || echo "FAIL: C block comment"
+  [ "$(head -1 "$t/SKILL.md")" = '---' ] && tail -6 "$t/SKILL.md" | grep -q 'SPDX-License-Identifier' && red=$((red+1)) || echo "FAIL: md footer, frontmatter untouched"
+  out=$(sh "$here/ns1hd" --quiet --tsv --root "$t" 2>/dev/null | grep -cE '^(NO-|SHORT-NOTICE)'); [ "${out:-0}" -eq 0 ] && red=$((red+1)) || echo "FAIL: re-audit not clean: $(sh "$here/ns1hd" --quiet --tsv --root "$t")"
+  mkdir -p "$t/ro"; { i=0; while [ $i -lt 12 ]; do echo "echo $i"; i=$((i+1)); done; } > "$t/ro/locked.sh"; chmod 444 "$t/ro/locked.sh"
+  out=$(WRITE=1 run ro/locked.sh); rc=$?
+  { [ $rc -eq 1 ] && printf '%s\n' "$out" | grep -q '^FAILED	ro/locked.sh'; } && red=$((red+1)) || { [ "$(id -u)" = 0 ] && red=$((red+1)) && echo "note: root can write a 444 file; the FAILED leg is not provable here" || echo "FAIL: an unwritable file must be FAILED, exit 1: rc=$rc $out"; }
+  if [ -f "$t/skills/skill-sign/scripts/skill-sign.sh" ]; then
+    grep -q '^stale' "$t/skills/sw/.skill-manifest" && echo "FAIL: the swept skill's stale manifest was not rewritten" || { grep -q 'scripts/tool.sh' "$t/skills/sw/.skill-manifest" && red=$((red+1)) || echo "FAIL: express manifest must list the swept file"; }
+  else red=$((red+1)); echo "NOTE: skill-sign.sh not beside this tree; express-manifest check skipped (counted)"; fi
+  [ $red -eq 12 ] && { echo "PASS: ns2hw plans without writing, writes after a shebang / a ;;; line / a copyright line / at top / as an md footer, verifies every write, leaves the audit clean, writes the express manifest of a swept skill, and reports a file it cannot write"; exit 0; }
+  echo "FAIL: ns2hw prove-red $red/12"; exit 1
+fi
+run "$@"

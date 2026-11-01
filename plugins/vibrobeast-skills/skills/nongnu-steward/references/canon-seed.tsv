@@ -1,0 +1,65 @@
+# canon-seed.tsv -- the referents nongnu-steward is built from: SLUG URL RING FETCH SNAP NOTE.
+# `sh scripts/ns2cn --mint references/canon-seed.tsv` (or --add for a batch) turns this into
+# references/canon.tsv, the manifest with hashes and clock stamps.  Rings: 1 Savannah itself · 2 GNU
+# materials Savannah points at · 3 flagship practice.  FETCH, best form first: git (<repo>#<path>) ·
+# raw (a source export) · static (a once-published file) · browser (gated; read by a person) ·
+# inquire (no proper form known; see INQUIRE.md).  SNAP: yes = text snapshot kept · sha = hashed only · no.
+SLUG	URL	RING	FETCH	SNAP	NOTE
+sv-requirements	https://https.git.savannah.gnu.org/git/administration/savane.git#frontend/site-specific/gnu/register/requirements.php	1	git	yes	the hosting requirements, as source (AGPLv3+/GPLv3+ header); rendered at savannah.gnu.org/register/requirements.php
+sv-approved-quickly	https://savannah.gnu.org/maintenance/HowToGetYourProjectApprovedQuickly/	1	static	sha	submission checklist + further details (advice, not policy); ikiwiki page, no licence stated, source repo unknown -> INQUIRE
+sv-licensing-requirements	https://savannah.gnu.org/maintenance/LicensingRequirements/	1	static	sha	software / manuals / others / dependencies
+sv-valid-notices	https://savannah.gnu.org/maintenance/ValidNotices/	1	static	sha	copyright + licence notices; >10 lines is nontrivial; COPYING / COPYING.LESSER
+sv-documentation-notices	https://savannah.gnu.org/maintenance/DocumentationNotices/	1	static	sha	where the FDL notice goes
+sv-project-dependencies	https://savannah.gnu.org/maintenance/ProjectDependencies/	1	static	sha	dependencies must be free and compatible
+sv-uris-to-dependencies	https://savannah.gnu.org/maintenance/URIsToTheDependencies/	1	static	sha	point reviewers at each dependency's licence page
+sv-project-approval	https://savannah.gnu.org/maintenance/ProjectApproval/	1	static	sha	reviewer side: how submissions are read
+sv-approving-submission	https://savannah.gnu.org/maintenance/ApprovingSubmission/	1	static	sha	reviewer side: the approval mechanics
+sv-requirement-threshold	https://savannah.gnu.org/maintenance/RequirementThreshold/	1	static	sha	minor incompliances are approved with a note
+sv-gpl-two-or-later	https://savannah.gnu.org/maintenance/GnuGplTwoOrLater/	1	static	sha	why no GPLv*-only
+sv-why-legal-checks	https://savannah.gnu.org/maintenance/WhyLegalChecksBeforeRelease/	1	static	sha	committing to a public VCS is distribution
+sv-changing-license	https://savannah.gnu.org/maintenance/ChangingLicense/	1	static	sha	
+sv-dual-licensing	https://savannah.gnu.org/maintenance/DualLicensing/	1	static	sha	example notice for two licences
+sv-file-formats	https://savannah.gnu.org/maintenance/FileFormats/	1	static	sha	files must be editable with free software
+sv-documentation-formats	https://savannah.gnu.org/maintenance/DocumentationFormats/	1	static	sha	Texinfo/LaTeX/ODT ok; Word/RTF not; HTML with its source
+sv-gnu-vs-nongnu	https://savannah.gnu.org/maintenance/GNUvsNonGNU/	1	static	sha	the two hypostases
+sv-nongnu-to-gnu	https://savannah.gnu.org/maintenance/NonGnuToGnu/	1	static	sha	pointer to GNU evaluation -- never pushed by this skill
+sv-license-free-3-points	https://savannah.gnu.org/maintenance/HowKnowIfALicenseIsFreeIn3Points/	1	static	sha	
+sv-why-choose-savannah	https://savannah.gnu.org/maintenance/WhyChooseSavannah/	1	static	sha	what the host offers (answer material when asked)
+sv-upstream-collaboration	https://savannah.gnu.org/maintenance/UpstreamCollaboration/	1	static	sha	work with upstream before forking
+sv-no-advertising	https://savannah.gnu.org/maintenance/NoAdvertising/	1	static	sha	
+sv-download-area	https://savannah.gnu.org/maintenance/DownloadArea/	1	static	sha	signed releases: gpg -b, scp -O
+sv-homepage	https://savannah.gnu.org/maintenance/HomePage/	1	static	sha	web pages via CVS; .symlinks
+sv-cpl-issues	https://savannah.gnu.org/maintenance/CplIssues/	1	static	sha	
+sv-java-issues	https://savannah.gnu.org/maintenance/JavaIssues/	1	static	sha	
+sv-php-issues	https://savannah.gnu.org/maintenance/PhpIssues/	1	static	sha	
+gnu-maintain-legal-matters	https://www.gnu.org/prep/maintain/html_node/Legal-Matters.html	2	static	yes	maintain.texi ch.6 index; source: gnustandards CVS (no git form) -> INQUIRE
+gnu-maintain-copyright-notices	https://www.gnu.org/prep/maintain/html_node/Copyright-Notices.html	2	static	yes	6.5 the notice, years, ranges, ChangeLog at the end
+gnu-maintain-license-notices	https://www.gnu.org/prep/maintain/html_node/License-Notices.html	2	static	yes	6.6 COPYING / COPYING.LESSER
+gnu-maintain-license-notices-code	https://www.gnu.org/prep/maintain/html_node/License-Notices-for-Code.html	2	static	yes	6.6.3 the two notice forms
+gnu-maintain-license-notices-docs	https://www.gnu.org/prep/maintain/html_node/License-Notices-for-Documentation.html	2	static	yes	6.6.4 the FDL notice
+gnu-maintain-license-notices-other	https://www.gnu.org/prep/maintain/html_node/License-Notices-for-Other-Files.html	2	static	yes	6.6.6 the all-permissive notice; CC0 for data
+gnu-maintain-canonical-license-sources	https://www.gnu.org/prep/maintain/html_node/Canonical-License-Sources.html	2	static	yes	6.6.2 where COPYING comes from
+gnu-maintain-copying-from-other	https://www.gnu.org/prep/maintain/html_node/Copying-from-Other-Packages.html	2	static	yes	6.4
+gnu-maintain-non-fsf-package	https://www.gnu.org/prep/maintain/html_node/Non_002dFSF_002dCopyrighted-Package.html	2	static	yes	6.4.1 the non-GNU case
+gnu-maintain-external-libraries	https://www.gnu.org/prep/maintain/html_node/External-Libraries.html	2	static	yes	6.7 modules you use but did not write
+gnu-maintain-hosting	https://www.gnu.org/prep/maintain/html_node/Hosting.html	2	static	yes	ch.19 recommends savannah, not required
+gnu-standards-releases	https://www.gnu.org/prep/standards/html_node/Releases.html	2	static	yes	GCS 7.3 README, COPYING, tarball shape; source: gnustandards CVS -> INQUIRE
+gnu-standards-references	https://www.gnu.org/prep/standards/html_node/References.html	2	static	yes	GCS 8 references to nonfree software
+gnu-gpl-howto	https://www.gnu.org/licenses/gpl-howto.html	2	static	yes	the notice templates, verbatim source; hand-written HTML in the www CVS -> INQUIRE for a git form
+gnu-fdl-howto	https://www.gnu.org/licenses/fdl-howto.html	2	static	yes	
+gnu-license-recommendations	https://www.gnu.org/licenses/license-recommendations.html	2	static	yes	which licence for what
+gnu-license-list	https://www.gnu.org/licenses/license-list.html	2	static	sha	145 KB; the compat table in ns2ld cites it
+gnu-devel	https://www.gnu.org/software/devel.html	2	static	yes	GNU development resources; the savannah paragraphs
+gnu-evaluation	https://www.gnu.org/help/evaluation.html	2	static	sha	the GNU evaluation questionnaire -- pointer only; not pushed
+gnulib-copying-v3	https://https.git.savannah.gnu.org/git/gnulib.git#doc/COPYINGv3	2	git	sha	the canonical GPLv3 text (maintain.texi 6.6.2 names gnulib as a canonical source)
+gnulib-copying-lesser-v3	https://https.git.savannah.gnu.org/git/gnulib.git#doc/COPYING.LESSERv3	2	git	sha	the canonical LGPLv3 text
+gnulib-fdl-1.3	https://https.git.savannah.gnu.org/git/gnulib.git#doc/fdl-1.3.texi	2	git	sha	the FDL as a Texinfo section, for manuals
+emacs-contribute	https://https.git.savannah.gnu.org/git/emacs.git#CONTRIBUTE	3	git	yes	assignment threshold, NEWS, commit messages, ChangeLog from git log
+emacs-admin-copyright	https://https.git.savannah.gnu.org/git/emacs.git#admin/notes/copyright	3	git	yes	the flagship rulebook for notices in a tree
+gcc-contribute	https://gcc.gnu.org/git/gcc-wwwdocs.git#htdocs/contribute.html	3	git	yes	assignment OR DCO sign-off; the page's source
+coreutils-hacking	https://https.git.savannah.gnu.org/git/coreutils.git#HACKING	3	git	yes	make syntax-check; assignment; NEWS
+glibc-contribution-checklist	https://sourceware.org/glibc/wiki/Contribution%20checklist	3	browser	no	MoinMoin behind an Anubis gate; not in glibc.git; read by a person 2026-09-23 -> INQUIRE
+guix-contributing-texi	https://https.git.savannah.gnu.org/git/guix.git#doc/contributing.texi	3	git	sha	152 KB texinfo: Packaging Guidelines, Software Freedom, Extracting Bundled Dependencies, Package Naming
+guix-texi	https://https.git.savannah.gnu.org/git/guix.git#doc/guix.texi	3	git	sha	2.2 MB; node Invoking guix lint
+arch-pkgbuild	https://wiki.archlinux.org/index.php?title=PKGBUILD&action=raw	3	raw	sha	MediaWiki source export; section license: SPDX ids
+arch-package-guidelines	https://wiki.archlinux.org/index.php?title=Arch_package_guidelines&action=raw	3	raw	sha	section Licenses: SPDX + REUSE.toml + pkgctl license check

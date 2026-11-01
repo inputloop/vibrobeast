@@ -11,7 +11,7 @@
 #   1  FAULT  something was left that should not have been
 # Wired 2026-10-16 from inculcat-boxer (the material has to go somewhere) after a session's git
 # debris and three stray queues were found by somebody else, who then asked him what to do with them.
-# Copyright (C) 2026 Corwin Brust <corwin@bru.st> and Contributors.  Mentat (for Corwin; claude-opus-5-5).
+# Copyright 2026 INPUTLOOP; GPL-3.0-or-later; https://github.com/inputloop.  Mentat (for Corwin; claude-opus-5-5).
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 hb__repos() { printf '%s\n' "$HB_REPOS" | while IFS= read -r r; do [ -n "$r" ] && [ -d "$r/.git" ] && printf '%s\n' "$r"; done; }

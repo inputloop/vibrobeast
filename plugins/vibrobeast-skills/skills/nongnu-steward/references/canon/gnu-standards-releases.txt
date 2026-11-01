@@ -1,0 +1,106 @@
+
+<!-- The GNU coding standards, last updated April 27, 2026.
+
+Copyright © 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999,
+2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,
+2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019, 2020, 2021,
+2024, 2025, 2026 Free Software Foundation, Inc.
+
+Permission is granted to copy, distribute and/or modify this document
+under the terms of the GNU Free Documentation License, Version 1.3 or
+any later version published by the Free Software Foundation; with no
+Invariant Sections, no Front-Cover Texts, and no Back-Cover
+Texts.  A copy of the license is included in the section entitled
+"GNU Free Documentation License". -->
+Releases (GNU Coding Standards)
+
+Previous: Makefile Conventions, Up: The Release Process   [Contents][Index]
+
+7.3 Making Releases &para;
+
+You should identify each release with a pair of version numbers, a
+major version and a minor.  We have no objection to using more than
+two numbers, but it is very unlikely that you really need them.
+
+Package the distribution of Foo version 69.96 up in a gzipped tar
+file with the name foo-69.96.tar.gz.  It should unpack into a
+subdirectory named foo-69.96.
+
+Building and installing the program should never modify any of the files
+contained in the distribution.  This means that all the files that form
+part of the program in any way must be classified into source
+files and non-source files.  Source files are written by humans
+and never changed automatically; non-source files are produced from
+source files by programs under the control of the Makefile.
+
+The distribution should contain a file named README with a
+general overview of the package:
+
+the name of the package;
+
+the version number of the package, or refer to where in the
+package the version can be found;
+
+a general description of what the package does;
+
+a reference to the file INSTALL, which
+should in turn contain an explanation of the installation procedure;
+
+a brief explanation of any unusual top-level directories or
+files, or other hints for readers to find their way around the source;
+
+a reference to the file which contains the copying conditions.
+The GNU GPL, if used, should be in a file called COPYING.  If
+the GNU LGPL is used, it should be in a file called
+COPYING.LESSER.
+
+Naturally, all the source files must be in the distribution.  It is
+okay to include non-source files in the distribution along with the
+source files they are generated from, provided they are up-to-date
+with the source they are made from, and machine-independent, so that
+normal building of the distribution will never modify them.  We
+commonly include non-source files produced by Autoconf, Automake,
+Bison, flex, TeX, and makeinfo; this helps avoid
+unnecessary dependencies between our distributions, so that users can
+install whichever versions of whichever packages they like.  Do not
+induce new dependencies on other software lightly.
+
+Non-source files that might actually be modified by building and
+installing the program should never be included in the
+distribution.  So if you do distribute non-source files, always make
+sure they are up to date when you make a new distribution.
+
+Make sure that all the files in the distribution are world-readable, and
+that directories are world-readable and world-searchable (octal mode 755).
+We used to recommend that all directories in the distribution also be
+world-writable (octal mode 777), because ancient versions of tar
+would otherwise not cope when extracting the archive as an unprivileged
+user.  That can easily lead to security issues when creating the archive,
+however, so now we recommend against that.
+
+Don't include any symbolic links in the distribution itself.  If the tar
+file contains symbolic links, then people cannot even unpack it on
+systems that don't support symbolic links.  Also, don't use multiple
+names for one file in different directories, because certain file
+systems cannot handle this and that prevents unpacking the
+distribution.
+
+Try to make sure that all the file names will be unique on MS-DOS.  A
+name on MS-DOS consists of up to 8 characters, optionally followed by a
+period and up to three characters.  MS-DOS will truncate extra
+characters both before and after the period.  Thus,
+foobarhacker.c and foobarhacker.o are not ambiguous; they
+are truncated to foobarha.c and foobarha.o, which are
+distinct.
+
+Include in your distribution a copy of the texinfo.tex you used
+to test print any *.texinfo or *.texi files.
+
+Likewise, if your program uses small GNU software packages like regex,
+getopt, obstack, or termcap, include them in the distribution file.
+Leaving them out would make the distribution file a little smaller at
+the expense of possible inconvenience to a user who doesn't know what
+other files to get.
+
+Previous: Makefile Conventions, Up: The Release Process   [Contents][Index]
+

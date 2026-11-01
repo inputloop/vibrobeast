@@ -7,7 +7,7 @@ owe nothing but the rotate, or the session says why with --ungated, which is wri
 refusal must leave the project untouched.  The receipt cases use the real bin/ow1ed from C4
 ($C4_ROOT, /f/claude/c4 or ~/mnt/c4); without it they skip and say so.
 --prove-red plants five faults in a copy of the script; each must turn a case red.
-Copyright (C) 2026 Corwin Brust <corwin@bru.st> and Contributors.  GPL-3.0-or-later.
+Copyright 2026 INPUTLOOP; GPL-3.0-or-later; https://github.com/inputloop.
 """
 import os
 import shutil

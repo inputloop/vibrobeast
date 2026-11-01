@@ -36,7 +36,7 @@ under this machine's first person whose model is claude (``claudewin`` in Corwin
 Every answer says which roads need gp.1 (the garden-pony build) and that Wire acts go direct
 meanwhile; with a Tavern found it names the build of the tavern.py beside the data folder (stock
 2.3.1, gp.1, or what its VERSION line says) and the Tavern by its own name before its address
-(SPEC row F5).  It reads only tavern_name, humans, agents and api_port from config.json, and never
+(SPEC row F5).  It reads only tavern_name, humans, agents, api_port, bind and peer_port from config.json, and never
 says the join code, the Tavern id, the address in the room, or a token.
 """
 
@@ -73,11 +73,10 @@ def _pref(key: str) -> str:
 
 
 def is_on() -> bool:
-    from .rpc import env_switch
-    sw = env_switch("TAVERN_ON")
-    if sw is not None:
-        return sw
-    return _pref("tavern.on").lower() in ("on", "1", "true", "yes")
+    """Open only when doors.py says so: the broad setting (doors.profile), then the environment, then the
+    person's row, then the layered default (2026-10-29, F3)."""
+    from . import doors
+    return doors.is_open("tavern.on")
 
 
 #: Which roads wait for the garden-pony build (gp.1), said in every tavern_status answer (F5).
@@ -112,7 +111,7 @@ def _cfg(data) -> dict:
         return {}
     if not isinstance(raw, dict):
         return {}
-    out = {k: raw.get(k) for k in ("tavern_name", "humans", "agents", "api_port")}
+    out = {k: raw.get(k) for k in ("tavern_name", "humans", "agents", "api_port", "bind", "peer_port")}
     return out
 
 
@@ -234,6 +233,25 @@ def find_data() -> dict:
     return {"dir": None, "from": "", "running": False, "tried": tried, "named_missing": named_missing}
 
 
+def listener_words(c: dict) -> str:
+    """Where the Tavern you run listens for peers, in words (2026-10-29, F3).  This plugin never starts that
+    listener -- it runs only Tavern's MCP face -- so this is said, not changed: the address is Tavern's own
+    setting (config.json "bind"; Tavern's default is 0.0.0.0, every address of this computer)."""
+    bind = str(c.get("bind") or "0.0.0.0").strip()
+    port = c.get("peer_port")
+    at = bind + (":%s" % port if port else "")
+    if bind in ("0.0.0.0", "::", ""):
+        how = ("on every network address of this computer (%s), so any machine that can reach this one can "
+               "knock; members are let in by Tavern's own join code" % at)
+    elif bind.startswith("127.") or bind in ("::1", "localhost"):
+        how = "on this computer only (%s)" % at
+    else:
+        how = "on %s" % at
+    return ("The Tavern you run (Bryant Frankford's program, which this plugin does not start) listens for "
+            "peers " + how + ". That is the Tavern's own setting, outside the plugin's control; door_list "
+            "says where our control ends.")
+
+
 def status() -> dict:
     if not is_on():
         return {"state": "OFF", "means": MEANS, "turn_on": HOW_ON, "carries": CARRIES,
@@ -263,7 +281,7 @@ def status() -> dict:
     where = str(f["dir"]) + (", API port %s" % port if port else "")
     say = (("Tavern \u201c%s\u201d, at %s" % (name, where)) if name else ("an unnamed Tavern, at " + where))
     say += ". Build: %s. Claude would join it as %s (%s)." % (bld, who, who_from)
-    return {"state": "ON", "say": say, "tavern": name, "build": bld,
+    return {"state": "ON", "say": say, "tavern": name, "build": bld, "listens": listener_words(c),
             "roads": ROADS_GP if "garden-pony" in bld else ROADS_STOCK, "carries": CARRIES,
             "face": face_of(f["dir"])[1],
             "data": str(f["dir"]), "found_by": f["from"], "running": f["running"],

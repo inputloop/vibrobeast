@@ -1,0 +1,288 @@
+
+GNU Development Resources
+- GNU Project - Free Software Foundation
+
+Skip to main text
+
+<form id="fssbox" action="https://my.fsf.org/civicrm/profile/create?reset=1&gid=31"
+method="post">
+
+Free Software Supporter:
+
+<input type="text" id="frmEmail" name="email-Primary" size="18" maxlength="80"
+value="email address" onfocus="this.value=''"/>
+
+<a
+href="https://www.fsf.org/associate/support_freedom?referrer=4052">JOIN THE FSF
+
+<img src="/graphics/heckert_gnu.transp.small.png" height="48" width="49"
+alt=" [A GNU head] " />GNU <span
+class="hide">Operating System
+
+Supported by the
+Free Software Foundation
+
+<img id="search-icon" height="30" width="30"
+src="/graphics/icons/search.png"
+alt=" [Search www.gnu.org] " />
+
+<img id="language-icon" height="30" width="37"
+src="/graphics/icons/translations.png"
+alt=" [Other languages] " />
+
+Site navigation
+Skip
+
+ABOUT GNU
+
+PHILOSOPHY
+
+LICENSES
+
+EDUCATION
+
+=
+SOFTWARE
+
+=
+
+DISTROS
+
+DOCS
+
+MALWARE
+
+HELP GNU
+
+AUDIO & VIDEO
+
+GNU ART
+
+FUN
+
+GNU'S WHO?
+
+SOFTWARE DIRECTORY
+
+HARDWARE
+
+SITEMAP
+
+GNU Development Resources
+
+This page describes many of the development resources available for
+GNU developers on GNU Project machines.  For full details of the
+privileges and responsibilities of GNU maintainers, please see the <a
+href="/prep/maintain/">Information for GNU Maintainers document, and
+also follow the GNU Coding Standards.
+Also interesting to review may be the <a
+href="/software/maintainer-tips.html">tips for GNU maintainers and
+overview of what it means to
+be a GNU package.
+
+With the abundance of inexpensive computers that can run <a
+href="/gnu/linux-and-gnu.html">GNU/Linux, as well as the greater
+availability of Internet access, many GNU volunteers today have all the
+computer facilities they need. However, there are still advantages to
+having central computers where GNU volunteers can work together without
+having to make their own machines accessible to others.
+
+For that reason, the Free Software Foundation strongly encourages GNU
+software projects to use the machines at gnu.org as a home
+base.  Using these machines also benefits the GNU Project indirectly, by
+increasing public awareness of GNU, and spreading the idea of working
+together for the benefit of everyone.
+
+Savannah and version control
+
+If you are developing an official GNU package, we strongly recommend
+using a public source control repository on <a
+href="https://savannah.gnu.org/">Savannah, the GNU hosting server.
+To do this, first <a
+href="https://savannah.gnu.org/account/register.php">create yourself an
+account and then register your GNU package.
+After it is created, you will be able to choose a version control
+system, create web pages for your package, manage permissions for
+contributors to the pages, and many other features.
+
+Mailing lists
+
+We operate mailing lists for GNU software packages as needed,
+including both hand-managed lists and automatically managed lists.
+
+When a GNU package is registered on Savannah, a web interface allows
+developers to create and manage mailing lists dedicated to their
+package.
+
+Each GNU package name ought to have at least a bug-reporting
+list with the canonical name bug-pkgname@gnu.org,
+plus any aliases that may be useful. Using Savannah, you can create
+lists for your package with names like this.  Some packages share the
+list bug-gnu-utils@gnu.org but we now encourage packages to set up their
+own individual lists.
+
+Packages can have other lists for announcements, asking for help,
+posting source code, for discussion among users, or whatever the package
+maintainer finds to be useful.
+
+Mailing list archives for automatically-managed lists are available
+at lists.gnu.org (mbox archives
+can be downloaded by <a
+href="https://lists.gnu.org/archive/mbox/">HTTPS),
+as well as through the list
+manager. Archives for hand-maintained lists are generally kept in
+/com/archive on the GNU machines.
+
+If a mailing list becomes large enough, you can ask <a
+href="https://admin.gmane.io/">Gmane to set up a two-way link to a
+newsgroup in the gmane.* hierarchy. Thus any post to the
+mailing list will propagate to the newsgroup, and vice-versa. <a
+href="/usenet/usenet.html">More information on GNU-related newsgroups.
+
+Web pages
+
+The master GNU web server is <a
+href="/">www.gnu.org.  We very strongly
+recommend that GNU packages use
+https://www.gnu.org/software/pkgname as their primary
+home page.
+
+Using Savannah, developers can create and maintain their own pages at
+that url via a CVS "web repository," separate from the
+package's main source repository (which can use any supported version
+control system).  More
+information on maintaining GNU web pages.
+
+FTP
+
+The primary ftp site for GNU software on <a
+href="https://ftp.gnu.org/gnu">https://ftp.gnu.org/gnu,
+which is mirrored worldwide.  We very
+strongly recommend that all GNU packages upload their releases here (in
+addition to any other location you find convenient).
+
+We use a different server for test releases, so that people won't
+install them thinking they are ready for prime time. This server is <a
+href="https://alpha.gnu.org/gnu">https://alpha.gnu.org/gnu.
+
+The <a
+href="/prep/maintain/maintain.html#Automated-FTP-Uploads">Information
+for GNU Maintainers document has complete details on the ftp upload
+process, which is the same for both servers.
+
+Login accounts
+
+We provide shell login access to GNU machines to people who need them
+for work on GNU software.  Having a login account is both a privilege and
+a responsibility, and they should be used only for your work on GNU.
+Instructions for obtaining an account
+machines are written separately.
+
+On the general login machine, the gsrc
+package developers maintain a hierarchy of the current GNU package
+releases (/gd/gnu/gnusys/live), compiled from the original
+sources.  To use it, source /gd/gnu/gnusys/live/setup.
+
+You can also <a
+href="https://www.fsf.org/about/systems/sending-mail-via-fencepost">use a
+GNU account for email.
+
+platform-testers: Manual portability testing
+
+Another useful option for pre-release testing is the <a
+href="https://lists.gnu.org/mailman/listinfo/platform-testers">platform-testers
+mailing list.  Time permitting, the people on this list build
+pre-releases on a wide variety of platforms upon request.  (Volunteers
+to handle testing requests are needed!  Just subscribe to the list and
+start participating.)
+
+So, if you have a pre-release, you can write to the mailing list,
+providing (1) the url to the tarball, (2) the planned date of
+the release, and (3) the email address to which build reports
+should be sent.  The builds and reports are made by hand by the
+volunteers on the list.
+
+&#9650;
+
+BACK TO TOP
+
+Set language
+
+Available for this page:
+
+[en] English
+[ca] català
+[de] Deutsch
+[es] español
+[pl] polski
+[pt-br] português
+[sq] Shqip
+[zh-cn] 简体中文
+
+BACK TO TOP &#9650;
+
+<img id="fsfbanner"
+src="/graphics/fsf-logo-notext-small.png" alt=" [FSF logo] "
+width="75" height="25" />
+"The Free Software Foundation (FSF) is a nonprofit with a worldwide
+mission to promote computer user freedom. We defend the rights of all
+software users."
+
+JOIN
+DONATE
+SHOP
+
+Please send general FSF & GNU inquiries to
+<gnu@gnu.org>.
+There are also other ways to contact
+the FSF.  Broken links and other corrections or suggestions can be sent
+to <webmasters@gnu.org>.
+
+<!-- TRANSLATORS: Ignore the original text in this paragraph,
+replace it with the translation of these two:
+
+We work hard and do our best to provide accurate, good quality
+translations.  However, we are not exempt from imperfection.
+Please send your comments and general suggestions in this regard
+to
+<web-translators@gnu.org>.
+
+For information on coordinating and contributing translations of
+our web pages, see <a
+href="/server/standards/README.translations.html">Translations
+README. -->
+Please see the <a
+href="/server/standards/README.translations.html">Translations
+README for information on coordinating and contributing translations
+of this article.
+
+<!-- Regarding copyright, in general, standalone pages (as opposed to
+files generated as part of manuals) on the GNU web server should
+be under CC BY-ND 4.0.  Please do NOT change or remove this
+without talking with the webmasters or licensing team first.
+Please make sure the copyright date is consistent with the
+document.  For web pages, it is ok to list just the latest year the
+document was modified, or published.
+
+If you wish to list earlier years, that is ok too.
+Either "2001, 2002, 2003" or "2001-2003" are ok for specifying
+years, as long as each year in the range is in fact a copyrightable
+year, i.e., a year in which the document was published (including
+being publicly visible on the web or in a revision control system).
+
+There is more detail about copyright years in the GNU Maintainers
+Information document, www.gnu.org/prep/maintain. -->
+
+Copyright (C) 2000-2002, 2007, 2009-2012, 2014, 2022, 2024, 2025 Free Software
+Foundation, Inc.
+
+This page is licensed under a <a rel="license"
+href="http://creativecommons.org/licenses/by-nd/4.0/">Creative
+Commons Attribution-NoDerivatives 4.0 International License.
+
+Copyright Infringement Notification
+
+Updated:
+
+$Date: 2025/10/23 07:57:02 $
+

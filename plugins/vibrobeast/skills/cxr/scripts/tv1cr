@@ -2,7 +2,7 @@
 # tv1cr -- TSV one CxR: a table unfolded so a COLUMN is a COLLECTION (c/) and a ROW is a
 #          REGISTRY (r/), folded back to the same bytes, set at a call grain, checked both ways.
 #
-# Copyright (C) 2026 Corwin Brust <corwin@bru.st> and Contributors.  Mentat (for Corwin).
+# Copyright 2026 INPUTLOOP; GPL-3.0-or-later; https://github.com/inputloop.  Mentat (for Corwin).
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
 #   MUST     unfold: every cell (k,c,v) lands as r/<k>/<c> (content v) and c/<c>/<v> (a line k);

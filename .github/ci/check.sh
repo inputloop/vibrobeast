@@ -1,6 +1,6 @@
 #!/bin/sh
 # .github/ci/check.sh -- every check the published vibrobeast tree can run on itself, in words.
-# Copyright (C) 2026 Corwin Brust <corwin@bru.st> and Contributors.
+# Copyright 2026 INPUTLOOP; GPL-3.0-or-later OR LGPL-3.0-or-later; https://github.com/inputloop.
 # SPDX-License-Identifier: GPL-3.0-or-later OR LGPL-3.0-or-later
 # Written by Mentat (for Corwin; claude-opus-5-5), 2026-10-12.
 #

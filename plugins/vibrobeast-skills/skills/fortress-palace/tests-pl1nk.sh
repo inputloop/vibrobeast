@@ -2,7 +2,7 @@
 # tests-pl1nk.sh -- this skill's copy of pl1nk, held by C4's spec (t/pl1nk-spec.py, python3), which a second
 # author wrote.  A skill travels without C4; where C4 is not in reach this says NOT RUN, never ok.
 # usage: sh tests-pl1nk.sh [--prove-red]
-# Copyright (C) 2026 Corwin Brust <corwin@bru.st> and Contributors.  GPL-3.0-or-later.
+# Copyright 2026 INPUTLOOP; GPL-3.0-or-later; https://github.com/inputloop.
 here=$(cd "$(dirname "$0")" && pwd)
 for c in "${C4_ROOT:-}" "$here/../../../c4" "$here/../../../../c4" /f/claude/c4 "$HOME/mnt/c4"; do
   [ -n "$c" ] && [ -f "$c/t/pl1nk-spec.py" ] && { C4=$c; break; }; done

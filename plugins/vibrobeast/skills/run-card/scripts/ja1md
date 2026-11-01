@@ -26,7 +26,7 @@
 # Born 2026-10-18 for Corwin and Bryant's first directory submission (his words: "a job aid for us to step
 # though the task in terms of checklist back with crisp (brief, clear) contextualization so we understand what
 # we are doing as we do it"); run-card's "help me run this" entry point uses it for work done at a screen.
-# Copyright 2026 Corwin Brust <corwin@bru.st> and Contributors.  Authored by Mentat (for Corwin, opus-5-5).
+# Copyright 2026 INPUTLOOP; GPL-3.0-or-later OR LGPL-3.0-or-later; https://github.com/inputloop.  Authored by Mentat (for Corwin, opus-5-5).
 # SPDX-License-Identifier: GPL-3.0-or-later OR LGPL-3.0-or-later
 set -u
 me=ja1md

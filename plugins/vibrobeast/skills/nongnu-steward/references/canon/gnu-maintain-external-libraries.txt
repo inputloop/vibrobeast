@@ -1,0 +1,79 @@
+
+<!-- Information for maintainers of GNU software, last updated October 25, 2025.
+
+Copyright © 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999,
+2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,
+2011, 2012, 2013, 2014, 2015, 2016, 2017, 2019, 2020, 2022, 2025
+Free Software Foundation, Inc.
+
+Permission is granted to copy, distribute and/or modify this document
+under the terms of the GNU Free Documentation License, Version 1.3 or
+any later version published by the Free Software Foundation; with no
+Invariant Sections, no Front-Cover Texts, and no Back-Cover
+Texts.  A copy of the license is included in the section entitled
+"GNU Free Documentation License". -->
+External Libraries (Information for Maintainers of GNU Software)
+
+Next: Crediting Authors, Previous: License Notices, Up: Legal Matters   [Contents][Index]
+
+6.7 External Libraries &para;
+
+As maintainer of an FSF-copyrighted GNU package, how do you use
+separately-published general-purpose free modules?  (We also call them
+"libraries" because we are using them as libraries; it doesn't
+matter whether they are packaged as libraries or not.)
+
+It would be unreasonable to ask their authors to assign copyright to
+the FSF.  They didn't write those modules as contributions to GNU.  We
+just happen to want to use them, as any developer might.  It would be
+rude to ask developers, out of the blue, to give the FSF their
+copyright.  Please don't ask for that in cases like these.
+
+The proper way to use those modules is to link your package with them
+and say they are not part of your package.  See below for the
+mechanics of this.
+
+To avoid present or future legal trouble, you must make sure the
+license of the module is compatible with current and future GPL
+versions.  "GNU GPL version 3 or later" is good, and so is anything
+which includes permission for use under those GPL versions (including
+"GNU GPL version 2 or later", "LGPL version n or later",
+"LGPL version 2.1", "GNU Affero GPL version 3 or later").  Lax
+permissive licenses are ok too, since they are compatible with all GPL
+versions.
+
+"GPL version 2 only" is obviously unacceptable because it is
+incompatible with GPL version 3.  "GPL version 3 only" and "GPL
+version 2 or 3 only" have a subtler problem: they would be incompatible
+with GPL version 4, if we ever make one, so the module would become an
+obstacle to upgrading your package's license to "GPL version 4 or
+later".  Don't use such modules.
+
+One library you need to avoid is goffice, since it allows only
+GPL versions 2 and 3.
+
+So, here are the mechanics of how to arrange your package to use the
+unrelated free module.
+
+Assume the module is already installed on the system, and link with it
+when linking your program.  This is only reasonable if the module
+really has the form of a library.
+
+Include the module in your package's distribution, putting the source
+in a separate subdirectory whose README file says, "This is
+not part of the GNU FOO program, but is used with GNU FOO."  Then set
+up your makefiles to build this module and link it into the
+executable.
+
+With this method, it is not necessary to treat the module as a library
+and make a '.a' file from it.  You can link directly with the
+'.o' files in the usual manner.
+
+Both of these methods create an irregularity, and our lawyers have
+told us to minimize the amount of such irregularity.  So use these
+methods only for general-purpose modules that were not written
+for your package.  For anything that was written as a contribution to
+your package, please get papers signed.
+
+Next: Crediting Authors, Previous: License Notices, Up: Legal Matters   [Contents][Index]
+

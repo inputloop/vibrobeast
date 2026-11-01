@@ -1,0 +1,206 @@
+#!/bin/sh
+# ns2ld -- NONGNU STEWARD 2 LICENSE-DEPS.  A ledger of what the project depends on and under what
+# licence, kept as LICENSE-DEPS.tsv at the project root.  The rules it serves, verbatim from canon:
+# "Your project dependencies need to be free, and compatible with your license" (Savannah
+# ProjectDependencies); "give us URLs to your dependencies, ideally with direct links to their
+# website pages explaining their licensing" (HowToGetYourProjectApprovedQuickly); "you must make sure
+# the license of the module is compatible with current and future GPL versions" (maintain.texi 6.7).
+#
+# THE NAME (the AS4CE pattern, run-level in the slot): N NONGNU · S STEWARD · 2 reads the tree and
+# WRITES one ledger (only with --write) · L LICENSE · D DEPS.
+#
+# usage: sh ns2ld [--root DIR] [--ledger FILE]            print the merged ledger (nothing written)
+#        sh ns2ld --write [--root DIR] [--ledger FILE]    write/merge it (keeps what you filled in)
+#        sh ns2ld --check [--root DIR] [--ledger FILE]    exit 1 on any UNKNOWN licence or a NO
+#        sh ns2ld --compat SPDX-ID                        what the table says about one licence
+#        sh ns2ld --prove-red
+#   Ledger columns: DEP  KIND  DECLARED-IN  LICENSE  GPL3-COMPAT  URL  NOTE
+#   LICENSE starts as UNKNOWN -- this script never guesses a dependency's licence; fill it from the
+#   dependency's own COPYING and put the page that says so in URL.  GPL3-COMPAT is then looked up
+#   from the table below (yes · no · ask · ?): "ask" means the GNU licence list says it depends on
+#   how the licence is used (MPL 2.0, EPL 2.0 secondary licences, CC BY-SA one-way) -- read the entry.
+#   Declarations read: configure.ac PKG_CHECK_MODULES/AC_CHECK_LIB · requirements*.txt ·
+#   pyproject.toml dependencies · package.json dependencies · Cargo.toml [dependencies] · go.mod require
+#   · Gemfile gem · PKGBUILD depends= · *.el Package-Requires · guix.scm / *.scm inputs · *.cabal build-depends
+# Exit: 0 · 1 (--check found UNKNOWN/no) · 2 usage.  A signed ledger (LICENSE-DEPS.tsv.asc beside it)
+#   is not rewritten without --force.
+#
+# Copyright (C) 2026 Corwin Brust <corwin@bru.st>
+# SPDX-License-Identifier: GPL-3.0-or-later
+# This file is part of nongnu-steward.  It is free software: you can redistribute it and/or
+# modify it under the terms of the GNU General Public License as published by the Free Software
+# Foundation, either version 3 of the License, or (at your option) any later version.  It is
+# distributed WITHOUT ANY WARRANTY; see <https://www.gnu.org/licenses/>.  Authored by Mentat
+# (for Corwin).
+set -u
+LC_ALL=C; export LC_ALL
+here=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd) || exit 2
+. "$here/nslib.sh"
+me=${0##*/}
+ROOT=. LEDGER= WRITE=0 CHECK=0 COMPAT= FORCE=0 PROVE=0
+while [ $# -gt 0 ]; do
+  case $1 in
+    --root) [ $# -ge 2 ] || { echo "$me: --root needs a value" >&2; exit 2; }; ROOT=$2; shift ;; --ledger) [ $# -ge 2 ] || { echo "$me: --ledger needs a value" >&2; exit 2; }; LEDGER=$2; shift ;; --write) WRITE=1 ;; --check) CHECK=1 ;;
+    --compat) [ $# -ge 2 ] || { echo "$me: --compat needs a value" >&2; exit 2; }; COMPAT=$2; shift ;; --force) FORCE=1 ;; --prove-red) PROVE=1 ;;
+    -h|--help) sed -n '/^# usage:/,/^# Exit/p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    -*) echo "$me: unknown option: $1" >&2; exit 2 ;; *) echo "$me: unexpected argument: $1" >&2; exit 2 ;;
+  esac; shift
+done
+ROOT=$(ns_root "$ROOT") || { echo "$me: no such root" >&2; exit 2; }
+[ -n "$LEDGER" ] || LEDGER=$ROOT/LICENSE-DEPS.tsv
+HDR='DEP	KIND	DECLARED-IN	LICENSE	GPL3-COMPAT	URL	NOTE'
+
+# ---- the compatibility table (SOURCE: https://www.gnu.org/licenses/license-list.html) --------------
+# id<TAB>verdict<TAB>note.  yes = compatible with GPLv3-or-later · no = not · ask = conditional, read the entry.
+compat_table() { cat <<'T'
+GPL-3.0-or-later	yes	the recommended licence
+GPL-2.0-or-later	yes	upgrades to v3
+GPL-3.0-only	no	incompatible with a future GPL; Savannah refuses GPL*-only
+GPL-2.0-only	no	incompatible with GPLv3; Savannah refuses GPL*-only
+LGPL-3.0-or-later	yes	
+LGPL-3.0-only	ask	LGPLv3-only: Savannah strongly recommends against LGPL*-only
+LGPL-2.1-or-later	yes	
+LGPL-2.1-only	yes	convertible to any GPL; Savannah accepts, recommends against
+LGPL-2.0-or-later	yes	
+AGPL-3.0-or-later	yes	effectively compatible with GPLv3 (section 13)
+AGPL-3.0-only	no	same problem as GPL*-only
+MIT	yes	Expat / X11
+X11	yes	
+Expat	yes	
+ISC	yes	
+BSD-3-Clause	yes	modified BSD
+BSD-2-Clause	yes	FreeBSD
+BSD-4-Clause	no	the advertising clause
+0BSD	yes	
+Apache-2.0	yes	with GPLv3 (not GPLv2)
+Apache-1.1	no	
+Apache-1.0	no	
+MPL-2.0	ask	compatible unless the "Incompatible With Secondary Licenses" notice is used
+MPL-1.1	no	
+EPL-2.0	ask	only when the secondary-licence provision names the GPL
+EPL-1.0	no	
+CPL-1.0	no	Common Public License: Savannah names it (CplIssues)
+CDDL-1.0	no	
+Artistic-1.0	no	Perl modules: avoid Artistic-only
+Artistic-2.0	yes	
+PHP-3.01	no	PHP licence: avoid for modules (PhpIssues)
+Zlib	yes	
+BSL-1.0	yes	Boost
+Unlicense	yes	
+CC0-1.0	yes	for data; do not use for code
+CC-BY-4.0	ask	fine for non-software; not recommended for code
+CC-BY-SA-4.0	ask	one-way compatible into GPLv3 for text; not for code
+CC-BY-NC-4.0	no	nonfree
+CC-BY-ND-4.0	no	nonfree for software
+WTFPL	yes	
+Python-2.0	yes	
+PSF-2.0	yes	
+Ruby	yes	
+Vim	yes	
+OFL-1.1	yes	fonts (not GPL-compatible for code, fine as data)
+EUPL-1.2	ask	compatible via its appendix; read the entry
+OSL-3.0	no	
+MS-PL	no	
+MS-RL	no	
+JSON	no	nonfree ("shall be used for Good, not Evil")
+SSPL-1.0	no	nonfree
+BUSL-1.1	no	nonfree
+Proprietary	no	nonfree: Savannah refuses dependencies on nonfree software
+T
+}
+compat_of() { compat_table | awk -F'\t' -v id="$1" '$1==id {print $2; f=1} END{if(!f) print "?"}'; }
+
+# ---- scan declarations: DEP<TAB>KIND<TAB>FILE -------------------------------------------------------
+scan() {
+  find "$ROOT" -type f \( -name configure.ac -o -name 'requirements*.txt' -o -name pyproject.toml -o -name package.json \
+       -o -name Cargo.toml -o -name go.mod -o -name Gemfile -o -name PKGBUILD -o -name '*.el' -o -name '*.scm' -o -name '*.cabal' \) \
+       2>/dev/null | grep -v -E '/(\.git|node_modules|vendor|dist|build|externs|\.eclipse-increments|\.arc)/' | LC_ALL=C sort | while IFS= read -r f; do
+    rel=${f#"$ROOT"/}
+    case ${f##*/} in
+      configure.ac)
+        awk -v F="$rel" '/PKG_CHECK_MODULES/ { s=$0; sub(/.*PKG_CHECK_MODULES\(\[?[^],]*\]?, *\[?/, "", s); sub(/[]\)].*/, "", s); n=split(s, a, /[ ,]+/); for(i=1;i<=n;i++) if (a[i] ~ /^[A-Za-z]/) print a[i] "\tpkg-config\t" F }
+                          /AC_CHECK_LIB/ { s=$0; sub(/.*AC_CHECK_LIB\(\[?/, "", s); sub(/[],].*/, "", s); if (s ~ /^[A-Za-z]/) print s "\tlibrary\t" F }' "$f" ;;
+      requirements*.txt)
+        awk -v F="$rel" '/^[ \t]*(#|-)/ || /^[ \t]*$/ {next} { s=$0; sub(/[ \t]*(==|>=|<=|~=|!=|>|<|\[|;|#).*/, "", s); gsub(/[ \t]/, "", s); if (s!="") print s "\tpython\t" F }' "$f" ;;
+      pyproject.toml)
+        awk -v F="$rel" '/^dependencies[ \t]*=/ {in1=1} in1 { n=split($0, a, /"/); for(i=2;i<=n;i+=2){ s=a[i]; sub(/[ \t]*(==|>=|<=|~=|!=|>|<|\[|;).*/, "", s); if (s!="") print s "\tpython\t" F } if ($0 ~ /\]/) in1=0 }' "$f" ;;
+      package.json)
+        tr -d '\n\r' < "$f" | awk -v F="$rel" '{ while (match($0, /"(dependencies|peerDependencies)"[ \t]*:[ \t]*\{[^}]*\}/)) { blk=substr($0, RSTART, RLENGTH); $0=substr($0, RSTART+RLENGTH); sub(/^[^{]*\{/, "", blk); while (match(blk, /"[^"]+"[ \t]*:/)) { d=substr(blk, RSTART+1, RLENGTH-1); sub(/"[ \t]*:$/, "", d); print d "\tnpm\t" F; blk=substr(blk, RSTART+RLENGTH) } } }' ;;
+      Cargo.toml)
+        awk -v F="$rel" '/^\[dependencies\]/ {in1=1; next} /^\[/ {in1=0} in1 && /^[A-Za-z0-9_-]+[ \t]*=/ { s=$0; sub(/[ \t]*=.*/, "", s); print s "\tcrate\t" F }' "$f" ;;
+      go.mod)
+        awk -v F="$rel" '/^require[ \t]*\(/ {in1=1; next} in1 && /^\)/ {in1=0} in1 && NF>=1 && $1 !~ /^\/\// { print $1 "\tgo\t" F } /^require[ \t]+[^(]/ { print $2 "\tgo\t" F }' "$f" ;;
+      Gemfile)
+        awk -v F="$rel" '/^[ \t]*gem[ \t]+["'"'"']/ { s=$0; sub(/^[ \t]*gem[ \t]+["'"'"']/, "", s); sub(/["'"'"'].*/, "", s); print s "\tgem\t" F }' "$f" ;;
+      PKGBUILD)
+        awk -v F="$rel" '/^(depends|makedepends|checkdepends)=\(/ {in1=1} in1 { s=$0; sub(/^[a-z]*=\(/, "", s); sub(/\).*/, "", s); gsub(/["'"'"']/, "", s); n=split(s, a, /[ \t]+/); for(i=1;i<=n;i++){ d=a[i]; sub(/[<>=].*/, "", d); if (d!="") print d "\tarch\t" F } if ($0 ~ /\)/) in1=0 }' "$f" ;;
+      *.el)
+        awk -v F="$rel" '/^;;[ \t]*Package-Requires:/ { s=$0; sub(/.*Package-Requires:[ \t]*/, "", s); while (match(s, /\(([A-Za-z0-9_.-]+)/)) { d=substr(s, RSTART+1, RLENGTH-1); print d "\telpa\t" F; s=substr(s, RSTART+RLENGTH) } }' "$f" ;;
+      *.scm)
+        awk -v F="$rel" '/\((native-|propagated-)?inputs/ {in1=1} in1 { s=$0; while (match(s, /"[a-z0-9+-]+"/)) { d=substr(s, RSTART+1, RLENGTH-2); print d "\tguix\t" F; s=substr(s, RSTART+RLENGTH) } while (match(s, /\(list [a-z0-9+-]+/)) { d=substr(s, RSTART+6, RLENGTH-6); print d "\tguix\t" F; s=substr(s, RSTART+RLENGTH) } if ($0 ~ /\)\)/) in1=0 }' "$f" ;;
+      *.cabal)
+        awk -v F="$rel" 'tolower($0) ~ /^[ \t]*build-depends:/ {in1=1; s=$0; sub(/^[^:]*:/, "", s)} else if (in1 && /^[ \t]+/) s=$0; else in1=0
+                          in1 { n=split(s, a, /,/); for(i=1;i<=n;i++){ d=a[i]; gsub(/^[ \t]+|[ \t]+$/, "", d); sub(/[ \t].*/, "", d); if (d!="" && d!="base") print d "\thackage\t" F } }' "$f" ;;
+    esac
+  done | LC_ALL=C sort -u
+}
+
+# ---- merge with the existing ledger: DEP+KIND is the key; filled columns survive -------------------
+merge() {
+  scan > "$W/scan"
+  if [ -f "$LEDGER" ]; then grep -v "^DEP	KIND	" "$LEDGER" > "$W/old"; else : > "$W/old"; fi
+  compat_table > "$W/table"
+  # three inputs to one awk: the table, the old ledger, the scan.  Empty fields survive because
+  # nothing here is `read` with a tab IFS (consecutive tabs collapse under read).
+  awk -F'\t' -v OFS='\t' '
+       FILENAME==ARGV[1] { verdict[$1]=$2; next }
+       FILENAME==ARGV[2] { k=$1 "\t" $2; lic[k]=$4; url[k]=$6; note[k]=$7; seen[k]=1; next }
+       { k=$1 "\t" $2; L=(k in lic && lic[k]!="") ? lic[k] : "UNKNOWN"
+         C=(L=="UNKNOWN") ? "?" : ((L in verdict) ? verdict[L] : "?")
+         print $1, $2, $3, L, C, (k in url)?url[k]:"", (k in note)?note[k]:""; done[k]=1 }
+       END { for (k in seen) if (!(k in done)) { split(k, a, "\t"); L=lic[k]; C=(L=="UNKNOWN"||L=="") ? "?" : ((L in verdict) ? verdict[L] : "?")
+               print a[1], a[2], "(no longer declared)", (L==""?"UNKNOWN":L), C, url[k], note[k] } }' "$W/table" "$W/old" "$W/scan" | LC_ALL=C sort
+}
+
+W=$(mktemp -d 2>/dev/null) || { W=${TMPDIR:-/tmp}/ns2ld.$$; mkdir -p "$W"; }
+trap 'rm -rf "$W"' EXIT INT TERM
+
+if [ $PROVE -eq 1 ]; then
+  ROOT=$W/p; mkdir -p "$ROOT"; LEDGER=$ROOT/LICENSE-DEPS.tsv
+  printf 'PKG_CHECK_MODULES([GLIB], [glib-2.0 >= 2.0 gio-2.0])\nAC_CHECK_LIB([m], [cos])\n' > "$ROOT/configure.ac"
+  printf 'requests>=2.0\n# comment\nfoo[extra]==1\n' > "$ROOT/requirements.txt"
+  printf '{ "dependencies": { "left-pad": "^1" }, "devDependencies": { "jest": "1" } }\n' > "$ROOT/package.json"
+  printf ';;; x.el --- x\n;; Package-Requires: ((emacs "27.1") (dash "2.19"))\n' > "$ROOT/x.el"
+  printf 'DEP\tKIND\tDECLARED-IN\tLICENSE\tGPL3-COMPAT\tURL\tNOTE\nrequests\tpython\trequirements.txt\tApache-2.0\t\thttps://example/LICENSE\tfilled by hand\nold\tpython\trequirements.txt\tGPL-2.0-only\t\t\t\n' > "$LEDGER"
+  out=$(merge); red=0
+  printf '%s\n' "$out" | grep -q '^glib-2.0	pkg-config	configure.ac	UNKNOWN	?' && red=$((red+1)) || echo "FAIL: glib row: $out"
+  printf '%s\n' "$out" | grep -q '^gio-2.0	pkg-config' && red=$((red+1)) || echo "FAIL: second pkg-config module"
+  printf '%s\n' "$out" | grep -q '^m	library	configure.ac' && red=$((red+1)) || echo "FAIL: AC_CHECK_LIB"
+  printf '%s\n' "$out" | grep -q '^requests	python	requirements.txt	Apache-2.0	yes	https://example/LICENSE	filled by hand' && red=$((red+1)) || echo "FAIL: hand-filled licence not kept"
+  printf '%s\n' "$out" | grep -q '^foo	python' && red=$((red+1)) || echo "FAIL: extras stripped"
+  printf '%s\n' "$out" | grep -q '^left-pad	npm' && red=$((red+1)) || echo "FAIL: npm"
+  printf '%s\n' "$out" | grep -q '^jest' && echo "FAIL: devDependencies counted" || red=$((red+1))
+  printf '%s\n' "$out" | grep -q '^dash	elpa' && red=$((red+1)) || echo "FAIL: elpa"
+  printf '%s\n' "$out" | grep -q '^old	python	(no longer declared)	GPL-2.0-only	no' && red=$((red+1)) || echo "FAIL: stale row kept and judged"
+  [ "$(compat_of MIT)" = yes ] && [ "$(compat_of GPL-2.0-only)" = no ] && [ "$(compat_of MPL-2.0)" = ask ] && [ "$(compat_of Nope-1.0)" = '?' ] && red=$((red+1)) || echo "FAIL: compat table"
+  printf '%s\n' "$out" | grep -qE '	(UNKNOWN|no)	' && red=$((red+1)) || echo "FAIL: --check would not fire"
+  [ $red -eq 11 ] && { echo "PASS: ns2ld reads six declaration kinds, keeps hand-filled licences, marks the undeclared, judges compatibility, and --check has something to refuse"; exit 0; }
+  echo "FAIL: ns2ld prove-red $red/11"; exit 1
+fi
+
+if [ -n "$COMPAT" ]; then compat_table | awk -F'\t' -v id="$COMPAT" '$1==id {print $1 "\t" $2 "\t" $3; f=1} END{if(!f) print id "\t?\tnot in the table -- read https://www.gnu.org/licenses/license-list.html and add a row"}'; exit 0; fi
+
+out=$(merge)
+if [ $WRITE -eq 1 ]; then
+  if [ -f "$LEDGER.asc" ] && [ $FORCE -eq 0 ]; then echo "$me: $LEDGER is signed ($LEDGER.asc); not rewriting without --force" >&2; exit 1; fi
+  { printf '%s\n' "$HDR"; printf '%s\n' "$out"; } > "$LEDGER"   # in place: a mount that refuses unlink refuses mv
+  echo "$me: wrote $LEDGER ($(printf '%s\n' "$out" | grep -c . ) rows)"
+else
+  printf '%s\n' "$HDR"; [ -n "$out" ] && printf '%s\n' "$out"
+fi
+if [ $CHECK -eq 1 ]; then
+  bad=$(printf '%s\n' "$out" | awk -F'\t' '$4=="UNKNOWN" || $5=="no" {n++} END{print n+0}')
+  ask=$(printf '%s\n' "$out" | awk -F'\t' '$5=="ask" {n++} END{print n+0}')
+  echo "$me: $(printf '%s\n' "$out" | grep -c .) dependencies · $bad UNKNOWN-or-incompatible · $ask ask" >&2
+  [ "$bad" -eq 0 ]
+fi

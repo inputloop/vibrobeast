@@ -6,7 +6,7 @@
 # three readers on 2026-10-20: a # line between the header and the first row was hoisted on fold.
 # usage: ruby t/tv1cr-corpus.rb ROOT [TV1CR] [--max-rows N]     (default N 4913: past it a table is BULK)
 #        ruby t/tv1cr-corpus.rb --prove-red [TV1CR]              plants that shape; a tool that hoists must DIFFER
-# Copyright (C) 2026 Corwin Brust <corwin@bru.st> and Contributors.  Mentat (for Corwin; claude-opus-5-5).
+# Copyright 2026 INPUTLOOP; GPL-3.0-or-later OR LGPL-3.0-or-later; https://github.com/inputloop.  Mentat (for Corwin; claude-opus-5-5).
 # SPDX-License-Identifier: GPL-3.0-or-later OR LGPL-3.0-or-later
 require 'find'
 require 'tmpdir'

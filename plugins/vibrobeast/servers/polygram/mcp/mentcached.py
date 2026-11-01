@@ -545,6 +545,8 @@ def build(by: str | None = None, seat: Path | None = None,
     _spans.register(srv, by=st.by)   # time + tokens per span, on-start/on-stop (2026-09-23)
     _freshness.register(srv)         # installed plugin vs the shelf mint (2026-09-23)
     _prefs.register(srv, by=st.by)   # the switches, by default on (2026-09-23)
+    from . import doors as _doors
+    _doors.register(srv)             # every door in one place, broad setting first (2026-10-29, F3)
     _softskills.register(srv)        # the dynaloader: SOFT-SKILLS folders served live (2026-09-23)
     _words.register(srv, by=st.by)   # the word-path registry, a second reader of C4's g/<word>/ (2026-09-24)
     from . import epmo as _epmo

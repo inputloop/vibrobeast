@@ -153,6 +153,17 @@ of the script older than that, give every rerun its own label (`sonnet-5#1`, `so
 refused and receipted; `lens.py selftest` proves that refusal, and SPLIT-WITHIN, can fire. Use the script at MICROSCOPE
 scale and above; by hand is enough at LENS scale.
 
+**Two frames every panel of readers should carry** (from the 2026-10-10 extension review, c4
+`spells/extension/runs/2026-10-10/review/`; ERRATA E30). Each found defects no other frame did:
+- **the cold reader**, who never reads the evidence pack: only the brief and the thing under review,
+  and says where a quoted source could not be checked (C1). It catches what the work assumes its
+  reader already knows.
+- **the outside reader**, who reads only what ships: the files a stranger installs or downloads, as a
+  stranger would, nothing from the workshop (C5, C5b). It catches the promise the shipped text makes
+  that the shipped text does not keep.
+Give each its own seat beside the persona readers; a panel without them reviews the workshop, not the
+work.
+
 ## Portability
 
 This file is the whole instrument. Dropped alone into another vendor's agent through a web gateway,
@@ -205,8 +216,8 @@ and two-readers-D5 (both A). The doubled-nine mode and its kit, 2026-09-27 later
 posthoc*.py, judge-prompt.txt), keeping what both runs shared and making the rest arguments.
 
 <!-- footer: minted by bin/ft1mt from conventions/house.env and conventions/FOOTERS.org; edit those, not this -->
-*Version 1.1.2: edition revised from 1.1.0 on 2026-10-10; spine: 2026-09-01.*
+*Version 1.3: edition revised from 1.1.2 on 2026-10-29; spine: 2026-09-01.*
 
-Copyright 2026 Corwin Brust <corwin@bru.st> and Contributors; CC-BY-SA-4.0: https://creativecommons.org/licenses/by-sa/4.0/ (scripts: GNU General Public License, version 3 or any later version; SPDX GPL-3.0-or-later); Mentat (for Corwin, claude-opus-5-5)
+Copyright 2026 INPUTLOOP; CC-BY-SA-4.0: https://creativecommons.org/licenses/by-sa/4.0/ (scripts: GNU General Public License, version 3 or any later version; SPDX GPL-3.0-or-later); Mentat (for Corwin, claude-opus-5-5)
 From the collection Corwin Brust and Bryant Frankford keep together, with K Smith as editor of the works she edited; thanks in ACKNOWLEDGEMENTS; home: https://github.com/inputloop
 <!-- /footer -->

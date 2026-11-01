@@ -17,7 +17,7 @@
 # settings page goes one server at a time, and editing JSON by hand stays a valid way to keep it. This says
 # where a configuration stands on that way without changing it.
 #
-# Copyright 2026 Corwin Brust <corwin@bru.st> and Contributors.  Authored by Mentat (for Corwin, opus-5-5).
+# Copyright 2026 INPUTLOOP; GPL-3.0-or-later OR LGPL-3.0-or-later; https://github.com/inputloop.  Authored by Mentat (for Corwin, opus-5-5).
 # SPDX-License-Identifier: GPL-3.0-or-later OR LGPL-3.0-or-later
 import json, os, platform, shutil, sys, tempfile
 from pathlib import Path

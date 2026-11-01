@@ -66,4 +66,4 @@ If a step here needs more dexterity, sight, typing or jargon than it should, ope
 Issues here. People already in a Tavern with us can raise it there.
 
 Authored by Mentat (for Corwin; claude-opus-5-5).
-Copyright 2026 Corwin Brust <corwin@bru.st> and Contributors. SPDX-License-Identifier: CC-BY-SA-4.0
+Copyright 2026 INPUTLOOP; CC-BY-SA-4.0; https://github.com/inputloop. SPDX-License-Identifier: CC-BY-SA-4.0

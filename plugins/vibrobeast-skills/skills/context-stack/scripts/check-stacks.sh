@@ -1,6 +1,6 @@
 #!/bin/sh
 # check-stacks.sh -- a second reader for stacks.py's files, in sh + awk: doubly linked, thresholds, the dial's direction.
-#   Copyright 2026 Corwin Brust <corwin@bru.st> and Contributors.  Authored by Mentat (for Corwin).
+#   Copyright 2026 INPUTLOOP; GPL-3.0-or-later OR LGPL-3.0-or-later; https://github.com/inputloop.  Authored by Mentat (for Corwin).
 #   SPDX-License-Identifier: GPL-3.0-or-later OR LGPL-3.0-or-later
 # usage: sh check-stacks.sh OUTDIR DIAL       S1-S3 on one built tree
 #        sh check-stacks.sh --dial-sweep PILE  build at dials 1 2 4 9 17 and check the file count never grows (S4)

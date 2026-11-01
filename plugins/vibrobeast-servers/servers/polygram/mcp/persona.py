@@ -689,7 +689,7 @@ def ledger(proposed: list | None = None, today: str | None = None) -> dict:
            "hashes, sizes, paths, and the quoted edge lines. No other line of any sheet, and no "
            "line of any person model, was returned to the model.", "",
            "Authored by Mentat (for Corwin; claude-opus-5-5).",
-           "Copyright (C) 2026 Corwin Brust <corwin@bru.st> and Contributors.",
+           "Copyright 2026 INPUTLOOP; CC-BY-SA-4.0; https://github.com/inputloop.",
            "SPDX-License-Identifier: CC-BY-SA-4.0", ""]
     say = rb
     return {"markdown": "\n".join(md), "sheets": len(sheets), "person_models": len(persons),

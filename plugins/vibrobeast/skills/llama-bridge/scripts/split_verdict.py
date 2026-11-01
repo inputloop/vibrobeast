@@ -5,7 +5,7 @@
 #     PRESENT: yes, MET: yes -> OK
 #     PRESENT: yes, MET: no  -> RED
 #     anything else          -> UNPARSED      (never a pass)
-# Copyright 2026 Corwin Brust <corwin@bru.st> and Contributors.
+# Copyright 2026 INPUTLOOP; GPL-3.0-or-later; https://github.com/inputloop.
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Written by Mentat (for Corwin, claude-opus-5-5), 2026-10-22.
 # usage: split_verdict.py < answer.txt          prints the verdict; exit 0 OK, 1 RED, 2 NOT CHECKED, 3 UNPARSED

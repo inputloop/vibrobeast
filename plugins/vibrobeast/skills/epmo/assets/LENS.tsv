@@ -3,7 +3,7 @@
 # dim: who | stance | band | layer | coupling | frame | closure.  question: the EPMO question the dim answers.
 # order: position along the dim (an ordinal, not a weight; nothing here is a measure).
 # Cardinality is the count of rows per dim: ep1mo lens prints it, so it is never restated here.
-# Copyright (C) 2026 Corwin Brust <corwin@bru.st> and Contributors. SPDX-License-Identifier: CC-BY-SA-4.0
+# Copyright 2026 INPUTLOOP; CC-BY-SA-4.0; https://github.com/inputloop. SPDX-License-Identifier: CC-BY-SA-4.0
 dim	question	value	order	meaning	mark
 who	who cares?	org	1	the organisation that plans and proves (inputloop, the shop, a foundation)	ORG (PLAN/PROVE), top of the N/S line
 who	who cares?	team	2	a working group across people (the keepers plus residents, agents, reviewers)	between ORG and Context on the dashed line (inferred)

@@ -1,5 +1,5 @@
 <!--
-SPDX-FileCopyrightText: 2026 Corwin Brust <corwin@bru.st> and Contributors
+SPDX-FileCopyrightText: 2026 INPUTLOOP (Corwin Brust, Bryant Frankford and the people in ACKNOWLEDGEMENTS)
 SPDX-License-Identifier: CC-BY-SA-4.0
 -->
 
@@ -28,4 +28,4 @@ publish run by a person by hand is signed by that person. `PROVENANCE` here name
 and whether that tree had uncommitted changes.
 
 Authored by Mentat (for Corwin; claude-opus-5-5).
-Copyright 2026 Corwin Brust <corwin@bru.st> and Contributors. SPDX-License-Identifier: CC-BY-SA-4.0
+Copyright 2026 INPUTLOOP; CC-BY-SA-4.0; https://github.com/inputloop. SPDX-License-Identifier: CC-BY-SA-4.0

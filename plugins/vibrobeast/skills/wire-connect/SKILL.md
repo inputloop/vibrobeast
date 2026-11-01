@@ -1,12 +1,10 @@
 ---
 name: wire-connect
 description: >-
-  Get Corwin's garden connected (back) to the ÆTHERNET Wire — the connector-install and
-  cold-start discipline, distinct from parley (which owns the conversation loop once you are
-  on). Use when the wire is down, fresh, or doubted: "get on the wire", "reconnect the wire",
+  Get Corwin's garden connected to the ÆTHERNET Wire — the connector-install and
+  cold-start discipline, distinct from parley (which owns the conversation loop once on). Use when the wire is down, fresh, or doubted: "get on the wire", "reconnect the wire",
   "wire won't authenticate", "set up wire_mcp", "pair 2FA", "wire status check", "smoke test
-  the relay", "stand up / check the second ring", or any cold-start from a machine that has
-  never spoken wire. Covers: connector placement + secrets file (bearer code NEVER through the
+  the relay", "stand up / check the second ring", or any cold-start from a machine new to wire. Covers: connector placement + secrets file (bearer code NEVER through the
   agent — fingerprint only), browser-FIRST 2FA pairing (agent-first pairing hands the TOTP
   seed to the agent and must never happen), the status→ping→inbox ladder, the POST-redirect
   auth failure and its fix, and the two known relays (Bryant's, and Corwin's second ring).
@@ -93,6 +91,6 @@ specialist skills: verify, opt-in, re-enable selectively rather than wholesale) 
 <!-- footer: minted by bin/ft1mt from conventions/house.env and conventions/FOOTERS.org; edit those, not this -->
 *Version 1.1.0: edition revised from 1.0.1 on 2026-10-10; spine: 2026-08-04.*
 
-Copyright 2026 Corwin Brust <corwin@bru.st> and Contributors; CC-BY-SA-4.0: https://creativecommons.org/licenses/by-sa/4.0/ (scripts: GNU General Public License, version 3 or any later version; SPDX GPL-3.0-or-later); Mentat (for Corwin, claude-opus-5-5)
+Copyright 2026 INPUTLOOP; CC-BY-SA-4.0: https://creativecommons.org/licenses/by-sa/4.0/ (scripts: GNU General Public License, version 3 or any later version; SPDX GPL-3.0-or-later); Mentat (for Corwin, claude-opus-5-5)
 From the collection Corwin Brust and Bryant Frankford keep together, with K Smith as editor of the works she edited; thanks in ACKNOWLEDGEMENTS; home: https://github.com/inputloop
 <!-- /footer -->

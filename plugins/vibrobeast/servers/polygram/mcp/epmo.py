@@ -1,6 +1,6 @@
 # polygram -- epmo: the capability lens over MCP, a second reader of C4's r/epmo (Python beside bin/ep1mo's sh+awk).
 #
-# Copyright (C) 2026 Corwin Brust <corwin@bru.st> and Contributors.
+# Copyright 2026 INPUTLOOP; GPL-3.0-or-later; https://github.com/inputloop.
 # SPDX-License-Identifier: GPL-3.0-or-later
 # This program is free software: you can redistribute it and/or modify it under the terms
 # of the GNU General Public License as published by the Free Software Foundation,

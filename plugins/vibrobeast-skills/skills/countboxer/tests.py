@@ -3,7 +3,7 @@
 (c4/q/2026-10-14-count-ladder-palace-release/PROMPT.md), not from the script.
   python3 tests.py              every case
   python3 tests.py --prove-red  plant faults in copies of cb1ox; each must turn a case red
-Copyright (C) 2026 Corwin Brust <corwin@bru.st> and Contributors.  GPL-3.0-or-later.
+Copyright 2026 INPUTLOOP; GPL-3.0-or-later; https://github.com/inputloop.
 Authored by Mentat (for Corwin; claude-opus-5-5)."""
 import os, shutil, subprocess, sys, tempfile
 

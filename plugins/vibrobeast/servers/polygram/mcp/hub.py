@@ -1,5 +1,5 @@
 # polygram -- gated agent-skill synthesis.
-# Copyright (C) 2026 Corwin Brust <corwin@bru.st> and Contributors.  GPL-3.0-or-later.
+# Copyright 2026 INPUTLOOP; GPL-3.0-or-later; https://github.com/inputloop.
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
 # This file is part of polygram.  polygram is free software: you can redistribute it and/or
@@ -55,7 +55,7 @@ PATH_VARS = ("VIBROBEAST_SSH_KEY", "VIBROBEAST_API_TOKEN", "GW_HOSTS", "GW_DOMAI
              "VIBROBEAST_API_TOKEN_FOR", "VIBROBEAST_API_TOKEN_USAGE", "VIBROBEAST_SSH_KEY_USAGE",
              "GW_PASSWORD_USAGE", "VIBROBEAST_KEYS_FILE", "VIBROBEAST_KEYRING_DIR",
              "TAVERN_DATA", "TAVERN_AS", "C4_ROOT", "MENTCACHED_SEAT", "OLLAMA_HOST",
-             "PERSONA_ROOT", "MENTCACHED_PREFS")
+             "PERSONA_ROOT", "MENTCACHED_PREFS", "VIBROBEAST_DEFAULTS")
 START_TIMEOUT = float(os.environ.get("VIBROBEAST_HUB_START_TIMEOUT", "30"))
 CALL_TIMEOUT = float(os.environ.get("VIBROBEAST_HUB_CALL_TIMEOUT", "900"))
 
@@ -102,6 +102,54 @@ def clean_env(env: dict | None = None) -> tuple[dict, dict]:
     env["PYTHONDONTWRITEBYTECODE"] = "1"
     env.setdefault("PYTHONIOENCODING", "utf-8")
     return env, seen
+
+
+#: Each child's environment is a floor, not the hub's own (the 2026-10-19 audit's VIBRO-19 S3; still open on
+#: the 2026-10-26 shelf verify: clean_env handed the whole environment to all seven).  A child gets keys.py's
+#: ENV_FLOOR, the names the plugin's servers read (OWN_PREFIXES, less anything shaped like a secret), and the
+#: secrets of its own: the settings page's three go only to the two servers that use them.  mentcached also
+#: gets the names its key register reads (source env:NAME): holding keys and handing exactly one to a program
+#: is that server's job.
+SECRETS = ("GW_PASSWORD", "VIBROBEAST_API_TOKEN", "VIBROBEAST_SSH_KEY")
+SECRETS_FOR = {"mentcached": SECRETS, "gwstatus": SECRETS}
+OWN_PREFIXES = ("MENTCACHED_", "PERSONA_", "TAVERN_", "GW_", "C4_", "LLAMABRIDGE_", "OLLAMA_", "VIBROBEAST_",
+                "POLYGRAM_", "FR1ME_", "SOFT_SKILLS", "SKILL_METRICS_", "EPMO_", "PUSH_YES_", "CLAUDE_PLUGIN_", "PYTHON")
+_SECRET_WORDS = ("PASSWORD", "PASSWD", "TOKEN", "SECRET", "APIKEY", "API_KEY", "PRIVATE")
+_NOT_SECRET_ENDS = ("_USAGE", "_FOR", "_FILE", "_DIR", "_ROOT", "_PATH")
+
+
+def secret_shaped(name: str) -> bool:
+    n = name.upper()
+    if n.endswith(_NOT_SECRET_ENDS):
+        return False
+    return any(w in n for w in _SECRET_WORDS) or n.endswith("_KEY")
+
+
+def register_env_names() -> set:
+    """The env:NAME sources in the key register (keys.read_register), for mentcached alone."""
+    try:
+        from . import keys
+        rows, _bad = keys.read_register()
+        return {r["source"][4:] for r in rows.values() if str(r.get("source", "")).startswith("env:")}
+    except Exception:                                    # noqa: BLE001 -- no register, no names
+        return set()
+
+
+def child_env(name: str, env: dict, nt: bool | None = None) -> dict:
+    """What server ``name`` is started with: the floor, our own names less secret-shaped ones, its own secrets."""
+    from .keys import child_env as floor
+    out = floor({}, environ=env, nt=nt)
+    for k, v in env.items():
+        if k.upper().startswith(OWN_PREFIXES) and not secret_shaped(k):
+            out[k] = v
+    for k in SECRETS_FOR.get(name, ()):
+        if k in env:
+            out[k] = env[k]
+    if name == "mentcached":
+        for k in register_env_names():
+            if k in env:
+                out[k] = env[k]
+    return out
 
 
 class Child:
@@ -300,7 +348,7 @@ class Hub:
     def __init__(self, names=SERVERS, env: dict | None = None):
         self.raw_env = dict(os.environ if env is None else env)
         self.env, self.seen = clean_env(env)
-        self.children = [Child(n, self.env) for n in names]
+        self.children = [Child(n, child_env(n, self.env)) for n in names]
         threads = [threading.Thread(target=c.start) for c in self.children]
         for t in threads:
             t.start()

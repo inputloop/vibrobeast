@@ -1,0 +1,127 @@
+
+<!-- Information for maintainers of GNU software, last updated October 25, 2025.
+
+Copyright © 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999,
+2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,
+2011, 2012, 2013, 2014, 2015, 2016, 2017, 2019, 2020, 2022, 2025
+Free Software Foundation, Inc.
+
+Permission is granted to copy, distribute and/or modify this document
+under the terms of the GNU Free Documentation License, Version 1.3 or
+any later version published by the Free Software Foundation; with no
+Invariant Sections, no Front-Cover Texts, and no Back-Cover
+Texts.  A copy of the license is included in the section entitled
+"GNU Free Documentation License". -->
+Copyright Notices (Information for Maintainers of GNU Software)
+
+Next: License Notices, Previous: Copying from Other Packages, Up: Legal Matters   [Contents][Index]
+
+6.5 Copyright Notices &para;
+
+You should maintain a proper copyright notice and a license
+notice in each nontrivial file in the package.  (Any file more than ten
+lines long is nontrivial for this purpose.)  This includes header files
+and interface definitions for
+building or running the program, documentation files, and any supporting
+files.  If a file has been explicitly placed in the public domain, then
+instead of a copyright notice, it should have a notice saying explicitly
+that it is in the public domain.
+
+All files, including images, sound, and plain text, should contain
+copyright and license notices, if their formats allow them.  When the
+file format doesn't permit these notices or if adding a header would
+be very inconvenient, place the copyright and license notices in a
+README file, preferably in the same directory, and be clear in
+README which files those notices apply to.
+
+Change log files should have a copyright notice and license notice at
+the end, since new material is added at the beginning but the end
+remains the end.
+
+When a file is automatically generated from some other file in the
+distribution, it is useful for the automatic procedure to copy the
+copyright notice and permission notice of the file it is generated
+from, if possible.  Alternatively, put a notice at the beginning saying
+which file it is generated from.
+
+A copyright notice looks like this:
+
+Copyright (C) year1, year2, year3 copyright-holder
+
+The word 'Copyright' must always be in English, by international
+convention.
+
+The copyright-holder may be the Free Software Foundation, Inc., or
+someone else; you should know who is the copyright holder for your
+package.
+
+Replace the '(C)' with a C-in-a-circle symbol if it is available.
+For example, use '@copyright{}' in a Texinfo file.  However,
+stick with parenthesized 'C' unless you know that C-in-a-circle
+will work.  For example, a program's standard --version
+message should use parenthesized 'C' by default, though message
+translations may use C-in-a-circle in locales where that symbol is
+known to work.  Alternatively, the '(C)' or C-in-a-circle can be
+omitted entirely; the word 'Copyright' suffices.
+
+To update the list of year numbers, add each year in which you have
+made nontrivial changes to the package.  (Here we assume you're using
+a publicly accessible revision control server, so that every revision
+installed is also immediately and automatically published.)  When you
+add the new year, it is not required to keep track of which files have
+seen significant changes in the new year and which have not.  It is
+recommended and simpler to add the new year to all files in the
+package, and be done with it for the rest of the year.
+
+Don't delete old year numbers, though; they are significant since they
+indicate when older versions might theoretically go into the public
+domain, if the movie companies don't continue buying laws to further
+extend copyright.  If you copy a file into the package from some other
+program, keep the copyright years that come with the file.
+
+You can use a range ('2008-2010') instead of listing individual
+years ('2008, 2009, 2010') if and only if: 1) every year in
+the range, inclusive, really is a "copyrightable" year that would be
+listed individually; and 2) you make an explicit statement
+in a README file about this usage:
+
+For any copyright year range specified as YYYY-ZZZZ in this package
+note that the range specifies every single year in that closed
+interval.
+
+For files which are regularly copied from another project (such as
+'gnulib'), leave the copyright notice as it is in the original.
+
+The copyright statement may be split across multiple lines, both in
+source files and in any generated output.  This often happens for
+files with a long history, having many different years of
+publication.
+
+For an FSF-copyrighted package, if you have followed the procedures to
+obtain legal papers, each file should have just one copyright holder:
+the Free Software Foundation, Inc.  You should edit the file's
+copyright notice to list that name and only that name.
+
+But if contributors are not all assigning their copyrights to a single
+copyright holder, it can easily happen that one file has several
+copyright holders.  Each contributor of nontrivial text is a copyright
+holder.
+
+In that case, you should always include a copyright notice in the name
+of main copyright holder of the file.  You can also include copyright
+notices for other copyright holders as well, and this is a good idea
+for those who have contributed a large amount and for those who
+specifically ask for notices in their names.  (Sometimes the license
+on code that you copy in may require preserving certain copyright
+notices.)  But you don't have to include a notice for everyone who
+contributed to the file (which would be rather inconvenient).
+
+Sometimes a program has an overall copyright notice that refers to the
+whole program.  It might be in the README file, or it might be
+displayed when the program starts up.  This copyright notice should
+mention the year of completion of the most recent major version; it
+can mention years of completion of previous major versions, but that
+is optional.
+
+Next: License Notices, Previous: Copying from Other Packages, Up: Legal Matters   [Contents][Index]
+

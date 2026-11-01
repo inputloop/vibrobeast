@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # cstk.py -- the context stack and memory stack, reference implementation (Python).
-#   Copyright 2026 Corwin Brust <corwin@bru.st> and Contributors.  Authored by Mentat (for Corwin).
+#   Copyright 2026 INPUTLOOP; GPL-3.0-or-later OR LGPL-3.0-or-later; https://github.com/inputloop.  Authored by Mentat (for Corwin).
 #   SPDX-License-Identifier: GPL-3.0-or-later OR LGPL-3.0-or-later
 #   Spec: ../../SPEC.md.  Reads commands on stdin, writes results on stdout.
 import math, re, sys

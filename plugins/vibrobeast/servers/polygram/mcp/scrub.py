@@ -1,5 +1,5 @@
 # polygram -- gated agent-skill synthesis.
-# Copyright (C) 2026 Corwin Brust <corwin@bru.st> and Contributors.  GPL-3.0-or-later.
+# Copyright 2026 INPUTLOOP; GPL-3.0-or-later; https://github.com/inputloop.
 # SPDX-License-Identifier: GPL-3.0-or-later
 """scrub -- the output scrubbers key_run may use, one of which is chosen when the package is minted.
 

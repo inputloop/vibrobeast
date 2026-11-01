@@ -98,6 +98,11 @@ KNOWN: dict[str, tuple[str, str]] = {
     "persona.on_threshold": ("off", "persona: what happens when someone crosses a threshold (used twice outside a test run; cited twice in seat notes; shipped through a cut with their credit): off (nothing; the default, his standing rule), propose (persona_list names the crossing and asks, in words), draft (persona_list names it and a draft may be written to the holding shelf ~/.mentcached/seat/persona/drafts, marked not-his-instruction and kept out of the index). No value mints a sheet: saying yes to a proposal or a draft is the instruction his rule asks for (2026-10-14)"),
     "keys.standing": ("", "key_run: standing yeses, so routine runs on the keeper's own hosts need no confirmation each time. Entries KEY PROGRAM TARGET, separated by ';' (e.g. 'ssh ssh vibrobeast@gw33.bru.st; ssh scp vibrobeast@gw33.bru.st'). ssh: the host argument is exactly TARGET. scp: pushes to TARGET only (a pull could write this computer's files). git: TARGET is a folder, and only `git pull` (run fast-forward only) or `git fetch`, alone, run in exactly that folder (e.g. 'ssh git /home/you/projects/c4-draw-kiosk'). Any argument starting with - still asks. Every standing run says so in its result. Only the keeper's own turn changes it, and only with a code the person saw beside the row (pref_set asks first)"),
     "people.named": ("", "the people whose person.<name>.* rows this server keeps, besides the keeper, who is always one of them: the participants the keeper named, comma-separated. Only the keeper's own turn changes it, and only with a code the person saw beside the row (pref_set asks first)"),
+    # 2026-10-29 (his F3 ruling of 10-28 23:32): defaults that ask first, as Emacs does, swappable at run time and
+    # at build time (default_layers below); doors.py says each door in words with where its state came from.
+    "doors.profile": ("each", "doors: the broad setting, read before every door's own key. each (the default): every door by its own key; local: doors that reach another machine stay shut, whatever their own key says; closed: every door shut, whatever its key, the environment or a default says (stricter wins). door_list shows every door, this setting first"),
+    "llamabridge.keep_prompts": ("off", "llamabridge: whether Llama Bridge's own log keeps the words of what Claude delegates. off (the default): the log keeps times, models and sizes, not prompt or answer text, its answer cache is off; an async job's answer stays in the jobs table, where delegate_result reads it; on: Bryant's own logging, whole prompts and answers, in ~/.mentcached/llama-bridge.db (0600)"),
+    "llamabridge.stored_host": ("ask", "llamabridge: what to do with an ollama_host row stored in Llama Bridge's own database when it differs from OLLAMA_HOST (prompts would go there). ask (the default): not used; door_list says the row and where it points, like Emacs asking before an unsafe local variable; use: send prompts there"),
 }
 
 #: keys only the keeper's own turn writes; a row in the file that another turn wrote is not read
@@ -107,8 +112,92 @@ KEEPER_ONLY = ("people.named", "keys.standing")
 #: asked and never the gate.  The gate is a code the person saw beside the row: the first pref_set call
 #: returns the row in words and a code; the second, with the code, writes.  The doors (every *.on), where
 #: the plugin's reach is set, and the roots a skill or persona is read from, go through it as well.
-CONFIRMED = KEEPER_ONLY + ("softskills.roots", "persona.sheets", "words.root", "tavern.face")
+CONFIRMED = KEEPER_ONLY + ("softskills.roots", "persona.sheets", "words.root", "tavern.face", "doors.profile",
+                          "llamabridge.keep_prompts", "llamabridge.stored_host")
 
+
+
+#: Defaults in three layers, later wins (2026-10-29, his F3 ruling): house (KNOWN, above), build (defaults.tsv
+#: beside this file, minted from conventions/defaults.tsv or the file make dist DEFAULTS= names), runner (the file
+#: $VIBROBEAST_DEFAULTS names, read at each start).  Rows are ``key<TAB>value<TAB>why``; # starts a comment.  A
+#: layer may not set a keeper-only key or a code pin: those are the person's own words, never a site's.
+NO_LAYER = KEEPER_ONLY + ("tavern.face",)
+
+
+#: A runner's file may only shut (his F5 ruling, 2026-10-29 03:02: "close only for now").  A row that would open a
+#: door, or that names a folder to load skills, sheets or words from, is refused there, with the reason; the build
+#: file (inside the signed plugin) keeps the power the environment has.
+RUNNER_NO_LOAD = ("softskills.roots", "persona.sheets", "words.root", "c4.root", "tavern.data")
+
+
+def _opens(key: str, value: str) -> bool:
+    """True when VALUE for KEY would open a door (doors.DOORS) or loosen the broad setting."""
+    v = (value or "").strip().lower()
+    if key == "doors.profile":
+        return v not in ("local", "closed")
+    try:
+        from .doors import DOORS
+    except Exception:                                    # noqa: BLE001 -- no table: treat every door key as opening
+        DOORS = {}
+    d = DOORS.get(key)
+    if d is None:
+        return key.endswith(".on") and v in ("on", "1", "true", "yes")
+    if d.get("values"):
+        return v == d["values"][1]
+    return v in ("on", "1", "true", "yes")
+
+
+def _layer_file(p: Path, layer: str = "build") -> tuple[dict, list]:
+    got: dict = {}
+    refused: list = []
+    try:
+        lines = p.read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return got, refused
+    for n, ln in enumerate(lines, 1):
+        if not ln.strip() or ln.lstrip().startswith("#"):
+            continue
+        f = ln.split("\t")
+        key, value = f[0].strip(), (f[1].strip() if len(f) > 1 else "")
+        why = f[2].strip() if len(f) > 2 else ""
+        if key not in KNOWN:
+            refused.append({"file": str(p), "line": n, "key": key, "reason": "not a key this server knows"})
+        elif key in NO_LAYER:
+            refused.append({"file": str(p), "line": n, "key": key,
+                            "reason": "keeper-only or a code pin: set by the person, never by a default file"})
+        elif layer == "runner" and key in RUNNER_NO_LOAD:
+            refused.append({"file": str(p), "line": n, "key": key,
+                            "reason": "a runner's file may only shut (his ruling, 2026-10-29): it names no folder to load from"})
+        elif layer == "runner" and _opens(key, value):
+            refused.append({"file": str(p), "line": n, "key": key,
+                            "reason": "a runner's file may only shut (his ruling, 2026-10-29): this value would open a door"})
+        else:
+            got[key] = {"value": value, "why": why, "file": str(p), "line": n}
+    return got, refused
+
+
+def default_layers() -> tuple[dict, list]:
+    """key -> {value, from (build|runner), file, line, why}; and the rows refused, with reasons."""
+    out: dict = {}
+    refused: list = []
+    files = [("build", Path(__file__).with_name("defaults.tsv"))]
+    r = (os.environ.get("VIBROBEAST_DEFAULTS") or "").strip()
+    if r and "${" not in r:
+        files.append(("runner", Path(r).expanduser()))
+    for layer, f in files:
+        got, bad = _layer_file(f, layer)
+        refused += bad
+        for k, v in got.items():
+            out[k] = {**v, "from": layer}
+    return out, refused
+
+
+def default_of(key: str) -> tuple[str, str]:
+    """(the default in force, where it came from: house, build or runner)."""
+    lay, _ = default_layers()
+    if key in lay:
+        return lay[key]["value"], lay[key]["from"]
+    return KNOWN[key][0], "house"
 
 def needs_confirm(key: str) -> bool:
     return key in CONFIRMED or key.endswith(".on")
@@ -373,13 +462,18 @@ def current(p: Path | None = None) -> dict[str, dict]:
         if f[1] in KNOWN and not (f[1] in KEEPER_ONLY and writer(f[1], f[5], f[6], [])):
             got[f[1]] = {"value": f[2], "by": f[3], "ts": f[0], "turn": f[5]}
     out = {}
+    lay, _ = default_layers()
     for k, (default, _what) in KNOWN.items():
+        d_from = "house"
+        if k in lay:
+            default, d_from = lay[k]["value"], lay[k]["from"]
         if k in got and got[k]["value"] != UNSET:
             g = got[k]
-            out[k] = {"value": g["value"], "source": "file", "by": g["by"], "ts": g["ts"]}
+            out[k] = {"value": g["value"], "source": "file", "by": g["by"], "ts": g["ts"], "default_from": d_from}
         else:
             out[k] = {"value": default, "source": "unset" if k in got else "default",
-                      "by": got[k]["by"] if k in got else "", "ts": got[k]["ts"] if k in got else ""}
+                      "by": got[k]["by"] if k in got else "", "ts": got[k]["ts"] if k in got else "",
+                      "default_from": d_from}
     return out
 
 

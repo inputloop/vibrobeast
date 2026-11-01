@@ -262,8 +262,8 @@ class Frame:
     @staticmethod
     def capture_on() -> bool:
         try:
-            from . import prefs as _prefs
-            return _prefs.on("usage.capture")
+            from . import doors as _doors       # the broad setting, doors.profile, is read first (2026-10-29)
+            return _doors.is_open("usage.capture")
         except Exception:                      # noqa: BLE001 -- unreadable or missing key = default off
             return False
 

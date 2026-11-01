@@ -6,7 +6,7 @@ usage:  python3 t/tv1cr-spec.py [--prove-red] [--tool PATH] [--lab PATH]
 --prove-red plants faults in copies of the tool; each must turn at least one case red.
 --lab       append this run's row to a lab ledger (the from-scratch worked example) through the
             tool itself: `tv1cr set` into the ledger's stem, then `tv1cr fold` to its TSV.
-Copyright (C) 2026 Corwin Brust <corwin@bru.st> and Contributors.  Mentat (for Corwin).
+Copyright 2026 INPUTLOOP; GPL-3.0-or-later; https://github.com/inputloop.  Mentat (for Corwin).
 SPDX-License-Identifier: GPL-3.0-or-later
 """
 import os, platform, re, shutil, subprocess, sys, tempfile, time

@@ -1,0 +1,108 @@
+--- llama_bridge.py (1.4.0-vb.1)
++++ llama_bridge.py (1.4.0-vb.2)
+@@ -59,14 +59,38 @@
+ from datetime import datetime, timezone, timedelta
+ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+ 
+-VERSION = "1.4.0-vb.1"
++VERSION = "1.4.0-vb.2"
+ DEFAULT_PORT = 8765
+ DEFAULT_OLLAMA = os.environ.get("OLLAMA_HOST", "http://127.0.0.1:11434").rstrip("/")
+ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+ DEFAULT_DB = os.path.join(SCRIPT_DIR, "llama_bridge.db")
+ 
++# vb.2 (2026-10-29, Corwin's garden, for Bryant to keep, change or flip back): two defaults that ask first.
++# KEEP_PROMPTS: whether the log and the answer cache keep the words of prompts and answers.  1.4.0 kept
++#   them (True).  vb.2 keeps times, models and sizes, not the words, unless asked.
++# STORED_HOST: what to do with an `ollama_host` row in this database's config, when the bridge runs as an
++#   MCP server.  1.4.0 used it over OLLAMA_HOST ("use").  vb.2 sends to OLLAMA_HOST unless told "use";
++#   the dashboard (gui), where the person sets that row by hand, still uses it.
++# Flip either constant here at build time to make 1.4.0's behaviour the default again.  For one run:
++#   LLAMABRIDGE_KEEP_PROMPTS=1 or --keep-prompts;  LLAMABRIDGE_STORED_HOST=use or --use-stored-host.
++KEEP_PROMPTS = False
++STORED_HOST = "ask"
++NOT_KEPT = "(not kept: keep_prompts is off)"
++
++
++def _env_on(name, default):
++    v = (os.environ.get(name) or "").strip().lower()
++    if v in ("1", "on", "true", "yes"):
++        return True
++    if v in ("0", "off", "false", "no"):
++        return False
++    return default
++
++
+ # Runtime config, finalised in main().
+-CFG = {"db": DEFAULT_DB, "ollama": DEFAULT_OLLAMA, "port": DEFAULT_PORT}
++CFG = {"db": DEFAULT_DB, "ollama": DEFAULT_OLLAMA, "port": DEFAULT_PORT,
++       "keep_prompts": _env_on("LLAMABRIDGE_KEEP_PROMPTS", KEEP_PROMPTS),
++       "stored_host": (os.environ.get("LLAMABRIDGE_STORED_HOST") or STORED_HOST).strip().lower()}
+ 
+ _DB_LOCK = threading.Lock()
+ 
+@@ -159,6 +183,9 @@
+               response_tokens=None, claude_saved=None, cost_saved=None,
+               cached=None, tok_per_sec=None, task_type=None, budget=None):
+     """Write one row to the event log and return its id. Never raises."""
++    if not CFG.get("keep_prompts"):                # vb.2: the words only when asked (KEEP_PROMPTS above)
++        prompt = NOT_KEPT if prompt else prompt
++        response = NOT_KEPT if response else response
+     try:
+         with _DB_LOCK:
+             c = db_conn()
+@@ -212,7 +239,10 @@
+ 
+ 
+ def ollama_host():
+-    return (cfg_get("ollama_host") or CFG["ollama"]).rstrip("/")
++    # vb.2: a stored row is used only when STORED_HOST is "use" (the dashboard sets that for itself); read
++    # at every call, so a row written while the bridge runs is held to the same rule
++    stored = cfg_get("ollama_host") if CFG.get("stored_host") == "use" else None
++    return (stored or CFG["ollama"]).rstrip("/")
+ 
+ 
+ # --------------------------------------------------------------------------- #
+@@ -642,6 +672,8 @@
+ 
+ 
+ def cache_get(key):
++    if not CFG.get("keep_prompts"):                # vb.2: an answer cache keeps answers, so it follows the switch
++        return None
+     c = db_conn()
+     try:
+         row = c.execute("SELECT * FROM cache WHERE key=?", (key,)).fetchone()
+@@ -651,6 +683,8 @@
+ 
+ 
+ def cache_put(key, model, response, p_tok, r_tok):
++    if not CFG.get("keep_prompts"):
++        return
+     with _DB_LOCK:
+         c = db_conn()
+         try:
+@@ -879,6 +913,8 @@
+ 
+ def job_create(model, task_type, prompt, status="running"):
+     jid = uuid.uuid4().hex[:12]
++    if not CFG.get("keep_prompts"):                # vb.2; the answer itself (job_finish) is kept: delegate_result reads it
++        prompt = NOT_KEPT if prompt else prompt
+     with _DB_LOCK:
+         c = db_conn()
+         try:
+@@ -2441,7 +2477,15 @@
+     p.add_argument("--ollama-host", default=None, help="override Ollama base URL")
+     p.add_argument("--db", default=None, help="path to the log database")
+     p.add_argument("--no-browser", action="store_true", help="don't open a browser")
++    p.add_argument("--keep-prompts", action="store_true",
++                   help="vb.2: keep the words of prompts and answers in the log and cache (1.4.0's behaviour)")
++    p.add_argument("--use-stored-host", action="store_true",
++                   help="vb.2: let an ollama_host config row override OLLAMA_HOST (1.4.0's behaviour)")
+     args = p.parse_args()
++    if args.keep_prompts:
++        CFG["keep_prompts"] = True
++    if args.use_stored_host or args.mode == "gui":
++        CFG["stored_host"] = "use"
+ 
+     if args.db:
+         CFG["db"] = os.path.abspath(args.db)

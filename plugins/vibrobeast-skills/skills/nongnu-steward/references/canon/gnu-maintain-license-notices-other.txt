@@ -1,0 +1,58 @@
+
+<!-- Information for maintainers of GNU software, last updated October 25, 2025.
+
+Copyright © 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999,
+2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,
+2011, 2012, 2013, 2014, 2015, 2016, 2017, 2019, 2020, 2022, 2025
+Free Software Foundation, Inc.
+
+Permission is granted to copy, distribute and/or modify this document
+under the terms of the GNU Free Documentation License, Version 1.3 or
+any later version published by the Free Software Foundation; with no
+Invariant Sections, no Front-Cover Texts, and no Back-Cover
+Texts.  A copy of the license is included in the section entitled
+"GNU Free Documentation License". -->
+License Notices for Other Files (Information for Maintainers of GNU Software)
+
+Previous: License Notices for Code Examples, Up: License Notices   [Contents][Index]
+
+6.6.6 License Notices for Other Files &para;
+
+Small supporting files, short manuals (under 300 lines long) and rough
+documentation (README files, INSTALL files, etc.) can
+use a simple all-permissive license like this one:
+
+Copying and distribution of this file, with or without modification,
+are permitted in any medium without royalty provided the copyright
+notice and this notice are preserved.  This file is offered as-is,
+without any warranty.
+
+Older versions of this license did not have the second sentence with
+the express warranty disclaimer.  There is no urgent need to update
+existing files, but new files should use the new text.
+
+If your package distributes Autoconf macros that are intended to be
+used (hence distributed) by third-party packages under possibly
+incompatible licenses, you may also use the above all-permissive
+license for these macros.
+
+These kinds of files can also be put in the public domain.  If
+publishing in the US, it is enough to insert a notice saying so.
+Otherwise, use Creative Commons's CC0--See
+https://creativecommons.org/public-domain/cc0/.  But don't use
+CC0 for software code; it is not designed for such material.
+
+If you use CC0, please include a copy of its "legal text"
+in a file named COPYING.CC0.  See
+https://creativecommons.org/publicdomain/zero/1.0/legalcode.txt.
+Unfortunately, that file doesn't include licensing terms for the
+text of CC0, so please add this at the top of that file:
+
+According to Creative Commons
+(https://creativecommons.org/publicdomain/zero/1.0/legalcode.en):
+
+The text of the Creative Commons public licenses is dedicated to the public
+domain under the CC0 Public Domain Dedication.
+
+Previous: License Notices for Code Examples, Up: License Notices   [Contents][Index]
+

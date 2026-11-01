@@ -6,7 +6,7 @@ from the same table: every line a shown class matches is in the output, in order
 class matches is ever folded; the counts add up (read = shown + folded); every fold line names the
 first and last lines it folded.  Run on a synthetic log always, and on the seat's own make check
 log when it is beside us.  --prove-red runs the filter's own planted faults.
-Copyright (C) 2026 Corwin Brust <corwin@bru.st> and Contributors.  GPL-3.0-or-later.
+Copyright 2026 INPUTLOOP; GPL-3.0-or-later; https://github.com/inputloop.
 """
 import re
 import subprocess

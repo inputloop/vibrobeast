@@ -153,8 +153,8 @@ TEE-STATUS stay quiet on the `${PIPESTATUS[0]}` form. Syntax-check a bash script
 - **Embedded code flagged.** fails if a finding lands inside an awk program or a heredoc; check: read the reported line. If it sits inside one, it is the checker's bug.
 
 <!-- footer: minted by bin/ft1mt from conventions/house.env and conventions/FOOTERS.org; edit those, not this -->
-*Version 1.1.0: edition revised from 1.0.1 on 2026-10-10; spine: 2026-09-23.*
+*Version 1.3: edition revised from 1.1.0 on 2026-10-29; spine: 2026-09-23.*
 
-Copyright 2026 Corwin Brust <corwin@bru.st> and Contributors; CC-BY-SA-4.0: https://creativecommons.org/licenses/by-sa/4.0/ (scripts: GNU General Public License, version 3 or any later version; SPDX GPL-3.0-or-later); Mentat (for Corwin, claude-opus-5-5)
+Copyright 2026 INPUTLOOP; CC-BY-SA-4.0: https://creativecommons.org/licenses/by-sa/4.0/ (scripts: GNU General Public License, version 3 or any later version; SPDX GPL-3.0-or-later); Mentat (for Corwin, claude-opus-5-5)
 From the collection Corwin Brust and Bryant Frankford keep together, with K Smith as editor of the works she edited; thanks in ACKNOWLEDGEMENTS; home: https://github.com/inputloop
 <!-- /footer -->

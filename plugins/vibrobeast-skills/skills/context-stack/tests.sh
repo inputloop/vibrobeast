@@ -1,7 +1,7 @@
 #!/bin/sh
 # tests.sh -- context-stack's tools held by a second language (sh reading the Python builds).
 # usage: sh tests.sh [--prove-red]     --prove-red runs each dropped tool's own planted faults, from here
-# Copyright (C) 2026 Corwin Brust <corwin@bru.st> and Contributors.  GPL-3.0-or-later.
+# Copyright 2026 INPUTLOOP; GPL-3.0-or-later; https://github.com/inputloop.
 set -u
 here=$(cd "$(dirname "$0")" && pwd); S=$here/scripts
 pass=0 fail=0

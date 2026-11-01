@@ -1,6 +1,7 @@
 ---
 name: run-card
-description: The door for "help me run this": a job aid for steps at a screen, a paste card for a shell, or a .rc file the machine runs, picked by who is at the keyboard and what cannot be undone. Use before work runs against a real host, a production database, someone else's data, a backup, a log, a portal or settings page, or anywhere a mistake is expensive or a false conclusion could ship, and especially when the person at the keyboard did not write the steps. Triggers on "help me run this", "step us through this", "walk us through", "walk me through this", "let's get on the box and look", "a job aid", "a checklist we can follow together", "write a run card", "card this", "no card no run", "how do I run this safely", "sweep the logs for X", "check whether Y ever happened", "is that host clean", "what would I paste", "can a volunteer do this". Also when a run just finished and its results need reading in the right order, or before anyone reports a CLEAN result from a sweep.
+description: >-
+  The door for "help me run this": a job aid for steps at a screen, a paste card for a shell, or a .rc file the machine runs, picked by who is at the keyboard and what cannot be undone. Use before work runs against a real host, a production database, someone else's data, a backup, a log, a portal or settings page, or anywhere a mistake is expensive or a false conclusion could ship, and especially when the person at the keyboard did not write the steps. Triggers on "help me run this", "step us through this", "walk us through", "walk me through this", "let's get on the box and look", "a job aid", "a checklist we can follow together", "write a run card", "card this", "no card no run", "how do I run this safely", "sweep the logs for X", "check whether Y ever happened", "is that host clean", "what would I paste", "can a volunteer do this". Also when a run just finished and its results need reading in the right order, or before anyone reports a CLEAN result from a sweep.
 ---
 
 # run-card — the credential-free door
@@ -248,6 +249,6 @@ do the work correctly and prove that they did.
 <!-- footer: minted by bin/ft1mt from conventions/house.env and conventions/FOOTERS.org; edit those, not this -->
 *Version 1.2: edition revised from 1.1.0 on 2026-10-19; spine: 2026-09-23.*
 
-Copyright 2026 Corwin Brust <corwin@bru.st> and Contributors; CC-BY-SA-4.0: https://creativecommons.org/licenses/by-sa/4.0/ (scripts: GNU General Public License, version 3 or any later version; SPDX GPL-3.0-or-later); Mentat (for Corwin, claude-opus-5-5)
+Copyright 2026 INPUTLOOP; CC-BY-SA-4.0: https://creativecommons.org/licenses/by-sa/4.0/ (scripts: GNU General Public License, version 3 or any later version; SPDX GPL-3.0-or-later); Mentat (for Corwin, claude-opus-5-5)
 From the collection Corwin Brust and Bryant Frankford keep together, with K Smith as editor of the works she edited; thanks in ACKNOWLEDGEMENTS; home: https://github.com/inputloop
 <!-- /footer -->

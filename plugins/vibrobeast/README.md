@@ -78,7 +78,9 @@ for `altorewired`):
 
 In your shop that is yours to decide, not ours. Before you install, you can remove
 their folders from `skills/`; after you install, ask Claude not to use them until
-you choose to opt in. Our own gate holds an import like this at the
+you choose to opt in -- that request lasts one conversation, unlike the doors
+(`door_list`), which stay as you set them; to keep a skill off for good, remove its
+folder. Our own gate holds an import like this at the
 receiving door: `sh skills/candor-gate/scripts/candor_gate.sh skills/NAME` reads
 HOLD on its engagement check; `--travel` is the sender's read, which says it and
 sends it.
@@ -135,6 +137,14 @@ are off (the default) the servers make no network connections; Tavern, Llama
 Bridge and the ghostwheel status icon reach only what you name once you switch
 them on. They write under `~/.mentcached/` unless you point them
 elsewhere, and `word_register` writes under a words root only if one is found.
+Ask Claude for `door_list` to see every door in one place: the broad setting
+(`doors.profile`: each, local or closed) first, then each door -- open or shut,
+who decided, what it reaches, where our control ends, and which file says more.
+Defaults can be changed for a whole build (`make dist DEFAULTS=FILE`) or by
+whoever runs the plugin (`VIBROBEAST_DEFAULTS=FILE`). A build's file can open a door as the
+environment can (`door_list` names the file); a runner's file may only shut one. Your own
+setting still wins, and
+`doors.profile=closed` shuts every door, whatever the rest say.
 `TERMS-OF-SERVICE.md` has the licences and the words.
 
 ## Before the first run -- what has actually gone wrong, and the one line that might
@@ -393,6 +403,9 @@ default); nothing here is edited by hand. This table is minted from the keys the
 | `persona.on_threshold` | `off` | persona: what happens when someone crosses a threshold (used twice outside a test run; cited twice in seat notes; shipped through a cut with their credit): off (nothing; the default, his standing rule), propose (persona_list names the crossing and asks, in words), draft (persona_list names it and a draft may be written to the holding shelf ~/.mentcached/seat/persona/drafts, marked not-his-instruction and kept out of the index). No value mints a sheet: saying yes to a proposal or a draft is the instruction his rule asks for (2026-10-14) |
 | `keys.standing` | (none) | key_run: standing yeses, so routine runs on the keeper's own hosts need no confirmation each time. Entries KEY PROGRAM TARGET, separated by ';' (e.g. 'ssh ssh vibrobeast@gw33.bru.st; ssh scp vibrobeast@gw33.bru.st'). ssh: the host argument is exactly TARGET. scp: pushes to TARGET only (a pull could write this computer's files). git: TARGET is a folder, and only `git pull` (run fast-forward only) or `git fetch`, alone, run in exactly that folder (e.g. 'ssh git /home/you/projects/c4-draw-kiosk'). Any argument starting with - still asks. Every standing run says so in its result. Only the keeper's own turn changes it, and only with a code the person saw beside the row (pref_set asks first) |
 | `people.named` | (none) | the people whose person.<name>.* rows this server keeps, besides the keeper, who is always one of them: the participants the keeper named, comma-separated. Only the keeper's own turn changes it, and only with a code the person saw beside the row (pref_set asks first) |
+| `doors.profile` | `each` | doors: the broad setting, read before every door's own key. each (the default): every door by its own key; local: doors that reach another machine stay shut, whatever their own key says; closed: every door shut, whatever its key, the environment or a default says (stricter wins). door_list shows every door, this setting first |
+| `llamabridge.keep_prompts` | `off` | llamabridge: whether Llama Bridge's own log keeps the words of what Claude delegates. off (the default): the log keeps times, models and sizes, not prompt or answer text, its answer cache is off; an async job's answer stays in the jobs table, where delegate_result reads it; on: Bryant's own logging, whole prompts and answers, in ~/.mentcached/llama-bridge.db (0600) |
+| `llamabridge.stored_host` | `ask` | llamabridge: what to do with an ollama_host row stored in Llama Bridge's own database when it differs from OLLAMA_HOST (prompts would go there). ask (the default): not used; door_list says the row and where it points, like Emacs asking before an unsafe local variable; use: send prompts there |
 
 ## The floor -- the skills every edition carries
 
@@ -400,7 +413,8 @@ The floor is eight skills, carried by every sized edition whatever its size (`po
 
 ## Licence
 
-Every file not otherwise marked is GPL-3.0-or-later (`COPYING`), or at your choice LGPL-3.0-or-later; see
-TERMS-OF-SERVICE.md for the writing. Free software: you may run, study, share
+Every file not otherwise marked is GPL-3.0-or-later (`COPYING`), or at your choice LGPL-3.0-or-later
+(`LICENSES/LGPL-3.0-or-later.txt`); the writing is CC-BY-SA-4.0 (`LICENSES/CC-BY-SA-4.0.txt`); see
+TERMS-OF-SERVICE.md. Free software: you may run, study, share
 and improve it. Corwin Brust and Bryant Frankford offer it together; the
 Terms say in full what goes with each part.

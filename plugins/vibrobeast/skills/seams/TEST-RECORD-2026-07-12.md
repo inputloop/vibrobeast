@@ -21,10 +21,5 @@ as an optional falsifier. Sign + install are the keeper's keystrokes.
 sentinel: SEAMS-TEST-RECORD-2026-07-12
 
 ---
-Copyright (C) 2026 Corwin Brust <corwin@bru.st>
-Authored by Mentat (for Corwin).
-SPDX-License-Identifier: GPL-3.0-or-later
-This file is part of vibrobeast.  vibrobeast is free software: you can redistribute it and/or
-modify it under the terms of the GNU General Public License as published by the Free Software
-Foundation, either version 3 of the License, or (at your option) any later version.  It is
-distributed WITHOUT ANY WARRANTY; see <https://www.gnu.org/licenses/>.
+Copyright 2026 INPUTLOOP; CC-BY-SA-4.0: https://creativecommons.org/licenses/by-sa/4.0/; https://github.com/inputloop
+Mentat (for Corwin).

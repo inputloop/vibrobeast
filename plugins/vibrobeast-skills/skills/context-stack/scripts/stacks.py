@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # stacks.py -- the context stack as files: one semaphore file for the pile, a boulder file when a group's pressure
 #   reaches the dial, a mountain file when it reaches the dial again; every link doubly linked.
-#   Copyright 2026 Corwin Brust <corwin@bru.st> and Contributors.  Authored by Mentat (for Corwin).
+#   Copyright 2026 INPUTLOOP; GPL-3.0-or-later OR LGPL-3.0-or-later; https://github.com/inputloop.  Authored by Mentat (for Corwin).
 #   SPDX-License-Identifier: GPL-3.0-or-later OR LGPL-3.0-or-later
 #
 # WHY, his words (2026-10-11): "default to four for each layer of file indirection vs simple semaphore files, creating

@@ -6,7 +6,7 @@ description: >
 
 # Token_Optimizer — spend tokens like they're your money
 
-A standing discipline, not a task. It rides the top of **every** substantive 
+A standing discipline, not a task. It rides the top of **every** substantive
 prompt: a fast scan for which of ten moves apply here, then applies them while
 the work runs. The premise: **bad output costs MORE tokens than good output**,
 because a wrong deliverable buys the correction cycle too. So this is never
@@ -139,8 +139,8 @@ to be token wise and energy effecient." (The skill's words are his and his name 
 the idea is credited here as well.)
 
 <!-- footer: minted by bin/ft1mt from conventions/house.env and conventions/FOOTERS.org; edit those, not this -->
-*Version 1.1.0: edition revised from 1.0.1 on 2026-10-10; spine: 2026-07-06.*
+*Version 1.3: edition revised from 1.1.0 on 2026-10-29; spine: 2026-07-06.*
 
-Copyright 2026 Bryant Frankford <nathanielfrankford@gmail.com> and Corwin Brust <corwin@bru.st> and Contributors; CC-BY-SA-4.0: https://creativecommons.org/licenses/by-sa/4.0/ (scripts: GNU General Public License, version 3 or any later version; SPDX GPL-3.0-or-later); Mentat (for Corwin, claude-opus-5-5)
+Copyright 2026 Bryant Frankford <nathanielfrankford@gmail.com> and INPUTLOOP; CC-BY-SA-4.0: https://creativecommons.org/licenses/by-sa/4.0/ (scripts: GNU General Public License, version 3 or any later version; SPDX GPL-3.0-or-later); Mentat (for Corwin, claude-opus-5-5)
 From the collection Corwin Brust and Bryant Frankford keep together, with K Smith as editor of the works she edited; thanks in ACKNOWLEDGEMENTS; home: https://github.com/inputloop
 <!-- /footer -->

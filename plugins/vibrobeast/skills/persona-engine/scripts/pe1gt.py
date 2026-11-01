@@ -3,7 +3,7 @@
 
 usage: pe1gt.py plan --use N [...] | pe1gt.py refusals | pe1gt.py sheet FILE
 Unfolded from persona-engine.org; edit that, not this.
-Copyright 2026 Corwin Brust <corwin@bru.st> and Contributors; GPL-3.0-or-later.
+Copyright 2026 INPUTLOOP; GPL-3.0-or-later; https://github.com/inputloop.
 Mentat (for Corwin; claude-opus-5-5)
 """
 import re

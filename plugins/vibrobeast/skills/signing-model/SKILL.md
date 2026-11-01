@@ -8,9 +8,9 @@ description: >
   warden at mint. comply≈faked holds ONLY inside a trust boundary, never without its fence:
   byte-match is one source, signature-to-identity the independent second — observation-purposed
   surfaces (assessment, review, audit) are outside by construction. A leg is real only when a second
-  authority re-runs it on the SAME canonical content (currency + aim stamps). Single-operator work
+  authority re-runs it on the SAME canonical content. Single-operator work
   is honest latency, never an "independently verified" claim; exit gates need the second leg
-  actually run. Use when choosing how to sign, when a signed file moves, when "signed" reads as
+  run. Use when choosing how to sign, when a signed file moves, when "signed" reads as
   "blessed", or when verification legs collapse into one hand.
 metadata:
   c4_deck: signing-model
@@ -95,6 +95,6 @@ prove-a-promise and the asset registry (try / add / supplant / retire).*
 <!-- footer: minted by bin/ft1mt from conventions/house.env and conventions/FOOTERS.org; edit those, not this -->
 *Version 1.0.1: edition revised from 1.0.0 on 2026-10-04; spine: 2026-07-28.*
 
-Copyright 2026 Corwin Brust <corwin@bru.st> and Contributors; CC-BY-SA-4.0: https://creativecommons.org/licenses/by-sa/4.0/ (scripts: GNU General Public License, version 3 or any later version; SPDX GPL-3.0-or-later); Mentat (for Corwin, claude-opus-5-5)
+Copyright 2026 INPUTLOOP; CC-BY-SA-4.0: https://creativecommons.org/licenses/by-sa/4.0/ (scripts: GNU General Public License, version 3 or any later version; SPDX GPL-3.0-or-later); Mentat (for Corwin, claude-opus-5-5)
 From the collection Corwin Brust and Bryant Frankford keep together, with K Smith as editor of the works she edited; thanks in ACKNOWLEDGEMENTS; home: https://github.com/inputloop
 <!-- /footer -->

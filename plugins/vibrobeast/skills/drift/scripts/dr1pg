@@ -9,7 +9,7 @@ is kept in .drift/archive/ beside PAGE, and .drift/MUTATIONS gains one line.  --
 page's story under the wire's 32 KB cap, in 7-bit ASCII.  Disable: DR1PG=0.
 
 Unfolded from drift.org; edit that, not this.
-Copyright 2026 Corwin Brust <corwin@bru.st> and Contributors; GPL-3.0-or-later.
+Copyright 2026 INPUTLOOP; GPL-3.0-or-later; https://github.com/inputloop.
 Mentat (for Corwin; claude-opus-5-5)
 """
 import argparse, datetime, glob, hashlib, os, re, subprocess, sys
@@ -258,7 +258,7 @@ def main():
                   now, "see the checkpoints above" if ncp else "NOT CHECKED (none recorded)",
                   "yes, %d ledger line(s)" % sum(1 for e in events if e["kind"] == "ledger") if any(e["kind"] == "ledger" for e in events) else "none recorded",
                   len(events), ncp),
-              "", "Copyright %s Corwin Brust <corwin@bru.st> and Contributors; CC-BY-SA4: https://creativecommons.org/licenses/by-sa/4.0/; Mentat (for Corwin; claude-opus-5-5)" % now[:4], ""]
+              "", "Copyright %s INPUTLOOP; CC-BY-SA-4.0: https://creativecommons.org/licenses/by-sa/4.0/; https://github.com/inputloop; Mentat (for Corwin; claude-opus-5-5)" % now[:4], ""]
     page = "\n".join(lines)
     if os.path.exists(a.out):
         oldpage = open(a.out, encoding="utf-8").read()

@@ -4,7 +4,7 @@
 Each mode on a small fixture; the rows that must not match; a dead row and a malformed one; the
 tool's own prove-red; and, inside a tree that has bin/tg1rn, the two readers held to each other on
 that tree's whole suite.  --prove-red runs the tool's planted faults.
-Copyright (C) 2026 Corwin Brust <corwin@bru.st> and Contributors.  GPL-3.0-or-later.
+Copyright 2026 INPUTLOOP; GPL-3.0-or-later; https://github.com/inputloop.
 """
 import os
 import subprocess

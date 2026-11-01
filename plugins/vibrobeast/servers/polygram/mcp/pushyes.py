@@ -1,5 +1,5 @@
 # polygram -- gated agent-skill synthesis.
-# Copyright (C) 2026 Corwin Brust <corwin@bru.st> and Contributors.  GPL-3.0-or-later.
+# Copyright 2026 INPUTLOOP; GPL-3.0-or-later; https://github.com/inputloop.
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
 # This file is part of polygram.  polygram is free software: you can redistribute it and/or
@@ -167,7 +167,7 @@ def first_reader(url: str, c4: Path, tree: str | None) -> tuple[str, list[str]]:
     if tree:
         try:
             q = subprocess.run(["git", "-C", tree, "config", "--get", "fr1me.public"], capture_output=True,
-                               text=True, timeout=15, stdin=subprocess.DEVNULL)
+                               text=True, encoding="utf-8", timeout=15, stdin=subprocess.DEVNULL)
             pub = pub or q.stdout.strip() == "true"
         except (OSError, subprocess.TimeoutExpired):
             pass

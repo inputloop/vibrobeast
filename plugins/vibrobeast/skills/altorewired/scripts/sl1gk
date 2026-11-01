@@ -17,7 +17,7 @@
 # reached the person (Cowork summarises text between tool calls; --strict counts only
 # SendUserMessage).  Two readers: python3 (stdlib) lists the events and judges them; awk judges
 # the same event list on its own; the counts must AGREE.
-# Copyright 2026 Corwin Brust <corwin@bru.st> and Contributors; GPL-3.0-or-later.
+# Copyright 2026 INPUTLOOP; GPL-3.0-or-later; https://github.com/inputloop.
 # Mentat (for Corwin; claude-opus-5-5)
 set -u
 die() { echo "sl1gk: $*" >&2; exit 2; }

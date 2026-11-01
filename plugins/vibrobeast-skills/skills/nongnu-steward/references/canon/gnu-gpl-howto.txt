@@ -1,0 +1,421 @@
+
+How to Use GNU Licenses for Your Own Software
+- GNU Project - Free Software Foundation
+
+Skip to main text
+
+<form id="fssbox" action="https://my.fsf.org/civicrm/profile/create?reset=1&gid=31"
+method="post">
+
+Free Software Supporter:
+
+<input type="text" id="frmEmail" name="email-Primary" size="18" maxlength="80"
+value="email address" onfocus="this.value=''"/>
+
+<a
+href="https://www.fsf.org/associate/support_freedom?referrer=4052">JOIN THE FSF
+
+<img src="/graphics/heckert_gnu.transp.small.png" height="48" width="49"
+alt=" [A GNU head] " />GNU <span
+class="hide">Operating System
+
+Supported by the
+Free Software Foundation
+
+<img id="search-icon" height="30" width="30"
+src="/graphics/icons/search.png"
+alt=" [Search www.gnu.org] " />
+
+<img id="language-icon" height="30" width="37"
+src="/graphics/icons/translations.png"
+alt=" [Other languages] " />
+
+Site navigation
+Skip
+
+ABOUT GNU
+
+PHILOSOPHY
+
+=
+LICENSES
+
+=
+
+EDUCATION
+
+SOFTWARE
+
+DISTROS
+
+DOCS
+
+MALWARE
+
+HELP GNU
+
+AUDIO & VIDEO
+
+GNU ART
+
+FUN
+
+GNU'S WHO?
+
+SOFTWARE DIRECTORY
+
+HARDWARE
+
+SITEMAP
+
+How to Use GNU Licenses for Your Own Software
+
+This is a brief explanation of how to place a program under the <a
+href="/licenses/gpl.html">GNU General Public License, <a
+href="/licenses/lgpl.html">GNU Lesser General Public License, or <a
+href="/licenses/agpl.html">GNU Affero General Public License.  For the
+GNU Free Documentation License, we have
+a separate page.
+
+For further information, see our list
+of frequently asked questions about
+our licenses.
+
+If you are considering using the GNU Lesser General Public License,
+please read the article "Why
+you shouldn't use the LGPL for your next library" first.  The
+article explains why it may be better to use the ordinary GPL instead,
+and how we would make the decision.
+
+Here's a brief summary of what you need to do to release a program
+under one of our licenses:
+
+Get a copyright disclaimer from your employer or school.
+
+Give each file the proper copyright notices. Make
+sure to clearly
+identify which versions of the license users can use.
+
+Add a COPYING file with a copy of the GNU GPL or GNU AGPL.
+
+Also add a COPYING.LESSER file with a copy of the GNU LGPL, if you
+use that.
+
+Put a license notice in each file.
+
+(Optionally) make the program display a startup notice.
+
+(If using the AGPL) make the program offer copies of its source code.
+
+This involves adding two elements to each source file of your
+program: a copyright notice (such as "Copyright 1999 Terry
+Jones"), and a statement of copying permission, saying that the
+program is distributed under the terms of the GNU General Public
+License (or the Lesser GPL, or the Affero GPL).
+
+Table of contents
+
+The copyright disclaimer
+
+The copyright notice
+
+The license files
+
+The license notices
+
+Why license notices?
+
+The startup notice
+
+The Affero notice
+
+Miscellaneous
+
+The copyright disclaimer
+
+If you are an individual, and you have an employer or study in
+a school, it's wise to ask your
+employer or school to sign a copyright disclaimer for your
+program, so it cannot later claim that the copyright belongs to it
+and that you had no right to release the program at all.  This really
+has nothing to do with the GNU GPL--it applies no matter which
+free software license you use to release the program.
+
+Here is a sample copyright disclaimer; just alter the names, title,
+and program description as appropriate:
+
+Yoyodyne, Inc., hereby disclaims all copyright interest
+in the program "Woodpecker" (which deconstructs trees)
+written by James Hacker.
+
+signature of Moe Ghoul 1 April 1989
+
+Moe Ghoul, President of Vice
+
+If you are a university student, we recommend you request the
+disclaimer  at an early stage in
+writing the program to reduce resistance.  If you are not a
+research assistant or teaching assistant, it could be that the university
+has no claim to copyright on your work, but ask a lawyer to make
+sure of that.
+
+If you work, the best time to negotiate permission to release free
+software is when negotiating your employment agreement.
+
+The copyright notice
+
+The copyright notice should include the year in which you finished
+preparing the release (so if you finished it in 1998 but didn't post
+it until 1999, use 1998).  You should add the proper year for each
+past release; for example, "Copyright 1998, 1999 Terry
+Jones" if some releases were finished in 1998 and some were
+finished in 1999.  If several people helped write the code, use all
+their names.
+
+For software with several releases over multiple years, it's okay
+to use a range ("2008-2010") instead of listing individual
+years ("2008, 2009, 2010") if and only if every year in
+the range, inclusive, really is a "copyrightable" year
+that would be listed individually; and you make an explicit
+statement in your documentation about this usage.
+
+Always use the English word "Copyright"; by international
+convention, this is used worldwide, even for material in other
+languages. The copyright symbol "(C)" can be included if
+you wish (and your character set supports it), but it's not necessary.
+There is no legal significance to using the three-character sequence
+"(C)", but it does no harm.
+
+If you have copied code from other programs covered by the same
+license, copy their copyright notices too.  Put all the copyright
+notices for a file together, right near the top of the file.
+
+The license files
+
+You should also include a copy of the license itself somewhere in the
+distribution of your program.  All programs, whether they are released
+under the GPL or LGPL, should include the
+text version of the GPL.  In GNU programs we conventionally put the
+license in a file called COPYING.
+
+If you are releasing your program under the GNU AGPL,
+use the text version of the GNU AGPL
+instead of the GNU GPL.
+
+If you are releasing your program under the Lesser GPL, you should also
+include the text version of the LGPL,
+usually in a file called COPYING.LESSER.  Please note that, since the
+LGPL is a set of additional permissions on top of the GPL, it's crucial
+to include both licenses so users have all the materials they need to
+understand their rights.
+
+The license notices
+
+Each file's copying permission statement (also called the license notice)
+should come right after its copyright notices.  For a one-file
+program, the statement (for the GPL) should look like this, to use
+GPL version 3 or later:
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+For programs that are more than one file, it is better to replace
+"this program" with the name of the program, and begin the
+statement with a line saying "This file is part of NAME".
+For instance,
+
+This file is part of Foobar.
+
+Foobar is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+Foobar is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with Foobar.  If not, see <https://www.gnu.org/licenses/>.
+
+To use a different set of GPL versions, you would modify the end of
+the first long paragraph.  For instance, to license under version 2 or
+later, you would replace "3" with "2".
+
+This statement should go near the beginning of every source file,
+close to the copyright notices.  When using the Lesser GPL, insert the
+word "Lesser" before "General" in all
+three places.  When using the GNU AGPL, insert the
+word "Affero" before "General" in all
+three places.
+
+Why license notices?
+
+The purpose of a free software license is to give certain rights to
+all users of a program.  If it is not clear what rights you have given
+them, that defeats the purpose.  Our practices are designed to
+avoid any uncertainty.
+
+If a program has a copy of a license FOO alongside the source files,
+but doesn't have an explicit statement that "This program is
+released under license FOO," that leaves room for uncertainty
+about whether the license FOO applies to the code of that program.
+
+If a release has one statement that "This program is released
+under license FOO," in a central place such as the README file,
+that makes the situation clear for that release.  However,
+programmers often copy source files from one free program into
+another.  If a source file contains no statement about what its
+license is, then moving it into another context eliminates all trace
+of that point.  This invites confusion and error.
+
+The startup notice
+
+For interactive programs, it is usually a good idea to make the
+program display a brief notice about copyright and copying permission
+when it starts up.  See the end
+of the GNU GPL for more information about this.
+
+The Affero notice
+
+If you are releasing your program under the GNU AGPL, and it can
+interact with users over a network, the program should offer its source to
+those users in some way.  For example, if your program is a web
+application, its interface could display a "Source" link that
+leads users to an archive of the code.  The GNU AGPL is flexible enough
+that you can choose a method that's suitable for your specific
+program--see section 13 for details.
+
+Miscellaneous
+
+It is very important for practical reasons to include contact
+information for how to reach you, perhaps in the README file, but this
+has nothing to do with the legal issues of applying the license.
+
+There is no legal requirement to register your copyright with anyone;
+simply writing the program makes it copyrighted.  However, for the US,
+it is a good idea to register the copyright with the US Registry of
+Copyrights, because that puts you in a stronger position against anyone
+who violates the license in the US.  Most other countries have no system
+of copyright registration.
+
+We would like to list all free software programs in the Free
+Software Directory, including all programs licensed under the GPL (any
+version).  So please submit an entry for your program, when it has
+reached the point of being useful.  Please see the <a
+href="https://directory.fsf.org/wiki/Free_Software_Directory:Participate">
+Directory wiki for information and an online submission form.
+
+It is also possible to make your program a GNU package, a part of the
+GNU Project.  If you might be interested in joining up with the
+GNU Project in this way, please see our <a
+href="/help/evaluation.html">GNU software evaluation page for more
+information and a short questionnaire.  We will respond and discuss the
+matter with you.
+
+You are welcome to use any of our licenses even if your program
+is not a GNU package; indeed, we hope you will.  They're available to
+everyone.  If you'd like to advertise your use of a particular license,
+feel free to use <a href="/graphics/license-logos.html"
+title="GNU License Logos">one of our logos.
+
+&#9650;
+
+BACK TO TOP
+
+Set language
+
+Available for this page:
+
+[en] English
+[ca] català
+[de] Deutsch
+[es] español
+[fr] français
+[it] italiano
+[ja] 日本語
+[pl] polski
+[pt-br] português
+[ru] русский
+[ta] தமிழ்
+[tr] Türkçe
+[zh-cn] 简体中文
+
+BACK TO TOP &#9650;
+
+<img id="fsfbanner"
+src="/graphics/fsf-logo-notext-small.png" alt=" [FSF logo] "
+width="75" height="25" />
+"The Free Software Foundation (FSF) is a nonprofit with a worldwide
+mission to promote computer user freedom. We defend the rights of all
+software users."
+
+JOIN
+DONATE
+SHOP
+
+Please send general FSF & GNU inquiries to
+<gnu@gnu.org>.
+There are also other ways to contact
+the FSF.  Broken links and other corrections or suggestions can be sent
+to <webmasters@gnu.org>.
+
+<!-- TRANSLATORS: Ignore the original text in this paragraph,
+replace it with the translation of these two:
+
+We work hard and do our best to provide accurate, good quality
+translations.  However, we are not exempt from imperfection.
+Please send your comments and general suggestions in this regard
+to
+<web-translators@gnu.org>.
+
+For information on coordinating and contributing translations of
+our web pages, see <a
+href="/server/standards/README.translations.html">Translations
+README. -->
+Please see the <a
+href="/server/standards/README.translations.html">Translations
+README for information on coordinating and contributing translations
+of this article.
+
+<!-- Regarding copyright, in general, standalone pages (as opposed to
+files generated as part of manuals) on the GNU web server should
+be under CC BY-ND 4.0.  Please do NOT change or remove this
+without talking with the webmasters or licensing team first.
+Please make sure the copyright date is consistent with the
+document.  For web pages, it is ok to list just the latest year the
+document was modified, or published.
+
+If you wish to list earlier years, that is ok too.
+Either "2001, 2002, 2003" or "2001-2003" are ok for specifying
+years, as long as each year in the range is in fact a copyrightable
+year, i.e., a year in which the document was published (including
+being publicly visible on the web or in a revision control system).
+
+There is more detail about copyright years in the GNU Maintainers
+Information document, www.gnu.org/prep/maintain. -->
+
+Copyright (C) 2001, 2007-2009, 2011, 2017, 2018, 2022, 2023 Free Software
+Foundation, Inc.
+
+This page is licensed under a <a rel="license"
+href="http://creativecommons.org/licenses/by-nd/4.0/">Creative
+Commons Attribution-NoDerivatives 4.0 International License.
+
+Copyright Infringement Notification
+
+Updated:
+
+$Date: 2023/11/30 09:46:01 $
+

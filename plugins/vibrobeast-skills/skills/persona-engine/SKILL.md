@@ -146,4 +146,4 @@ fantasy-operational-boundary (a fiction persona near a real system), the persona
 
 *Version 0.3: edition revised from 0.2 on 2026-10-05; spine: 2026-10-04.*
 
-Copyright 2026 Corwin Brust <corwin@bru.st> and Contributors; CC-BY-SA4: https://creativecommons.org/licenses/by-sa/4.0/ (scripts GPL-3.0-or-later); Mentat (for Corwin, claude-opus-5-5)
+Copyright 2026 INPUTLOOP; CC-BY-SA-4.0: https://creativecommons.org/licenses/by-sa/4.0/; https://github.com/inputloop (scripts GPL-3.0-or-later); Mentat (for Corwin, claude-opus-5-5)

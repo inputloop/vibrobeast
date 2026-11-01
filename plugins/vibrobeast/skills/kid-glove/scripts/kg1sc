@@ -12,7 +12,7 @@
 # Exit: 0 fine; 1 the re-check found a TRAMPLE; 2 could not look (NOT CHECKED).  Disable: KG1SC=0.
 #
 # Unfolded from kid-glove.org; edit that, not this.
-# Copyright 2026 Corwin Brust <corwin@bru.st> and Contributors; GPL-3.0-or-later.
+# Copyright 2026 INPUTLOOP; GPL-3.0-or-later; https://github.com/inputloop.
 # Mentat (for Corwin; claude-opus-5-5)
 set -u
 [ "${KG1SC:-1}" = 0 ] && { echo "kg1sc: disabled (KG1SC=0); NOT CHECKED"; exit 0; }

@@ -1,5 +1,5 @@
 # polygram -- gated agent-skill synthesis.
-# Copyright (C) 2026 Corwin Brust <corwin@bru.st> and Contributors.  GPL-3.0-or-later.
+# Copyright 2026 INPUTLOOP; GPL-3.0-or-later; https://github.com/inputloop.
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
 # This file is part of polygram.  polygram is free software: you can redistribute it and/or
@@ -100,15 +100,10 @@ def _switch(name: str, default: bool) -> bool:
 
 
 def is_on() -> bool:
-    from .rpc import env_switch
-    s = env_switch("GW_ON")
-    if s is not None:
-        return s
-    try:
-        from . import prefs
-        return prefs.on("gw.on")
-    except Exception:                                   # noqa: BLE001
-        return False
+    """Open only when doors.py says so: the broad setting (doors.profile), then the environment, then the
+    person's row, then the layered default (2026-10-29, F3)."""
+    from . import doors
+    return doors.is_open("gw.on")
 
 
 def hosts_file() -> Path:

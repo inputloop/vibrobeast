@@ -1,7 +1,7 @@
 ---
 name: sandboxer
 description: >
-  Crossing from Claude's workspace to the keeper's disk. Landing: a file built in the cloud workspace is delivered only when it sits in his connected folder, by full host path, with sha256 equal on both sides and a sha256sum -c receipt he can run (landing.sh; --stage gives each version a fresh path, as a reused one lands old bytes); if his computer is unreachable, attempt first, then list what waits to land. Write-side: Edit/Write can report success with no bytes landed — for a large file or many edits, write via /tmp, then verify. Read-side: bash can serve stale bytes — cross-read two paths; cp of a pinned path copies the phantom; mtime breaks no tie; absent to one reader is not absent; git on the mount is object-reads only. Before a command naming paths on his folders, c4 bin/pf1lt says which are misplaced and the right spelling. Also which memory store is reachable. Triggers: "where did the files land", "did that write land", "is this read stale", "file looks truncated", "stale pyc", "which memory is this".
+  Crossing from Claude's workspace to the keeper's disk. Landing: a file built in the cloud workspace is delivered only when it sits in his connected folder, by full host path, with sha256 equal on both sides and a sha256sum -c receipt he can run (landing.sh; --stage gives each version a fresh path); if his computer is unreachable, attempt first, then list what waits to land. Write-side: Edit/Write can report success with no bytes landed — for a large file or many edits, write via /tmp, then verify. Read-side: bash can serve stale bytes — cross-read two paths; cp of a pinned path copies the phantom; mtime breaks no tie; absent to one reader is not absent; git on the mount is object-reads only. Before a command naming paths on his folders, c4 bin/pf1lt says which are misplaced and the right spelling. Also which memory store is reachable. Triggers: "where did the files land", "did that write land", "is this read stale", "file looks truncated", "stale pyc", "which memory is this".
 ---
 
 # Sandboxer — crossing the sand
@@ -686,8 +686,8 @@ need is *occasional*; never merge what is only *sometimes* shared.
 - **A check stopped checking.** fails if `sh tests-validators.sh --prove-red` or `python3 tests-sig-fresh.py --prove-red` (skill root) does not end `PROVE-RED OK`; each plants broken files in a temp dir and breaks its script in a temp copy.
 
 <!-- footer: minted by bin/ft1mt from conventions/house.env and conventions/FOOTERS.org; edit those, not this -->
-*Version 1.2: edition revised from 1.1.2 on 2026-10-24; spine: 2026-07-07.*
+*Version 1.3: edition revised from 1.2 on 2026-10-29; spine: 2026-07-07.*
 
-Copyright 2026 Corwin Brust <corwin@bru.st> and Contributors; CC-BY-SA-4.0: https://creativecommons.org/licenses/by-sa/4.0/ (scripts: GNU General Public License, version 3 or any later version; SPDX GPL-3.0-or-later); Mentat (for Corwin, claude-opus-5-5)
+Copyright 2026 INPUTLOOP; CC-BY-SA-4.0: https://creativecommons.org/licenses/by-sa/4.0/ (scripts: GNU General Public License, version 3 or any later version; SPDX GPL-3.0-or-later); Mentat (for Corwin, claude-opus-5-5)
 From the collection Corwin Brust and Bryant Frankford keep together, with K Smith as editor of the works she edited; thanks in ACKNOWLEDGEMENTS; home: https://github.com/inputloop
 <!-- /footer -->

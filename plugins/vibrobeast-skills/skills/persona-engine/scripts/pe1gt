@@ -7,7 +7,7 @@
 # Exit: 0 GO, 3 WAIT, 4 HOLD, 5 STOP; 0/1 for sheet (1 = something missing); 2 usage.
 # PE1GT_AWK chooses the awk.  scripts/pe1gt.py is the second reader and must print the same bytes.
 # Unfolded from persona-engine.org; edit that, not this.
-# Copyright 2026 Corwin Brust <corwin@bru.st> and Contributors; GPL-3.0-or-later.
+# Copyright 2026 INPUTLOOP; GPL-3.0-or-later; https://github.com/inputloop.
 # Mentat (for Corwin; claude-opus-5-5)
 set -u
 LC_ALL=C; export LC_ALL

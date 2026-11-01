@@ -10,7 +10,7 @@
 # loss: what the arrow drops, said in words. "none" is a claim ep1mo roundtrip tests.
 # Sources: pmo/bin/pmo-lib.sh and doc/LEDGER-SPEC.md; tavern.py 2.3.1 (Room.tasks, task_priority, DUE_TAG);
 #   inputloop/c4-draw-kiosk door/data/stack.tsv header; pmo/bin/epmo-export header.
-# Copyright (C) 2026 Corwin Brust <corwin@bru.st> and Contributors. SPDX-License-Identifier: CC-BY-SA-4.0
+# Copyright 2026 INPUTLOOP; CC-BY-SA-4.0; https://github.com/inputloop. SPDX-License-Identifier: CC-BY-SA-4.0
 app	field	values	dim	rule	loss
 pmo.todos	id	sequenced integer	-	key	the order the id implies was never negotiated (facts/pmo-is-two-compatibility-layers-below-the-heuristic.md)
 pmo.todos	project	roster key	who	placement	none

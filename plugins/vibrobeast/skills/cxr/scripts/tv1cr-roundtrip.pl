@@ -7,7 +7,7 @@
 # usage: perl t/tv1cr-roundtrip.pl DIR [TSV]      exit 0 match, 1 differ (names the first line),
 #                                                  2 cannot look
 #        perl t/tv1cr-roundtrip.pl --selftest      a tiny stem written by hand, read back
-# Copyright (C) 2026 Corwin Brust <corwin@bru.st> and Contributors.  Mentat (for Corwin).
+# Copyright 2026 INPUTLOOP; GPL-3.0-or-later; https://github.com/inputloop.  Mentat (for Corwin).
 # SPDX-License-Identifier: GPL-3.0-or-later
 use strict; use warnings;
 use Digest::SHA qw(sha256_hex);

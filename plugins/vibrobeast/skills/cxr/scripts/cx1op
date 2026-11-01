@@ -35,7 +35,7 @@
 # writing anything into the table itself. JOURNEY: the name and the shape are mine; his to change.
 #
 # Reads only. Exit 0 done; 1 a prove-red plant was missed; 2 usage.
-# Copyright (C) 2026 Corwin Brust <corwin@bru.st> and Contributors.  Mentat (for Corwin; claude-opus-5-5).
+# Copyright 2026 INPUTLOOP; GPL-3.0-or-later OR LGPL-3.0-or-later; https://github.com/inputloop.  Mentat (for Corwin; claude-opus-5-5).
 # SPDX-License-Identifier: GPL-3.0-or-later OR LGPL-3.0-or-later
 set -u
 LC_ALL=C; export LC_ALL

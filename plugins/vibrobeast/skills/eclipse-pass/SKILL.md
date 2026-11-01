@@ -152,6 +152,17 @@ The scaffold drops a `pass.md` (the claims + doubt-first / reward-first sections
 + the minions-before-persona checklist) and a `verdict.md` stub, so the pass has
 somewhere to keep both winners and losers from the start.
 
+**Two frames every panel of readers should carry** (from the 2026-10-10 extension review, c4
+`spells/extension/runs/2026-10-10/review/`; ERRATA E30). Each found defects no other frame did:
+- **the cold reader**, who never reads the evidence pack: only the brief and the thing under review,
+  and says where a quoted source could not be checked (C1). It catches what the work assumes its
+  reader already knows.
+- **the outside reader**, who reads only what ships: the files a stranger installs or downloads, as a
+  stranger would, nothing from the workshop (C5, C5b). It catches the promise the shipped text makes
+  that the shipped text does not keep.
+In an eclipse pass, run each as one of the doubt-first readers: a pass whose readers all read the
+evidence pack reviews the workshop, not the work.
+
 ## After the pass
 
 - The verdict is only trustworthy if the losers were kept — check
@@ -203,8 +214,8 @@ they are worthless), or say "no eclipse, just a lens" to reflect by hand without
 the ritual; removing this skill's directory stops the trigger phrases applying.
 
 <!-- footer: minted by bin/ft1mt from conventions/house.env and conventions/FOOTERS.org; edit those, not this -->
-*Version 1.1.0: edition revised from 1.0.1 on 2026-10-10; spine: 2026-06-29.*
+*Version 1.3: edition revised from 1.1.0 on 2026-10-29; spine: 2026-06-29.*
 
-Copyright 2026 Corwin Brust <corwin@bru.st> and Contributors; CC-BY-SA-4.0: https://creativecommons.org/licenses/by-sa/4.0/ (scripts: GNU General Public License, version 3 or any later version; SPDX GPL-3.0-or-later); Mentat (for Corwin, claude-opus-5-5)
+Copyright 2026 INPUTLOOP; CC-BY-SA-4.0: https://creativecommons.org/licenses/by-sa/4.0/ (scripts: GNU General Public License, version 3 or any later version; SPDX GPL-3.0-or-later); Mentat (for Corwin, claude-opus-5-5)
 From the collection Corwin Brust and Bryant Frankford keep together, with K Smith as editor of the works she edited; thanks in ACKNOWLEDGEMENTS; home: https://github.com/inputloop
 <!-- /footer -->

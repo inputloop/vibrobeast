@@ -1,0 +1,229 @@
+
+Tips on Using the GNU FDL
+- GNU Project - Free Software Foundation
+
+Skip to main text
+
+<form id="fssbox" action="https://my.fsf.org/civicrm/profile/create?reset=1&gid=31"
+method="post">
+
+Free Software Supporter:
+
+<input type="text" id="frmEmail" name="email-Primary" size="18" maxlength="80"
+value="email address" onfocus="this.value=''"/>
+
+<a
+href="https://www.fsf.org/associate/support_freedom?referrer=4052">JOIN THE FSF
+
+<img src="/graphics/heckert_gnu.transp.small.png" height="48" width="49"
+alt=" [A GNU head] " />GNU <span
+class="hide">Operating System
+
+Supported by the
+Free Software Foundation
+
+<img id="search-icon" height="30" width="30"
+src="/graphics/icons/search.png"
+alt=" [Search www.gnu.org] " />
+
+<img id="language-icon" height="30" width="37"
+src="/graphics/icons/translations.png"
+alt=" [Other languages] " />
+
+Site navigation
+Skip
+
+ABOUT GNU
+
+PHILOSOPHY
+
+=
+LICENSES
+
+=
+
+EDUCATION
+
+SOFTWARE
+
+DISTROS
+
+DOCS
+
+MALWARE
+
+HELP GNU
+
+AUDIO & VIDEO
+
+GNU ART
+
+FUN
+
+GNU'S WHO?
+
+SOFTWARE DIRECTORY
+
+HARDWARE
+
+SITEMAP
+
+Tips on Using the GNU Free Documentation License
+
+This is a brief explanation of how to place a document under the <a
+href="/licenses/fdl.html">GNU Free Documentation License.  For the
+GNU software licenses, such as the GNU GPL, we have a <a
+href="/licenses/gpl-howto.html">separate page.
+
+How does one use the
+optional features of the FDL?
+
+We have a separate page that
+discusses how to use the optional features of the FDL.
+
+Where must one put the license notification?
+
+It is sufficient to put the full license notice in the
+"main" file of your document.  For example, with
+the Emacs Lisp Reference Manual, we have many files
+included by elisp.texi.  We keep the full notification
+in elisp.texi, and in the other files we simply write:
+
+@c -*-texinfo-*-
+@c This is part of the GNU Emacs Lisp Reference Manual.
+@c Copyright (C) 1990, 1991, 1992, 1993, 1994, 1999
+@c   Free Software Foundation, Inc.
+@c See the file elisp.texi for copying conditions.
+
+What do I do with scripts that are needed to render my document
+properly?
+
+We recommend you release these scripts under the GNU FDL as well.  Of
+course, if these scripts are generally useful for other tasks, it is a
+good idea to release them separately under the GNU GPL.
+
+Is it required for the document to have invariant sections?
+
+No.  It is perfectly acceptable for a document to have no invariant
+sections.
+
+Should I try to make sure the document has some invariant
+sections?
+
+Not particularly.  If a section's contents ought to be invariant, make
+it invariant.
+
+Should I try to avoid invariant sections?
+
+Not particularly.  If a section's contents ought to be invariant, make
+it invariant.
+
+When should a section be invariant?
+
+First of all, keep in mind that a section that treats technical
+material cannot be invariant.  Only a secondary section can
+be invariant, and a technical section is not a secondary section.
+
+If the section is text that you're not allowed to modify, such as a
+copy of the GNU GPL, then it must be invariant.  You can't
+give permission to modify it if you don't have permission to modify
+it.
+
+(One consequence is that you cannot use preexisting text
+which covers technical material if you don't have permission to allow
+modification of that text.)
+
+When a section discusses the philosophy of free software, it is a good
+idea to make that section invariant.  For instance, when we put the
+GNU Manifesto in a manual, or when we include a section explaining why
+free documentation is important, we make that section
+invariant.
+
+&#9650;
+
+BACK TO TOP
+
+Set language
+
+Available for this page:
+
+[en] English
+[ca] català
+[de] Deutsch
+[es] español
+[fr] français
+[ja] 日本語
+[pl] polski
+[pt-br] português
+[ru] русский
+[tr] Türkçe
+[uk] українська
+[zh-cn] 简体中文
+[zh-tw] 繁體中文
+
+BACK TO TOP &#9650;
+
+<img id="fsfbanner"
+src="/graphics/fsf-logo-notext-small.png" alt=" [FSF logo] "
+width="75" height="25" />
+"The Free Software Foundation (FSF) is a nonprofit with a worldwide
+mission to promote computer user freedom. We defend the rights of all
+software users."
+
+JOIN
+DONATE
+SHOP
+
+Please send general FSF & GNU inquiries to
+<gnu@gnu.org>.
+There are also other ways to contact
+the FSF.  Broken links and other corrections or suggestions can be sent
+to <webmasters@gnu.org>.
+
+<!-- TRANSLATORS: Ignore the original text in this paragraph,
+replace it with the translation of these two:
+
+We work hard and do our best to provide accurate, good quality
+translations.  However, we are not exempt from imperfection.
+Please send your comments and general suggestions in this regard
+to
+<web-translators@gnu.org>.
+
+For information on coordinating and contributing translations of
+our web pages, see <a
+href="/server/standards/README.translations.html">Translations
+README. -->
+Please see the <a
+href="/server/standards/README.translations.html">Translations
+README for information on coordinating and contributing translations
+of this article.
+
+<!-- Regarding copyright, in general, standalone pages (as opposed to
+files generated as part of manuals) on the GNU web server should
+be under CC BY-ND 4.0.  Please do NOT change or remove this
+without talking with the webmasters or licensing team first.
+Please make sure the copyright date is consistent with the
+document.  For web pages, it is ok to list just the latest year the
+document was modified, or published.
+
+If you wish to list earlier years, that is ok too.
+Either "2001, 2002, 2003" or "2001-2003" are ok for specifying
+years, as long as each year in the range is in fact a copyrightable
+year, i.e., a year in which the document was published (including
+being publicly visible on the web or in a revision control system).
+
+There is more detail about copyright years in the GNU Maintainers
+Information document, www.gnu.org/prep/maintain. -->
+
+Copyright (C) 2000, 2001, 2008, 2009, 2014, 2022 Free Software Foundation, Inc.
+
+This page is licensed under a <a rel="license"
+href="http://creativecommons.org/licenses/by-nd/4.0/">Creative
+Commons Attribution-NoDerivatives 4.0 International License.
+
+Copyright Infringement Notification
+
+Updated:
+
+$Date: 2022/01/02 17:24:57 $
+

@@ -1,0 +1,277 @@
+#!/bin/sh
+# ns1hd -- NONGNU STEWARD 1 HEADERS.  Does every nontrivial file carry a copyright notice and a
+# license notice?  The rule is Savannah's and GNU's, verbatim: "any file more than ten lines long is
+# nontrivial, so it should have copyright and license notices" (ValidNotices; maintain.texi 6.5).
+# Source files include Makefiles, scripts, image files and ChangeLogs, not just bare code
+# (HowToGetYourProjectApprovedQuickly).  Binary files may carry their notices in a README beside them.
+#
+# THE NAME (the AS4CE pattern, run-level in the slot): N NONGNU · S STEWARD · 1 reads a tree, writes
+# nothing but its report · H HEADERS · D ... the D is for "does it" (a guess, marked).
+#
+# usage: sh ns1hd [--root DIR] [--tsv] [--threshold N] [--quiet] [PATH ...]     audit (default: --root .)
+#        sh ns1hd --suggest FILE [--holder H] [--license SPDX] [--year YYYY] [--name N]  print a header block
+#                      (N: the program's name in "This file is part of N"; pref steward.name, else the root
+#                      directory's basename -- say which it used)
+#        sh ns1hd --prove-red
+#   PATH ...      files or directories to audit instead of the whole root
+#   --tsv         one row per finding: STATUS<TAB>FILE<TAB>LINES<TAB>NOTE   (no summary)
+#   --threshold   lines above which a file is nontrivial (pref steward.threshold, default 10)
+#   --quiet       findings only; no OK rows
+# Statuses: OK · NO-COPYRIGHT · NO-LICENSE · NO-NOTICES · SHORT-NOTICE (a licence id such as
+#   GPLv3-or-later with no notice sentence -- accepted with a note, but the recommended text is
+#   asked for) · GPL-ONLY (a GNU licence named without
+#   "or later" -- Savannah refuses GPL*-only) · README-COVERS (a binary/format file whose directory
+#   README names a copyright, or ANY file in a directory whose README says `covers: *` -- verbatim
+#   copies of other people's work) · BINARY (no README covers it; images and PDFs count) ·
+#   COPYING-MISSING / COPYING-LESSER-MISSING (the full licence text is not in the tree, root level) ·
+#   COPYING-SHORT (a licence file that names a GNU licence but is too short to be its text)
+# Exit: 0 no findings · 1 findings · 2 usage.  Never edits a file: the pen is the keeper's.
+#
+# Copyright (C) 2026 Corwin Brust <corwin@bru.st>
+# SPDX-License-Identifier: GPL-3.0-or-later
+# This file is part of nongnu-steward.  It is free software: you can redistribute it and/or
+# modify it under the terms of the GNU General Public License as published by the Free Software
+# Foundation, either version 3 of the License, or (at your option) any later version.  It is
+# distributed WITHOUT ANY WARRANTY; see <https://www.gnu.org/licenses/>.  Authored by Mentat
+# (for Corwin).
+set -u
+LC_ALL=C; export LC_ALL
+here=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd) || exit 2
+. "$here/nslib.sh"
+me=${0##*/}
+ROOT=. TSV=0 QUIET=0 THRESH= SUGGEST= HOLDER= LICENSE= YEAR= NAME= PROVE=0
+while [ $# -gt 0 ]; do
+  case $1 in
+    --root) [ $# -ge 2 ] || { echo "$me: --root needs a value" >&2; exit 2; }; ROOT=$2; shift ;; --tsv) TSV=1 ;; --quiet) QUIET=1 ;; --threshold) [ $# -ge 2 ] || { echo "$me: --threshold needs a value" >&2; exit 2; }; THRESH=$2; shift ;;
+    --suggest) [ $# -ge 2 ] || { echo "$me: --suggest needs a value" >&2; exit 2; }; SUGGEST=$2; shift ;; --holder) [ $# -ge 2 ] || { echo "$me: --holder needs a value" >&2; exit 2; }; HOLDER=$2; shift ;; --license) [ $# -ge 2 ] || { echo "$me: --license needs a value" >&2; exit 2; }; LICENSE=$2; shift ;;
+    --year) [ $# -ge 2 ] || { echo "$me: --year needs a value" >&2; exit 2; }; YEAR=$2; shift ;; --name) [ $# -ge 2 ] || { echo "$me: --name needs a value" >&2; exit 2; }; NAME=$2; shift ;; --prove-red) PROVE=1 ;;
+    -h|--help) sed -n '/^# usage:/,/^# Exit/p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    --) shift; break ;; -*) echo "$me: unknown option: $1" >&2; exit 2 ;; *) break ;;
+  esac; shift
+done
+ROOT=$(ns_root "$ROOT") || { echo "$me: no such root" >&2; exit 2; }
+[ -n "$THRESH" ] || THRESH=$(ns_pref steward.threshold 10 "$ROOT")
+IGN=$(ns_pref steward.ignore "" "$ROOT")
+
+# ---- classify one file ---------------------------------------------------------------------------
+# prints STATUS<TAB>LINES<TAB>NOTE
+classify() {  # FILE
+  f=$1
+  [ -s "$f" ] || { printf 'OK\t0\ttrivial (empty)\n'; return; }
+  # a directory of copies (images, verbatim third-party texts) may be covered whole by a README that
+  # says so with a line `covers: *` -- the Emacs images idiom, made explicit and checkable
+  d=$(dirname "$f")
+  for r in "$d"/README "$d"/README.md "$d"/README.txt; do
+    [ -f "$r" ] && [ "$r" != "$f" ] && grep -Eq '^covers:[ \t]*\*' "$r" && grep -qi 'copyright' "$r" && { printf 'README-COVERS\t-\t%s (covers: *)\n' "${r#"$ROOT"/}"; return; }
+  done
+  if ! grep -Iq . "$f" 2>/dev/null; then
+    d=$(dirname "$f")
+    for r in "$d"/README "$d"/README.md "$d"/README.txt "$d"/README.org "$d"/COPYING; do
+      [ -f "$r" ] && grep -qi 'copyright' "$r" && { printf 'README-COVERS\t-\t%s\n' "${r#"$ROOT"/}"; return; }
+    done
+    printf 'BINARY\t-\tno README in %s names a copyright\n' "${d#"$ROOT"/}"; return
+  fi
+  n=$(awk 'END{print NR}' "$f")
+  if [ "$n" -le "$THRESH" ]; then printf 'OK\t%s\ttrivial (<= %s lines)\n' "$n" "$THRESH"; return; fi
+  # head and tail: ChangeLogs carry notices at the END (maintain.texi 6.5); Emacs says "See the end
+  # of the file for license conditions" and puts them there.
+  win=$( { head -n 60 "$f"; echo; tail -n 40 "$f"; } 2>/dev/null)
+  cr=0; lic=0; only=0; short=0
+  printf '%s\n' "$win" | grep -Eq 'Copyright[ (©]|Copyright \(C\)|SPDX-FileCopyrightText:|(^|[^A-Za-z])\(C\) *[0-9]{4}' && cr=1
+  printf '%s\n' "$win" | grep -Eqi 'public domain' && cr=1
+  printf '%s\n' "$win" | grep -Eq \
+    'GNU (Lesser |Affero )?General Public License|SPDX-License-Identifier:|GNU Free Documentation License|Permission is granted to copy, distribute and/or modify|Copying and distribution of this file|Permission is hereby granted, free of charge|Redistribution and use in source and binary forms|Apache License|Mozilla Public License|Boost Software License|(^|[^A-Za-z])ISC License|[Pp]ublic domain|(released|licensed|distributed) under the (terms of the )?(GNU|MIT|X11|Expat|BSD|zlib|Artistic|Creative Commons)|WITHOUT ANY WARRANTY' && lic=1
+  if [ $lic -eq 1 ] && printf '%s\n' "$win" | grep -Eq 'GNU (Lesser |Affero )?General Public License'; then
+    printf '%s\n' "$win" | grep -Eqi 'any later version|or.later|-or-later' || only=1
+  fi
+  # the short idiom: a bare licence id (GPLv3-or-later, GPL-3.0-or-later, "GPLv3+") with no notice
+  # sentence.  Reviewers accept it with a note (RequirementThreshold) but ask for the recommended
+  # form (ValidNotices), so it is named, not hidden under NO-LICENSE.
+  if [ $lic -eq 0 ] && printf '%s\n' "$win" | grep -Eq '(^|[^A-Za-z])(A?GPL|LGPL)(v[23](\.[0-9])?|-[23]\.[0-9])(\+|-or-later|-only)?([^A-Za-z]|$)|(^|[^A-Za-z])(MIT|Expat|BSD-[23]-Clause|ISC|Apache-2\.0|MPL-2\.0|Zlib|Unlicense|CC0-1\.0)([^A-Za-z]|$)'; then
+    short=1; lic=1
+    printf '%s\n' "$win" | grep -Eqi '(^|[^A-Za-z])(A?GPL|LGPL)(v[23](\.[0-9])?|-[23]\.[0-9])(\+|-or-later|,? or (any )?later)' || \
+      { printf '%s\n' "$win" | grep -Eq '(^|[^A-Za-z])(A?GPL|LGPL)(v[23](\.[0-9])?|-[23]\.[0-9])' && only=1; }
+  fi
+  if [ $cr -eq 1 ] && [ $lic -eq 1 ] && [ $only -eq 0 ] && [ $short -eq 0 ]; then printf 'OK\t%s\t-\n' "$n"
+  elif [ $only -eq 1 ]; then printf 'GPL-ONLY\t%s\tGNU licence named without "or (at your option) any later version"\n' "$n"
+  elif [ $cr -eq 1 ] && [ $short -eq 1 ]; then printf 'SHORT-NOTICE\t%s\tlicence named by id only; Savannah asks for the recommended notice text (ValidNotices)\n' "$n"
+  elif [ $cr -eq 0 ] && [ $lic -eq 0 ]; then printf 'NO-NOTICES\t%s\tno copyright line and no licence notice in the first 60 / last 40 lines\n' "$n"
+  elif [ $cr -eq 0 ]; then printf 'NO-COPYRIGHT\t%s\tlicence notice present, no "Copyright ..." line\n' "$n"
+  else printf 'NO-LICENSE\t%s\tcopyright line present, no licence notice\n' "$n"; fi
+}
+
+# ---- walk ----------------------------------------------------------------------------------------
+skip_path() {  # relative path -> 0 when the audit skips it
+  case "/$1/" in
+    */.git/*|*/.hg/*|*/.svn/*|*/node_modules/*|*/__pycache__/*|*/.cache/*|*/vendor/*|*/dist/*|*/build/*|*/.eclipse-increments/*|*/.arc/*|*/externs/*) return 0 ;;
+  esac
+  # skipped: build residue, lockfiles, signatures, archives, data tables.  NOT skipped: images and
+  # PDFs -- "all files, including images, sound, and plain text, should contain copyright and
+  # license notices, if their formats allow them" (maintain.texi 6.5); a format that does not allow
+  # them is covered by a README beside it, and the audit says whether one is there.
+  case "$1" in *.min.js|*.map|*.lock|*.asc|*.sig|*.sum|*.gpg|*.log|*.tsv|*.csv|*.json|*.gz|*.zip|*.7z|*.tar|*.xz|*.bz2|*.mo|*.po~|*~|*.orig|*.rej) return 0 ;; esac
+  base=${1##*/}
+  case "$base" in COPYING|COPYING.LESSER|COPYING.DOC|COPYING.CC0|LICENSE|LICENSE.*|NEWS|ChangeLog|AUTHORS|THANKS|INSTALL|TODO|MANIFEST|SHA256SUMS|.skill-manifest|.gitignore|.gitattributes|.gate|.symlinks|Makefile.in|configure|config.guess|config.sub|ltmain.sh|aclocal.m4|texinfo.tex|install-sh|missing|depcomp|compile|ar-lib|py-compile) return 0 ;; esac
+  for i in $IGN; do case "/$1/" in *"$i"*) return 0 ;; esac; done
+  return 1
+}
+
+audit() {  # PATH ... (absolute) -> rows; sets $found
+  found=0; total=0
+  for p in "$@"; do
+    if [ -d "$p" ]; then list=$(find "$p" -type f 2>/dev/null | LC_ALL=C sort); else list=$p; fi
+    printf '%s\n' "$list" | while IFS= read -r f; do
+      [ -n "$f" ] || continue
+      rel=${f#"$ROOT"/}
+      skip_path "$rel" && continue
+      row=$(classify "$f")
+      st=${row%%	*}
+      case $st in OK|README-COVERS) [ $QUIET -eq 1 ] && continue ;; esac
+      printf '%s\t%s\t%s\n' "$st" "$rel" "${row#*	}"
+    done
+  done
+}
+
+check_copying() {  # -> rows about the root
+  [ -f "$ROOT/COPYING" ] || [ -f "$ROOT/LICENSE" ] || [ -f "$ROOT/COPYING.txt" ] || [ -f "$ROOT/LICENSE.txt" ] || [ -f "$ROOT/LICENSE.md" ] \
+    || printf 'COPYING-MISSING\t.\t-\tno COPYING/LICENSE at the root: "include a copy of every license you use" (Savannah)\n'
+  # a licence file that NAMES a GNU licence but is far too short to BE it (the GPLv2 text is ~18 KB,
+  # GPLv3 ~35 KB, AGPLv3 ~34 KB, LGPLv3 ~7.6 KB, LGPLv2.1 ~26 KB): a stub, a pointer, a summary
+  for cf in "$ROOT/COPYING" "$ROOT/LICENSE" "$ROOT/COPYING.txt" "$ROOT/LICENSE.txt" "$ROOT/COPYING.LESSER"; do
+    [ -f "$cf" ] || continue; sz=$(wc -c < "$cf" | tr -d ' ')
+    if head -n 12 "$cf" | grep -q 'GNU LESSER GENERAL PUBLIC LICENSE'; then [ "$sz" -ge 6000 ] || printf 'COPYING-SHORT\t%s\t-\tnames the LGPL but is %s bytes; the full text is asked for, verbatim, from gnu.org/licenses\n' "${cf#"$ROOT"/}" "$sz"
+    elif head -n 12 "$cf" | grep -Eq 'GNU (AFFERO )?GENERAL PUBLIC LICENSE'; then [ "$sz" -ge 15000 ] || printf 'COPYING-SHORT\t%s\t-\tnames the GPL but is %s bytes; the full text is asked for, verbatim, from gnu.org/licenses\n' "${cf#"$ROOT"/}" "$sz"; fi
+  done
+  # the pattern is assembled so that this file's own text never matches it
+  lp='terms of the GNU Lesser General Public License'; lp="$lp as published"; sp='SPDX-License-Identifier'; sp="^[[:space:]#;/*!%-]*$sp:[[:space:]]*LGPL-[0-9.]+-(or-later|only)[[:space:]]*$"
+  if grep -rlE -I "$lp|$sp" "$ROOT" 2>/dev/null | grep -v '/\.git/' | grep -q . ; then
+    [ -f "$ROOT/COPYING.LESSER" ] || printf 'COPYING-LESSER-MISSING\t.\t-\tLGPL notices found; the LGPL text belongs in COPYING.LESSER beside COPYING (gpl-howto)\n'
+  fi
+}
+
+# ---- --suggest -----------------------------------------------------------------------------------
+suggest() {  # FILE
+  f=$1; [ -n "$HOLDER" ] || HOLDER=$(ns_pref steward.holder "" "$ROOT"); [ -n "$LICENSE" ] || LICENSE=$(ns_pref steward.license GPL-3.0-or-later "$ROOT")
+  [ -n "$YEAR" ] || YEAR=$(date -u +%Y); [ -n "$HOLDER" ] || HOLDER="<copyright holder: set steward.holder in .nongnu-steward>"
+  [ -n "$NAME" ] || NAME=$(ns_pref steward.name "" "$ROOT"); [ -n "$NAME" ] || NAME=${ROOT##*/}   # a guess from the directory, marked below
+  case $f in
+    *.sh|*.py|*.pl|*.rb|*.awk|*.mk|Makefile*|*.am|*.ac|*.yaml|*.yml|*.toml|*.cfg|*.ini|*.txt|*.org|*.pm|*.tcl|*.r|*.R|*.jl|*.nix|*.cmake|*.gnuplot|*.texi) c='#' ; o=; e= ;;
+    *.el|*.scm|*.lisp|*.rkt|*.clj) c=';;'; o=; e= ;;
+    *.c|*.h|*.cc|*.cpp|*.hh|*.hpp|*.java|*.js|*.ts|*.go|*.rs|*.swift|*.kt|*.cs|*.php|*.m|*.d|*.zig|*.css) c=' *'; o='/*'; e=' */' ;;
+    *.lua|*.hs|*.sql|*.ada|*.adb|*.ads|*.vhd|*.elm) c='--'; o=; e= ;;
+    *.html|*.htm|*.md|*.xml|*.xhtml|*.svg) c='   '; o='<!--'; e='-->' ;;
+    *.tex|*.sty|*.cls|*.bib|*.m4|*.erl) c='%'; o=; e= ;;
+    *.f|*.f90|*.f95|*.for) c='!'; o=; e= ;;
+    *) c='#'; o=; e= ;;
+  esac
+  case $LICENSE in
+    GPL-3.0-or-later)  L='GNU General Public License'; V=3 ;;
+    GPL-2.0-or-later)  L='GNU General Public License'; V=2 ;;
+    LGPL-3.0-or-later) L='GNU Lesser General Public License'; V=3 ;;
+    LGPL-2.1-or-later) L='GNU Lesser General Public License'; V=2.1 ;;
+    AGPL-3.0-or-later) L='GNU Affero General Public License'; V=3 ;;
+    *) L=; V= ;;
+  esac
+  base=${f##*/}
+  # JavaScript served to a browser: LibreJS's label first, its human-readable name the SPDX id (so the
+  # or-later is said there too), the notice inside, and @license-end at the end of the file
+  # (https://www.gnu.org/software/librejs/manual/html_node/Setting-Your-JavaScript-Free.html; 2026-10-20)
+  mg=
+  case $f in *.js|*.mjs)
+    case $LICENSE in
+      GPL-3.0-or-later)  mg='1f739d935676111cfff4b4693e3816e664797050&dn=gpl-3.0.txt' ;;
+      GPL-2.0-or-later)  mg='cf05388f2679ee054f2beb29a391d25f4e673ac3&dn=gpl-2.0.txt' ;;
+      LGPL-3.0-or-later) mg='0ef1b8170b3b615170ff270def6427c317705f85&dn=lgpl-3.0.txt' ;;
+      LGPL-2.1-or-later) mg='5de60da917303dbfad4f93fb1b985ced5a89eac2&dn=lgpl-2.1.txt' ;;
+      AGPL-3.0-or-later) mg='0b31508aeb0634b347b8270c7bee4d411b5d4109&dn=agpl-3.0.txt' ;;
+    esac
+    if [ -n "$mg" ]; then printf '// @license magnet:?xt=urn:btih:%s %s\n' "$mg" "$LICENSE"
+    else echo "$me: no LibreJS label is known here for $LICENSE; see LibreJS's licence table before serving $base to a browser" >&2; fi ;;
+  esac
+  [ -n "$o" ] && printf '%s\n' "$o"
+  printf '%s %s -- <one line: what this file is for>\n' "$c" "$base"
+  printf '%s\n' "$c"
+  printf '%s Copyright (C) %s %s\n' "$c" "$YEAR" "$HOLDER"
+  printf '%s SPDX-License-Identifier: %s\n' "$c" "$LICENSE"
+  printf '%s\n' "$c"
+  if [ -n "$L" ]; then
+    # the exact form recommended by https://www.gnu.org/licenses/gpl-howto.html ("This file is part of NAME")
+    printf '%s This file is part of %s.\n%s\n' "$c" "$NAME" "$c"
+    printf '%s %s is free software: you can redistribute it and/or modify it under the terms of the\n' "$c" "$NAME"
+    printf '%s %s as published by the Free Software Foundation, either version %s of the\n' "$c" "$L" "$V"
+    printf '%s License, or (at your option) any later version.\n%s\n' "$c" "$c"
+    printf '%s %s is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without\n' "$c" "$NAME"
+    printf '%s even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the\n' "$c"
+    printf '%s %s for more details.\n%s\n' "$c" "$L" "$c"
+    printf '%s You should have received a copy of the %s along with %s.\n' "$c" "$L" "$NAME"
+    printf '%s If not, see <https://www.gnu.org/licenses/>.\n' "$c"
+  else
+    printf '%s <the licence notice for %s -- see references/notices.md; for a short licence such as Expat\n' "$c" "$LICENSE"
+    printf '%s or BSD, Savannah asks for the whole licence text here instead of a notice (ValidNotices)>\n' "$c"
+  fi
+  [ -n "$e" ] && printf '%s\n' "$e"
+  [ -n "$mg" ] && echo "$me: end $base with this line, after the last line of code: // @license-end" >&2
+  [ -n "$(ns_pref steward.name "" "$ROOT")" ] || { [ "${NAME}" = "${ROOT##*/}" ] && echo "$me: NAME '$NAME' is a guess from the directory name; set steward.name in .nongnu-steward or pass --name" >&2; }
+  return 0
+}
+
+# ---- --prove-red ---------------------------------------------------------------------------------
+if [ $PROVE -eq 1 ]; then
+  t=$(mktemp -d 2>/dev/null) || { t=${TMPDIR:-/tmp}/ns1hd.$$; mkdir -p "$t"; }
+  trap 'rm -rf "$t"' EXIT INT TERM
+  mkdir -p "$t/p/img"; ROOT=$t/p
+  { echo '# good.sh'; echo '# Copyright (C) 2026 A. Person'; echo '# SPDX-License-Identifier: GPL-3.0-or-later'; echo '# This program is free software ... GNU General Public License ... either version 3 of the License, or (at your option) any later version.'; i=0; while [ $i -lt 12 ]; do echo "echo $i"; i=$((i+1)); done; } > "$t/p/good.sh"
+  { i=0; while [ $i -lt 12 ]; do echo "echo $i"; i=$((i+1)); done; } > "$t/p/bare.sh"
+  { echo '# Copyright (C) 2026 A. Person'; i=0; while [ $i -lt 12 ]; do echo "echo $i"; i=$((i+1)); done; } > "$t/p/nolic.sh"
+  { echo '# Copyright (C) 2026 A. Person'; echo '# under the GNU General Public License version 2.'; i=0; while [ $i -lt 12 ]; do echo "echo $i"; i=$((i+1)); done; } > "$t/p/only.sh"
+  printf 'a\nb\nc\n' > "$t/p/tiny.txt"
+  { echo '# Copyright 2026 A. Person -- GPLv3-or-later.'; i=0; while [ $i -lt 12 ]; do echo "echo $i"; i=$((i+1)); done; } > "$t/p/short.sh"
+  { echo '# Copyright 2026 A. Person.  GPLv3 or later.'; i=0; while [ $i -lt 12 ]; do echo "echo $i"; i=$((i+1)); done; } > "$t/p/spaced.sh"
+  printf '\000\001\002binary' > "$t/p/img/x.bin"
+  printf 'Copyright (C) 2026 A. Person -- the images here are GPL-3.0-or-later\n' > "$t/p/img/README"
+  printf '\000\001\002binary' > "$t/p/orphan.bin"
+  printf '\211PNG\r\n\032\n\000binary' > "$t/p/orphan.png"
+  mkdir -p "$t/q"; printf 'GNU GENERAL PUBLIC LICENSE\nVersion 3, 29 June 2007\n[... the rest ...]\n' > "$t/q/COPYING"
+  mkdir -p "$t/p/copies"; { i=0; while [ $i -lt 14 ]; do echo "line $i of a verbatim copy"; i=$((i+1)); done; } > "$t/p/copies/page.txt"
+  printf 'covers: *\nCopyright (C) 2026 Elsewhere, Inc. -- verbatim copies; see each entry.\n' > "$t/p/copies/README"
+  out=$(audit "$ROOT"; check_copying)
+  red=0
+  printf '%s\n' "$out" | grep -q '^OK	good.sh' && red=$((red+1)) || echo "FAIL: good.sh not OK: $out"
+  printf '%s\n' "$out" | grep -q '^NO-NOTICES	bare.sh' && red=$((red+1)) || echo "FAIL: bare.sh"
+  printf '%s\n' "$out" | grep -q '^NO-LICENSE	nolic.sh' && red=$((red+1)) || echo "FAIL: nolic.sh"
+  printf '%s\n' "$out" | grep -q '^GPL-ONLY	only.sh' && red=$((red+1)) || echo "FAIL: only.sh"
+  printf '%s\n' "$out" | grep -q '^OK	tiny.txt	3	trivial' && red=$((red+1)) || echo "FAIL: tiny.txt"
+  printf '%s\n' "$out" | grep -q '^README-COVERS	img/x.bin' && red=$((red+1)) || echo "FAIL: img/x.bin"
+  printf '%s\n' "$out" | grep -q '^BINARY	orphan.bin' && red=$((red+1)) || echo "FAIL: orphan.bin"
+  printf '%s\n' "$out" | grep -q '^README-COVERS	copies/page.txt	-	copies/README (covers: \*)' && red=$((red+1)) || echo "FAIL: covers: * README not honoured: $(printf '%s\n' "$out" | grep copies)"
+  printf '%s\n' "$out" | grep -q '^COPYING-MISSING' && red=$((red+1)) || echo "FAIL: COPYING-MISSING"
+  printf '%s\n' "$out" | grep -q '^BINARY	orphan.png' && red=$((red+1)) || echo "FAIL: an image with no README is not audited"
+  out2=$(ROOT=$t/q; check_copying); printf '%s\n' "$out2" | grep -q '^COPYING-SHORT	COPYING' && red=$((red+1)) || echo "FAIL: stub COPYING not caught: $out2"
+  sug=$(ROOT=$t/p suggest "$t/p/new.c" 2>&1); printf '%s\n' "$sug" | grep -q 'This file is part of p\.' && printf '%s\n' "$sug" | grep -q "NAME 'p' is a guess" && red=$((red+1)) || echo "FAIL: --suggest NAME from the directory, marked as a guess: $(printf '%s\n' "$sug" | grep -i 'part of\|guess')"
+  sug=$(NAME=tidyq ROOT=$t/p suggest "$t/p/new.c" 2>&1); printf '%s\n' "$sug" | grep -q 'along with tidyq\.' && ! printf '%s\n' "$sug" | grep -q 'guess' && red=$((red+1)) || echo "FAIL: --name not honoured"
+  printf '%s\n' "$out" | grep -q '^SHORT-NOTICE	short.sh' && red=$((red+1)) || echo "FAIL: short.sh"
+  printf '%s\n' "$out" | grep -q '^SHORT-NOTICE	spaced.sh' && red=$((red+1)) || echo "FAIL: spaced.sh read as GPL-ONLY: $(printf '%s\n' "$out" | grep spaced)"
+  printf '%s\n' "$out" | grep -q 'COPYING-LESSER' && echo "FAIL: COPYING-LESSER false positive" || red=$((red+1))
+  suggest "$t/p/new.c" 2>/dev/null | grep -q 'GNU General Public License as published' && red=$((red+1)) || echo "FAIL: suggest"
+  # a .js header LibreJS accepts, which this tool reads as or-later once the code and @license-end follow
+  LICENSE=GPL-3.0-or-later NAME=tidyq ROOT=$t/p suggest "$t/p/w.js" > "$t/w.js" 2>"$t/w.err"
+  { i=0; while [ $i -lt 12 ]; do echo "var a$i = $i;"; i=$((i+1)); done; echo '// @license-end'; } >> "$t/w.js"
+  mkdir -p "$t/j"; cp "$t/w.js" "$t/j/w.js"; jo=$(ROOT=$t/j; audit "$ROOT")
+  head -1 "$t/w.js" | grep -q '^// @license magnet:?xt=urn:btih:1f739d935676111cfff4b4693e3816e664797050&dn=gpl-3.0.txt GPL-3.0-or-later$' \
+    && grep -q '@license-end' "$t/w.err" && printf '%s\n' "$jo" | grep -q '^OK	w.js' && red=$((red+1)) || echo "FAIL: --suggest x.js: LibreJS label, the end line asked for, read OK: $(head -1 "$t/w.js") / $jo"
+  [ $red -eq 18 ] && { echo "PASS: ns1hd tells OK / NO-NOTICES / NO-LICENSE / SHORT-NOTICE / GPL-ONLY / trivial / README-COVERS / BINARY (images too) / COPYING-MISSING / COPYING-SHORT apart, does not cry COPYING.LESSER over a mention, and suggests a header with the program name"; exit 0; }
+  echo "FAIL: ns1hd prove-red $red/18"; exit 1
+fi
+
+if [ -n "$SUGGEST" ]; then suggest "$SUGGEST"; exit 0; fi
+if [ $# -gt 0 ]; then set -- "$@"; abs=""; for p in "$@"; do case $p in /*) abs="$abs
+$p" ;; *) abs="$abs
+$ROOT/$p" ;; esac; done; out=$(printf '%s\n' "$abs" | sed '/^$/d' | while IFS= read -r p; do audit "$p"; done)
+else out=$( { audit "$ROOT"; check_copying; } ); fi
+[ -n "$out" ] && printf '%s\n' "$out"
+nf=$(printf '%s\n' "$out" | grep -c -E '^(NO-|GPL-ONLY|SHORT-NOTICE|BINARY|COPYING)' 2>/dev/null || true)
+[ "$nf" -gt 0 ] 2>/dev/null || nf=0
+if [ $TSV -eq 0 ]; then
+  echo "$me: root $ROOT · threshold $THRESH lines · findings $nf$( [ "$nf" -gt 0 ] && printf ' -- the pen is the keeper'"'"'s: sh %s --suggest FILE prints a header' "$me")"
+fi
+[ "$nf" -eq 0 ]

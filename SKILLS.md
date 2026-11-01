@@ -13,6 +13,7 @@ Each skill is a folder with a `SKILL.md`. Claude reads one when the task calls f
 | `candor-gate` | candor-gate — the good fence that makes good neighbors: a two-faced discipline for skills imported from another author's garden (e.g. |
 | `color-theory` | Check and build accessible color palettes against WCAG 2.1 contrast standards. |
 | `consent-gate` | Mechanically verify consent before a parked or sensitive action proceeds — the ALL/ANY gate. |
+| `considerate-reader` | How to read a shared resource — a project's git server, a wiki, a documentation site, an API — without becoming the load its maintainers are fighting, and how to reach the people behind it when the form you need does not exist. |
 | `containment-during-exec` | A design rule for bounding what EXECUTED code does WHILE it runs — the gap that before/after checks (tumblers, round-trips, attestation) leave open once you actually run transacted or client code that can change a real system. |
 | `context-stack` | Hold context the way the shop talks about it -- rocks that gain pressure when cited, forced out as boulders and then mountains, a planning fort carried forward and a palace floor ordered by pressure, tensions held suspended until pinned ... |
 | `countable-gauge` | Measure, don't assert. |
@@ -46,6 +47,7 @@ Each skill is a folder with a `SKILL.md`. Claude reads one when the task calls f
 | `medley-review` | Review and propose patches for Bob Proulx's medley and the savannah-medley-scripts deploy config (the software that configures GNU Savannah hosts). |
 | `mentat-skill` | Mentat, from its own well: a bi-laterally associative, eventually meaningful broker of tensions and controls (a setting, a permission, a right) and a principled orchestrator of the other skills. |
 | `monocle-stack` | Grind one block of input (a prompt, a brief, a finding) into a stack of questions -- every question the block raises, each tied to the words that raised it, then the questions those raise, layer by layer until none raises another -- and ... |
+| `nongnu-steward` | Tend a free software project's artifacts to the standard a careful reviewer holds them to: copyright and licence notices on every nontrivial file, the licence texts in the tree, a dependency ledger with licences and URLs, "or any later v... |
 | `pencil-your-own` | A design rule for the move that recurs wherever judgment meets a record — own-error-is-the-relaxable-layer: make the layer most likely to be YOUR error the one that relaxes, gets marked, or gets made explicit; never the layer you defend ... |
 | `persona-engine` | Use the garden's persona model carefully and without waste: decide first whether a persona is warranted at all (which of the four uses: a real person shared safely, a system actor, the context of an actor for a story, the tensions at an ... |
 | `pmo` | Drive Corwin's own PMO ("project-management office") tool from inside Cowork — the dependency-free supervisor over all projects in the keeper's projects folder (here: F:\claude\projects), backed by two TSV ledgers (projects.tsv, todos.ts... |
@@ -81,6 +83,6 @@ Each skill is a folder with a `SKILL.md`. Claude reads one when the task calls f
 | `values-baseline` | A design rule for the VALUES-baseline test — the strict inverse of a permissive "does this fit?" baseline. |
 | `verify-say` | How to WRITE about a signature or verification claim so the words never outrun what was checked, AND how to trust the checker before trusting what it reports. |
 | `vibrobeast` | The direction of Corwin Brust's garden (the vibrobeast plugin, its source tree AS4CE0001, and C4): its first moves, its map, its standing laws, and who speaks. |
-| `wire-connect` | Get Corwin's garden connected (back) to the ÆTHERNET Wire — the connector-install and cold-start discipline, distinct from parley (which owns the conversation loop once you are on). |
+| `wire-connect` | Get Corwin's garden connected to the ÆTHERNET Wire — the connector-install and cold-start discipline, distinct from parley (which owns the conversation loop once on). |
 | `wire-ledger` | The Wire's v3.x ledger families — credits, governance votes, federation between rings, and attestations/the notary. |
 | `writing-forms` | Which writing form a dated deliverable takes in the shop, and the five techniques every form shares. |

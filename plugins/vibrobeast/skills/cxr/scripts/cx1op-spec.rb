@@ -4,7 +4,7 @@
 # header (HELD, UNFOLDED, FINDING, BULK, FIXTURE, CANDIDATE, FLAT), and compares with `cx1op scan --tsv`.
 # usage: ruby t/cx1op-spec.rb ROOT [CX1OP]        AGREE (exit 0) or one DIFFER line per table (exit 1)
 #        ruby t/cx1op-spec.rb --prove-red [CX1OP] five mutants of cx1op, each must DIFFER on a planted tree
-# Copyright (C) 2026 Corwin Brust <corwin@bru.st> and Contributors.  Mentat (for Corwin; claude-opus-5-5).
+# Copyright 2026 INPUTLOOP; GPL-3.0-or-later OR LGPL-3.0-or-later; https://github.com/inputloop.  Mentat (for Corwin; claude-opus-5-5).
 # SPDX-License-Identifier: GPL-3.0-or-later OR LGPL-3.0-or-later
 # frozen_string_literal: false
 require 'find'

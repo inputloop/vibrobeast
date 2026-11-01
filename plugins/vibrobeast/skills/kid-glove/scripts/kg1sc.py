@@ -7,7 +7,7 @@ Prints the lines kg1sc prints with --raw (the scan less its SOURCE lines); the r
 kg1sc's does (1 a TRAMPLE, 2 NOT CHECKED, else 0).  Writes nothing.
 
 Unfolded from kid-glove.org; edit that, not this.
-Copyright 2026 Corwin Brust <corwin@bru.st> and Contributors; GPL-3.0-or-later.
+Copyright 2026 INPUTLOOP; GPL-3.0-or-later; https://github.com/inputloop.
 Mentat (for Corwin; claude-opus-5-5)
 """
 import glob, hashlib, os, re, subprocess, sys

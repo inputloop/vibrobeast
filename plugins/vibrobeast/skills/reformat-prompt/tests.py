@@ -3,7 +3,7 @@
 
 usage:  python3 tests.py [--prove-red]
 --prove-red plants faults in copies of pg1lv; each must turn a case red.
-Copyright (C) 2026 Corwin Brust <corwin@bru.st> and Contributors.  GPL-3.0-or-later.
+Copyright 2026 INPUTLOOP; GPL-3.0-or-later; https://github.com/inputloop.
 """
 import shutil, subprocess, sys, tempfile
 from pathlib import Path

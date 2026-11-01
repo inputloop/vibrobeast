@@ -5,6 +5,9 @@ SKILLS.md	GENERATED:bin/gh1pb (from each SKILL.md's front matter)
 PROVENANCE	GENERATED:bin/gh1pb
 PRIVACY.md	GENERATED:bin/tp2mt (dist/vibrobeast/PRIVACY.md, copied by bin/gh1pb)
 PATHS	publish/github/vibrobeast/PATHS
+COPYING	GENERATED:bin/gh1pb (the plugin's own COPYING, copied to the root)
+LICENSES/	GENERATED:bin/gh1pb (the plugin's own LICENSES/, copied to the root)
+KEYS/	GENERATED:bin/gh1pb (skills/<SIGN_KEY>.asc, the public key the skills are signed with)
 MOVING-OVER.md	publish/github/vibrobeast/MOVING-OVER.md
 tools/	publish/github/vibrobeast/tools/
 CITATION.cff	publish/github/vibrobeast/CITATION.cff
@@ -21,6 +24,7 @@ plugins/vibrobeast-servers/servers/polygram/	polygram/
 plugins/vibrobeast-servers/servers/bin/	bin/
 plugins/vibrobeast-servers/servers/launch.cmd	polygram/launch.cmd
 plugins/vibrobeast-servers/COPYING	COPYING
+plugins/vibrobeast-servers/LICENSES/	LICENSES/
 plugins/vibrobeast-servers/GRAMMARY.md	GRAMMARY.md
 plugins/vibrobeast-servers/FRAME.md	FRAME.md
 plugins/vibrobeast-servers/README.md	GENERATED:polygram/plugin.py (SERVERS_PLUGIN_README)
@@ -29,7 +33,9 @@ plugins/vibrobeast/servers/launch.cmd	polygram/launch.cmd
 plugins/vibrobeast/GRAMMARY.md	GRAMMARY.md
 plugins/vibrobeast/FRAME.md	FRAME.md
 plugins/vibrobeast/COPYING	COPYING
+plugins/vibrobeast/LICENSES/	LICENSES/
 plugins/vibrobeast-skills/COPYING	COPYING
+plugins/vibrobeast-skills/LICENSES/	LICENSES/
 plugins/vibrobeast-skills/GRAMMARY.md	GRAMMARY.md
 plugins/vibrobeast-skills/FRAME.md	FRAME.md
 plugins/vibrobeast/PRIVACY.md	GENERATED:bin/tp2mt

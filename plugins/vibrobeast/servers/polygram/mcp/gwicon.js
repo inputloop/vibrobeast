@@ -1,8 +1,9 @@
 // gwicon.js -- the ghostwheel status icon: a letter made of small copies of itself, coloured by
 // what each host says about its own health.  Node (v8) or a browser; no dependencies.
 //
-// Copyright 2026 Corwin Brust <corwin@bru.st> and Contributors.
+// Copyright 2026 INPUTLOOP; GPL-3.0-or-later OR CC-BY-SA-4.0; https://github.com/inputloop.
 // SPDX-License-Identifier: GPL-3.0-or-later OR CC-BY-SA-4.0
+// @license magnet:?xt=urn:btih:1f739d935676111cfff4b4693e3816e664797050&dn=gpl-3.0.txt GPL-3.0-or-later
 //
 // Conceptual design worked by Corwin with Gemini (2026-10-12, "ghostwheel status logo"); revised
 // against its own static model below by Mentat (for Corwin; claude-opus-5-5).  polygram/mcp/gwicon.py
@@ -163,4 +164,5 @@ if (typeof require !== 'undefined' && typeof module !== 'undefined' && require.m
   });
 }
 
-// Copyright 2026 Corwin Brust; GPLv3+ or CC-BY-SA (4) ; Assisted-by: Gemini (conceptual design), Claude (claude-opus-5-5; revision, model and twin)
+// @license-end
+// Copyright 2026 INPUTLOOP; GPL-3.0-or-later OR CC-BY-SA-4.0; https://github.com/inputloop; Assisted-by: Gemini (conceptual design), Claude (claude-opus-5-5; revision, model and twin)

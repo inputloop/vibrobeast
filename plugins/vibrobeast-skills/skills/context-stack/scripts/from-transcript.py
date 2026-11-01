@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # from-transcript.py -- turn a transcript's subjects and result (tr2sm, tr3rm) into a cstk vector,
 #   so tension is always bound to work that happened, with axis values taken from counts, not chosen.
-#   Copyright 2026 Corwin Brust <corwin@bru.st> and Contributors.  Authored by Mentat (for Corwin).
+#   Copyright 2026 INPUTLOOP; GPL-3.0-or-later OR LGPL-3.0-or-later; https://github.com/inputloop.  Authored by Mentat (for Corwin).
 #   SPDX-License-Identifier: GPL-3.0-or-later OR LGPL-3.0-or-later
 #
 # usage: from-transcript.py S2DIR > NAME.cmd

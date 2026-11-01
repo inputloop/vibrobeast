@@ -1,0 +1,87 @@
+#!/bin/sh
+# ns1op -- NONGNU STEWARD 1 OPEN.  The implicit maintenance, made mechanical: what a session runs at
+# open in a project that carries a .nongnu-steward file (or when the skill is named), and what it
+# prints -- one line per audit, findings as rows, nothing edited.  A paragraph in SKILL.md says the
+# same thing; this is the script so that it happens the same way when nobody is reading the paragraph.
+#
+# THE NAME (the AS4CE pattern, run-level in the slot): N NONGNU · S STEWARD · 1 reads, writes nothing
+# · O OPEN · P ... "panel".
+#
+# usage: sh ns1op [--root DIR] [--force-canon] [--no-canon]
+#   prints:  steward: headers ...   (ns1hd --quiet)
+#            steward: deps ...      (ns2ld --check, only when LICENSE-DEPS.tsv exists)
+#            steward: canon ...     how old the pins are and the command for a careful check.  NOT run
+#                                    on a schedule: a check against shared machines is made when a
+#                                    decision leans on a rule.  --force-canon runs it now; --no-canon
+#                                    hides the line
+#   then the finding rows, then one summary line.
+#   Off: steward.auto off in .nongnu-steward (then ns1op prints one line saying so and exits 0).
+# Exit: 0 nothing to report · 1 findings · 2 usage.
+#
+# Copyright (C) 2026 Corwin Brust <corwin@bru.st>
+# SPDX-License-Identifier: GPL-3.0-or-later
+# This file is part of nongnu-steward.  It is free software: you can redistribute it and/or
+# modify it under the terms of the GNU General Public License as published by the Free Software
+# Foundation, either version 3 of the License, or (at your option) any later version.  It is
+# distributed WITHOUT ANY WARRANTY; see <https://www.gnu.org/licenses/>.  Authored by Mentat
+# (for Corwin).
+set -u
+LC_ALL=C; export LC_ALL
+here=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd) || exit 2
+. "$here/nslib.sh"
+me=${0##*/}
+ROOT=. CANON=auto
+while [ $# -gt 0 ]; do
+  case $1 in
+    --root) [ $# -ge 2 ] || { echo "$me: --root needs a value" >&2; exit 2; }; ROOT=$2; shift ;; --force-canon) CANON=force ;; --no-canon) CANON=no ;;
+    -h|--help) sed -n '/^# usage:/,/^# Exit/p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    *) echo "$me: unknown argument: $1" >&2; exit 2 ;;
+  esac; shift
+done
+ROOT=$(ns_root "$ROOT") || { echo "$me: no such root" >&2; exit 2; }
+ns_is_on "$(ns_pref steward.auto on "$ROOT")" || { echo "steward: off (steward.auto) for $ROOT"; exit 0; }
+W=$(mktemp -d 2>/dev/null) || { W=${TMPDIR:-/tmp}/ns1op.$$; mkdir -p "$W"; }
+trap 'rm -rf "$W"' EXIT INT TERM
+rc=0
+
+# headers
+sh "$here/ns1hd" --quiet --tsv --root "$ROOT" > "$W/h" 2>&1; hrc=$?
+n=$(grep -c . "$W/h"); [ $hrc -eq 0 ] && n=0
+echo "steward: headers  $n finding(s)   (sh scripts/ns1hd --quiet --root $ROOT)"
+[ $hrc -ne 0 ] && rc=1
+
+# dependencies
+if [ -f "$ROOT/LICENSE-DEPS.tsv" ]; then
+  sh "$here/ns2ld" --check --root "$ROOT" > "$W/d.out" 2> "$W/d.err"; drc=$?
+  echo "steward: deps     $(tail -1 "$W/d.err" | sed 's/^ns2ld: //')   (sh scripts/ns2ld --check --root $ROOT)"
+  [ $drc -ne 0 ] && rc=1
+else
+  echo "steward: deps     no LICENSE-DEPS.tsv yet   (sh scripts/ns2ld --write --root $ROOT starts one)"
+fi
+
+# canon: no schedule.  The routine part is the report -- how old the pins are, and the one command
+# for a careful check -- because a check against shared machines is made when a decision is about to
+# lean on a rule, by the lightest avenue (a blob id before a page), not on a timer.  --force-canon
+# runs it now; steward.canon off hides even the report line.
+M=$here/../references/canon.tsv
+if [ "$CANON" = no ]; then echo "steward: canon    not checked (--no-canon)"
+elif ! ns_is_on "$(ns_pref steward.canon on "$ROOT")"; then echo "steward: canon    off (steward.canon)"
+elif [ ! -f "$M" ]; then echo "steward: canon    no manifest at $M"
+elif [ "$CANON" = force ]; then
+  sh "$here/ns2cn" --check > "$W/c" 2>&1; crc=$?
+  case $crc in
+    0) echo "steward: canon    unchanged   ($(tail -1 "$W/c" | sed 's/^ns2cn: //'))" ;;
+    1) echo "steward: canon    MOVED -- $(grep -c '^CHANGED\|^DRIFTED' "$W/c") row(s): $(grep '^CHANGED\|^DRIFTED' "$W/c" | awk '{print $2}' | tr '\n' ' ')(sh scripts/ns2cn --diff SLUG)"; rc=1 ;;
+    3) echo "steward: canon    nothing decided (offline?); not counted" ;;
+    *) echo "steward: canon    ns2cn exit $crc" ;;
+  esac
+else
+  oldest=$(awk -F'\t' 'NR>1 && $9 ~ /^20/ {print $9}' "$M" | LC_ALL=C sort | head -1)
+  nrows=$(awk 'END{print NR-1}' "$M"); npin=$(awk -F'\t' 'NR>1 && $6=="pinned-no-body"' "$M" | wc -l | tr -d ' ')
+  echo "steward: canon    $nrows rows pinned, oldest $oldest$( [ "$npin" -gt 0 ] && printf ' (%s at commit level only)' "$npin"); a careful check is: sh scripts/ns2cn --check [SLUG ...]  (no schedule; run it when a decision leans on a rule)"
+fi
+
+[ -s "$W/h" ] && [ $hrc -ne 0 ] && cat "$W/h"
+[ -f "$W/d.out" ] && awk -F'\t' 'NR>1 && ($4=="UNKNOWN" || $5=="no") {print "DEP-" ($4=="UNKNOWN" ? "UNKNOWN" : "INCOMPATIBLE") "\t" $1 "\t" $2 "\t" $3}' "$W/d.out"
+echo "steward: $ROOT -- $( [ $rc -eq 0 ] && echo 'nothing to report' || echo 'findings above; the pen is the keeper'"'"'s' )"
+exit $rc

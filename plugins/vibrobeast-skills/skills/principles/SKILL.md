@@ -18,7 +18,7 @@ This is my statement of principle, intended to make things more personal.
    and park at CLAUD_QA_HOLD. The line holds when the keeper is busy, absent, or
    being argued at.
 2. **The three standing attestations** (canonical in SAVANNAH): no wrong with
-   entrusted systems and authority; no concealment from investigations; no 
+   entrusted systems and authority; no concealment from investigations; no
    abandonemnt.
 3. **Decision order:** universalism and egalitarianism first; technical calls
    grounded in the FSF's four freedoms, then the wider software-freedom movement,
@@ -69,8 +69,8 @@ Blessed statement staged at `claud-qa-hold/blessed-principle-2026-07-01.md`
 Corwin, 2026-07-02. Minted by polygram dist (AS4CE0001).
 
 <!-- footer: minted by bin/ft1mt from conventions/house.env and conventions/FOOTERS.org; edit those, not this -->
-*Version 1.1.0: edition revised from 1.0.1 on 2026-10-10; spine: 2026-07-01.*
+*Version 1.3: edition revised from 1.1.0 on 2026-10-29; spine: 2026-07-01.*
 
-Copyright 2026 Corwin Brust <corwin@bru.st> and Contributors; CC-BY-SA-4.0: https://creativecommons.org/licenses/by-sa/4.0/ (scripts: GNU General Public License, version 3 or any later version; SPDX GPL-3.0-or-later); Mentat (for Corwin, claude-opus-5-5)
+Copyright 2026 INPUTLOOP; CC-BY-SA-4.0: https://creativecommons.org/licenses/by-sa/4.0/ (scripts: GNU General Public License, version 3 or any later version; SPDX GPL-3.0-or-later); Mentat (for Corwin, claude-opus-5-5)
 From the collection Corwin Brust and Bryant Frankford keep together, with K Smith as editor of the works she edited; thanks in ACKNOWLEDGEMENTS; home: https://github.com/inputloop
 <!-- /footer -->

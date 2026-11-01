@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2026 Corwin Brust <corwin@bru.st> and Contributors
+# SPDX-FileCopyrightText: 2026 INPUTLOOP (Corwin Brust, Bryant Frankford and the people in ACKNOWLEDGEMENTS)
 # SPDX-License-Identifier: GPL-3.0-or-later OR LGPL-3.0-or-later
 # A tag vX.Y.Z on main makes a Release with the three installable files attached, after the same
 # checks as every push. Nothing is published unless a person pushes a tag.

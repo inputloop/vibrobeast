@@ -1,9 +1,10 @@
 dbf96f363f339b760734847450d506ca3580c286f8fe966105db0c66920d9b05  ./FROM
 77c6b91e1780aee25a9202edf1cc3981310e14e2060e04db3faecf845ecb40bc  ./SKILL.md
-64280cae215da8725944dc37beab83f9916f7621033e6a1221b7ea2ffb9e8cdd  ./references/CARD-2026-10-05-bridge-cutover.md
-7d5a4d7d1c1152b96cb318fad520f1fdb7e6343d46cc5164c83ed8a076614aa4  ./references/KIT.md
+5db83e6073b27dfe7621858b03e227a185e742a2324ad30d9e9ff3c936c77a36  ./references/CARD-2026-10-05-bridge-cutover.md
+41c4b5d5178c45de36db911f2721b2e4efa61ec7f63b0725a973f1872fbe1959  ./references/KIT.md
 b8051a74a04988cd4fdab13fb19c062d837f9e8e959e9a842ec9896f9d7ed185  ./references/PROBE-2026-10-04-ollama-speed.md
 1d2918eb2a65ac8890ae6df401e6d3a46d02041f7c4f6bbbcaef0b0cc1582cda  ./references/llama_bridge-1.4.0-vb.1.diff
-4d797a96c03d01f05f7d16ef77e73f4800a3594cc5f7ed0a8e978352f39278e0  ./scripts/bridge_smoke.py
-81bb444d88a3bfeed8160de3636e136dc94c8b70d3576d98aad0a2d7a48f2410  ./scripts/fake_ollama.py
-f75c0a95a221a22e00a0664e59346aba15d8ef8f64f3abe8421edc256177586b  ./scripts/split_verdict.py
+cc8408cf72b69b8f3956a64aa9775615ec320651ce593e30d733f2aa85df05c7  ./references/llama_bridge-1.4.0-vb.2.diff
+46ff0875d631ddea8d96c918afb3848dfa9a14f9354cae8f5944668d6a8bcc8f  ./scripts/bridge_smoke.py
+bd99f408d68051516a1bb766955d09625e75c8c84d935981b53ec8bba123f959  ./scripts/fake_ollama.py
+3cdd91521d7e0129275c5bbd88268e687e09fb8b5f592ff5d8761efee3264fc1  ./scripts/split_verdict.py

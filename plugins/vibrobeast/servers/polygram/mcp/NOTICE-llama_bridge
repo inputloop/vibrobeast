@@ -1,11 +1,11 @@
 llama_bridge.py -- Llama Bridge, by Bryant Frankford (published as
 https://github.com/takushieternal/llamaBridge, inside llama_bridge.zip; also handed over directly
-on 2026-07-04).  Kept here as 1.4.0-vb.1: his 1.4.0 with changes made in this garden, for him to
+on 2026-07-04).  Kept here as 1.4.0-vb.2: his 1.4.0 with changes made in this garden, for him to
 see and merge back as he thinks best (Corwin, 2026-10-05: Bryant can see the versions and merge
 back whatever composite he thinks best).
 
   sha256 ed7c9067231e905c0bf009814d4b90f443a189bb9ef6c0dcb5d157b58da9ad1c  upstream 1.4.0, as received
-  sha256 da51f6b7574767f0a0e95c6a2938ad3b6d34f3f3a2937d5ed2d7f4d568c252dd  llama_bridge.py (1.4.0-vb.1, amended 2026-10-16)
+  sha256 e2213a710e6d97d57d6b6c19a6dd46e9183baccd224aff196b91c5c92afd4593  llama_bridge.py (1.4.0-vb.2, 2026-10-29)
 
 The upstream bytes are in this tree's history (commit 213103f) and the change is
 skills/llama-bridge/references/llama_bridge-1.4.0-vb.1.diff.  What changed, in words: the
@@ -15,9 +15,23 @@ uncapped and spilled into system memory; and a breaker (breaker_after 4, breaker
 generate timeout): a model that failed that many times in a row rests, then gets one trial.  Tests: tests/test_llama_bridge_vb.py (19, with
 --prove-red planting six faults).
 
+vb.2 (2026-10-29, Corwin's word "apply it": the offer drafted for Bryant the night before, made, with the
+switches to flip it back).  Two defaults now ask first, set at the top of llama_bridge.py:
+  KEEP_PROMPTS = False  the log and the answer cache keep times, models and sizes, not the words of prompts
+                        and answers; an async job's answer is still kept (delegate_result reads it).
+                        1.4.0: True.  One run: LLAMABRIDGE_KEEP_PROMPTS=1 or --keep-prompts.
+  STORED_HOST = "ask"   an ollama_host config row does not override OLLAMA_HOST in MCP mode; the dashboard,
+                        where a person sets that row by hand, still uses it.  1.4.0: "use".  One run:
+                        LLAMABRIDGE_STORED_HOST=use or --use-stored-host.
+Flip either constant to make 1.4.0's behaviour the build's default again.  Its home since 2026-10-29:
+https://github.com/inputloop/llama-bridge (commit 1 Bryant's 1.4.0 byte for byte; vb.1 and vb.2 on top,
+each its own commit; FOR-BRYANT.md there says what is his to decide).  The diff from vb.1 is
+skills/llama-bridge/references/llama_bridge-1.4.0-vb.2.diff; tests/test_doors.py holds both switches,
+both ways (BuildSwitches, Bridge).
+
 Licence: its repository carries the GNU General Public License, version 3; by the record of
 Bryant and Corwin's agreement, Bryant's work shares this garden's licence, and his offer of
 LGPL-3.0-or-later covers his code.  Copyright 2026 Bryant Frankford <nathanielfrankford@gmail.com>;
-the vb.1 changes Copyright 2026 Corwin Brust <corwin@bru.st> and Contributors, under the same
+the vb.1 changes Copyright 2026 INPUTLOOP; https://github.com/inputloop, under the same
 terms.  It is served by llamabridge.py beside it, which keeps it off until the person turns it
 on (pref llamabridge.on).

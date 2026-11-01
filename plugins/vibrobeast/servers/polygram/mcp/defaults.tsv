@@ -1,0 +1,6 @@
+# defaults.tsv -- the build layer of the defaults (2026-10-29, Corwin's F3 ruling of 2026-10-28 23:32).
+# Copied beside polygram/mcp/prefs.py as defaults.tsv at each mint; `make dist DEFAULTS=FILE` names another.
+# A runner swaps them again at start with VIBROBEAST_DEFAULTS=FILE.  Order: house (prefs.KNOWN) < this
+# build file < the runner's file < the person's own row < the environment; doors.profile closed or local
+# beats all of them.  A keeper-only key or a code pin is refused here: those are the person's own words.
+# key<TAB>value<TAB>why.  This house build sets nothing: the house defaults are the build's defaults.

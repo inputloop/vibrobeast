@@ -1,0 +1,423 @@
+#!/bin/sh
+# ns2cn -- NONGNU STEWARD 2 CANON.  The skill's sources of truth, pinned in a manifest, so a session
+# can make a CAREFUL CHECK -- when a decision is about to lean on a rule -- that the source has not
+# moved since the model was written.  Not a routine guard: nothing here runs on a schedule, and the
+# check takes the lightest avenue that gives the confidence needed (a blob id before a page).
+#
+# Copyright (C) 2026 Corwin Brust <corwin@bru.st>
+# SPDX-License-Identifier: GPL-3.0-or-later
+# This file is part of nongnu-steward.  It is free software: you can redistribute it and/or
+# modify it under the terms of the GNU General Public License as published by the Free Software
+# Foundation, either version 3 of the License, or (at your option) any later version.  It is
+# distributed WITHOUT ANY WARRANTY; see <https://www.gnu.org/licenses/>.  Authored by Mentat
+# (for Corwin).
+#
+# THE FORMS, in order of preference (the FETCH column):
+#   git       a file in a repository: URL is <repo>#<path>.  The validator is the blob id; the
+#             receipt is `git ls-remote <repo> HEAD` (the HEAD request, literally).  --check is one
+#             ls-remote when the repository has not moved; a sparse, treeless, depth-1 fetch when it
+#             has -- a few tens of KB, never a clone of the tree.
+#   raw       an HTTP URL that serves the SOURCE form of a document (a repository export such as
+#             ViewVC's ?view=co, a wiki's ?action=raw wikitext, a licence's .txt): the body text is
+#             the gauge; HEAD validators when the server sends them.
+#   static    a file published once and served as-is (a hand-written page on www.gnu.org, a wiki's
+#             rendered-at-edit-time page behind nginx): fetched like raw; not the per-request CGI
+#             problem, though the repository form is still the proper one and is asked after
+#   curl      a generated web page.  Kept only where no better form is known; every such row is
+#             also on references/INQUIRE.md, because scraping generated content is the wrong
+#             avenue and the right one is to ask the people who run the resource.
+#   browser   a host that gates automated readers (Anubis, a 403 to fetchers): read by a person in
+#             a browser and recorded as such; this script never fetches it.
+#   inquire   no proper form is known: never fetched; the row keeps the URL, the date it was last
+#             read by a person and what was read; references/INQUIRE.md carries the question.
+#
+# THE MANIFEST (references/canon.tsv), one row per referent, 13 columns:
+#   SLUG URL RING FETCH SNAP STATUS SHA256-HEAD SHA256-HEAD-NORM STAMP LAST-MODIFIED ETAG SHA256-BODY NOTE
+#   SHA256-HEAD       sha256 over the raw bytes of the HEAD response (git: the ls-remote line)
+#   STAMP             the clock, read AFTER that HEAD response arrived and just before the row is
+#                     written -- refresh_row() below is in that order on purpose
+#   SHA256-HEAD-NORM  sha256 over the HEAD response with volatile headers dropped (date, cookies ...)
+#   LAST-MODIFIED     http: the header · git: the commit id      ETAG   http: the header · git: the blob id
+#   SHA256-BODY       sha256 over the text form of the body (yes/sha rows)
+#   SNAP              yes = text snapshot kept at references/canon/SLUG.txt · sha = hashed, not kept · no
+#
+# THE NAME (the AS4CE pattern, run-level in the slot): N NONGNU · S STEWARD · 2 reads the network and
+# WRITES the manifest, snapshots and a git cache under $HOME (only with --refresh/--mint) · C CANON · N "now".
+#
+# usage: sh ns2cn --check   [--manifest FILE] [--jobs N] [SLUG ...]   careful check: has canon moved? (no writes)
+#        sh ns2cn --refresh [--manifest FILE] [--force] [SLUG ...]     re-pin rows (all when none named)
+#        sh ns2cn --mint ROWS.tsv [--manifest FILE]                    first manifest from SLUG URL RING FETCH SNAP NOTE rows
+#        sh ns2cn --add  ROWS.tsv [--manifest FILE] [--pin-only]       pin these rows into an existing manifest (same slug: replaced)
+#   --pin-only  git rows: record the commit from one ls-remote and fetch NO file (for a server that
+#               cannot serve one file cheaply, on a day it should be left alone); the row's STATUS is
+#               pinned-no-body and --check compares commits only; `--refresh SLUG` completes it later
+#        sh ns2cn --derive [--manifest FILE] [SLUG ...]                 pinned-no-body git rows that have a snapshot: pin the
+#               snapshot's own blob id (git hash-object, no network) as STATUS pinned-derived -- a claim
+#               the first --check after the repository moves confirms or refutes; --refresh replaces it
+#        sh ns2cn --diff SLUG [--manifest FILE]                        today's text vs the snapshot
+#        sh ns2cn --list    [--manifest FILE]                          the rows, readable
+#        sh ns2cn --prove-red
+#   --jobs N   rows in flight at once; default 1 (pref steward.jobs) -- the canon hosts are the
+#              community's own machines, and a 9-wide run on 2026-09-23 was answered by cgit with 502
+#              pages that named scraper load as the cause.  A 5xx/429 is UNREACHABLE, never a change.
+#   Env for tests: NS2CN_HEAD_CMD / NS2CN_GET_CMD / NS2CN_GIT_CMD -- commands used instead of curl/git.
+#   Git cache: $NONGNU_STEWARD_HOME (default $HOME/.nongnu-steward.d)/git/<repo-slug>.
+# Exit: 0 unchanged/ok · 1 CHANGED or DRIFTED (or --diff differs) · 2 usage · 3 nothing decided (all
+#   unreachable / offline).  --refresh/--mint refuse a manifest with a .asc beside it without --force
+#   (the archiver rule); the old manifest goes to references/canon/.arc/canon-<stamp>.tsv first.
+set -u
+LC_ALL=C; export LC_ALL
+here=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd) || exit 2
+. "$here/nslib.sh"
+me=${0##*/}
+SKILL=$(CDPATH= cd -- "$here/.." && pwd)
+MANIFEST=$SKILL/references/canon.tsv
+MODE= ROWS= FORCE=0 DIFF= JOBS= PINONLY=0
+while [ $# -gt 0 ]; do
+  case $1 in
+    --check|--refresh|--list|--derive|--prove-red) MODE=${1#--} ;;
+    --mint) [ $# -ge 2 ] || { echo "$me: --mint needs a value" >&2; exit 2; }; MODE=mint; ROWS=$2; shift ;; --add) [ $# -ge 2 ] || { echo "$me: --add needs a value" >&2; exit 2; }; MODE=add; ROWS=$2; shift ;; --diff) [ $# -ge 2 ] || { echo "$me: --diff needs a value" >&2; exit 2; }; MODE=diff; DIFF=$2; shift ;;
+    --manifest) [ $# -ge 2 ] || { echo "$me: --manifest needs a value" >&2; exit 2; }; MANIFEST=$2; shift ;; --force) FORCE=1 ;; --jobs) [ $# -ge 2 ] || { echo "$me: --jobs needs a value" >&2; exit 2; }; JOBS=$2; shift ;; --pin-only) PINONLY=1 ;;
+    -h|--help) sed -n '/^# usage:/,/^# Exit/p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    -*) echo "$me: unknown option: $1" >&2; exit 2 ;; *) break ;;
+  esac; shift
+done
+[ -n "$MODE" ] || { echo "usage: $me --check|--refresh|--derive|--mint ROWS|--diff SLUG|--list|--prove-red" >&2; exit 2; }
+SNAPDIR=$(dirname "$MANIFEST")/canon
+UA=$(ns_pref steward.ua "$ns_ua_default" "$SKILL")
+[ -n "$JOBS" ] || JOBS=$(ns_pref steward.jobs 1 "$SKILL")
+TO=$(ns_pref steward.timeout 60 "$SKILL")
+GITCACHE=${NONGNU_STEWARD_HOME:-$HOME/.nongnu-steward.d}/git
+HDR='SLUG	URL	RING	FETCH	SNAP	STATUS	SHA256-HEAD	SHA256-HEAD-NORM	STAMP	LAST-MODIFIED	ETAG	SHA256-BODY	NOTE'
+
+W=$(mktemp -d 2>/dev/null) || { W=${TMPDIR:-/tmp}/ns2cn.$$; mkdir -p "$W"; }
+trap 'rm -rf "$W"' EXIT INT TERM
+
+# ---- http ----------------------------------------------------------------------------------------
+# one retry after a pause on a transport failure only; --fail makes an error page a failure, not a body
+head_of() {  # URL OUT -> rc
+  if [ -n "${NS2CN_HEAD_CMD:-}" ]; then $NS2CN_HEAD_CMD "$1" > "$2" 2>/dev/null; return; fi
+  curl -sS -I --location --max-redirs 5 -A "$UA" --max-time "$TO" "$1" > "$2" 2>/dev/null && [ -s "$2" ] && return 0
+  sleep 3; curl -sS -I --location --max-redirs 5 -A "$UA" --max-time "$TO" "$1" > "$2" 2>/dev/null && [ -s "$2" ]
+}
+get_of() {   # URL OUT -> rc
+  if [ -n "${NS2CN_GET_CMD:-}" ]; then $NS2CN_GET_CMD "$1" > "$2" 2>/dev/null; return; fi
+  curl -sS --fail --location --max-redirs 5 -A "$UA" --max-time $((TO*3)) "$1" -o "$2" 2>/dev/null && [ -s "$2" ] && return 0
+  sleep 3; curl -sS --fail --location --max-redirs 5 -A "$UA" --max-time $((TO*3)) "$1" -o "$2" 2>/dev/null && [ -s "$2" ]
+}
+last_block() { tr -d '\r' < "$1" | awk 'BEGIN{RS=""} {b=$0} END{print b}'; }
+status_of() { last_block "$1" | awk 'NR==1 {print $2}'; }
+hdr_of() { last_block "$1" | awk -v n="$2" -F': *' 'tolower($1)==n { sub(/^[^:]*: */, ""); print; exit }'; }
+norm_head() {
+  last_block "$1" | awk 'NR==1 { print; next }
+    { n=tolower($0); sub(/:.*/, "", n)
+      if (n=="content-type" || n=="content-length" || n=="last-modified" || n=="etag" || n=="content-language" || n=="content-location" || n=="location") { v=$0; sub(/^[^:]*:[ \t]*/, "", v); print n ": " v } }' | LC_ALL=C sort
+}
+to_text() {  # IN OUT: html -> text (scripts/styles dropped, tags stripped, entities, blank lines squeezed); else verbatim
+  if head -n 20 "$1" | grep -qi '<html\|<!doctype html\|<head'; then
+    tr -d '\r' < "$1" | awk 'BEGIN{IGNORECASE=1; skip=0}
+      { line=$0
+        while (1) {
+          if (skip) { i=index(tolower(line), "</script>"); j=index(tolower(line), "</style>"); k=(i&&j)?(i<j?i:j):(i?i:j)
+                      if (!k) { line=""; break } line=substr(line, k); sub(/^<\/(script|style)>/, "", line); skip=0; continue }
+          i=index(tolower(line), "<script"); j=index(tolower(line), "<style"); k=(i&&j)?(i<j?i:j):(i?i:j)
+          if (!k) break
+          out=substr(line, 1, k-1); rest=substr(line, k); skip=1; print out; line=rest }
+        if (!skip) print line }' \
+    | sed -e 's/<[Bb][Rr] *\/\{0,1\}>/\n/g; s/<\/\{0,1\}\([Pp]\|[Dd][Ii][Vv]\|[Ll][Ii]\|[Hh][1-6]\|[Tt][Rr]\|[Pp][Rr][Ee]\|[Dd][DdTt]\|[Tt][Aa][Bb][Ll][Ee]\)[^>]*>/\n/g' \
+    | sed -e 's/<[^>]*>//g' -e 's/&amp;/\&/g; s/&lt;/</g; s/&gt;/>/g; s/&quot;/"/g; s/&#39;/'"'"'/g; s/&nbsp;/ /g; s/&#160;/ /g; s/&rsquo;/'"'"'/g; s/&lsquo;/'"'"'/g; s/&ldquo;/"/g; s/&rdquo;/"/g; s/&mdash;/--/g; s/&ndash;/-/g; s/&hellip;/.../g; s/&copy;/(C)/g' \
+    | sed -e 's/^[ \t]*//; s/[ \t]*$//' | awk 'NF==0 { if (!blank) print ""; blank=1; next } { blank=0; print }' > "$2"
+  else tr -d '\r' < "$1" > "$2"; fi
+}
+
+# ---- git: <repo>#<path> ----------------------------------------------------------------------------
+repo_of() { printf '%s\n' "${1%%#*}"; }
+path_of() { printf '%s\n' "${1#*#}"; }
+cache_of() { printf '%s/%s\n' "$GITCACHE" "$(printf '%s' "$1" | sed 's#^[a-z]*://##; s#[^A-Za-z0-9._-]#_#g')"; }
+git_() { if [ -n "${NS2CN_GIT_CMD:-}" ]; then $NS2CN_GIT_CMD "$@"; else git "$@"; fi; }
+# the HEAD request: one ls-remote line, the receipt
+git_head() {  # REPO OUT -> rc
+  git_ ls-remote "$1" HEAD > "$2" 2>/dev/null && grep -q . "$2"
+}
+git_commit_of() { awk 'NR==1 {print $1}' "$1"; }
+# the file: a treeless, depth-1, sparse fetch -- only the commit, the trees along PATH, and the blob
+git_file() {  # REPO PATH COMMIT OUT -> rc; sets blob=
+  repo=$1; p=$2; want=$3; out=$4; d=$(cache_of "$repo")
+  if [ ! -d "$d/.git" ]; then
+    mkdir -p "$d" && git_ -C "$d" init -q && git_ -C "$d" remote add origin "$repo" || return 1
+    git_ -C "$d" config core.sparseCheckout true; git_ -C "$d" config extensions.partialClone origin
+    git_ -C "$d" config remote.origin.promisor true; git_ -C "$d" config remote.origin.partialclonefilter tree:0
+  fi
+  grep -qx "$p" "$d/.git/info/sparse-checkout" 2>/dev/null || { mkdir -p "$d/.git/info"; printf '%s\n' "$p" >> "$d/.git/info/sparse-checkout"; }
+  # fetch only when the commit is not already here: three rows on one repository cost one fetch,
+  # not three (savannah's server ignores object filters, so a depth-1 fetch there is the whole tree)
+  git_ -C "$d" cat-file -e "$want^{commit}" 2>/dev/null || git_ -C "$d" fetch -q --depth 1 --filter=tree:0 origin "$want" 2>/dev/null || return 1
+  blob=$(git_ -C "$d" rev-parse "$want:$p" 2>/dev/null) || return 1
+  git_ -C "$d" show "$want:$p" > "$out" 2>/dev/null && [ -s "$out" ]
+}
+
+# ---- one row, re-pinned: SLUG URL RING FETCH SNAP NOTE -> full row on stdout (and snapshot) -------
+refresh_row() {
+  slug=$1; url=$2; ring=$3; fetch=$4; snap=$5; note=$6
+  case $fetch in
+    browser|inquire)
+      printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$slug" "$url" "$ring" "$fetch" "$snap" "$fetch-only" - - "$(ns_stamp)" - - - "$note"; return 0 ;;
+    git)
+      repo=$(repo_of "$url"); p=$(path_of "$url")
+      if ! git_head "$repo" "$W/h.$slug"; then
+        printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$slug" "$url" "$ring" git "$snap" UNREACHABLE - - "$(ns_stamp)" - - - "$note"; return 3; fi
+      shaH=$(ns_sha "$W/h.$slug")                     # 1. the hash over the HEAD (ls-remote) response
+      stamp=$(ns_stamp)                               # 2. then the clock
+      commit=$(git_commit_of "$W/h.$slug"); shaN=$(printf '%s\n' "$commit" > "$W/n.$slug"; ns_sha "$W/n.$slug")
+      shaB=-; blob=-
+      if [ $PINONLY -eq 1 ]; then
+        printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$slug" "$url" "$ring" git "$snap" pinned-no-body "$shaH" "$shaN" "$stamp" "$commit" - - "$note"; return 0; fi
+      if [ "$snap" != no ]; then
+        if git_file "$repo" "$p" "$commit" "$W/b.$slug"; then
+          if [ "$snap" = yes ]; then mkdir -p "$SNAPDIR"; to_text "$W/b.$slug" "$SNAPDIR/$slug.txt"; shaB=$(ns_sha "$SNAPDIR/$slug.txt")
+          else to_text "$W/b.$slug" "$W/bt.$slug"; shaB=$(ns_sha "$W/bt.$slug"); fi
+        else snap=failed; blob=-; fi
+      fi
+      printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$slug" "$url" "$ring" git "$snap" ok "$shaH" "$shaN" "$stamp" "$commit" "$blob" "$shaB" "$note"   # 3. the row
+      return 0 ;;
+  esac
+  # raw and curl: http
+  if ! head_of "$url" "$W/h.$slug"; then
+    printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$slug" "$url" "$ring" "$fetch" "$snap" UNREACHABLE - - "$(ns_stamp)" - - - "$note"; return 3
+  fi
+  shaH=$(ns_sha "$W/h.$slug")                          # 1. the hash over the HEAD response, as asked
+  stamp=$(ns_stamp)                                    # 2. then the clock -- after HEAD answered
+  st=$(status_of "$W/h.$slug"); [ -n "$st" ] || st=-
+  norm_head "$W/h.$slug" > "$W/n.$slug"; shaN=$(ns_sha "$W/n.$slug")
+  lm=$(hdr_of "$W/h.$slug" last-modified); et=$(hdr_of "$W/h.$slug" etag); loc=$(hdr_of "$W/h.$slug" location)
+  shaB=-
+  case $st in 5*|429) printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$slug" "$url" "$ring" "$fetch" "$snap" UNREACHABLE - - "$stamp" - - - "$note"; return 3 ;; esac
+  if [ "$snap" = yes ]; then
+    if get_of "$url" "$W/b.$slug"; then mkdir -p "$SNAPDIR"; to_text "$W/b.$slug" "$SNAPDIR/$slug.txt"; shaB=$(ns_sha "$SNAPDIR/$slug.txt"); else snap=failed; fi
+  elif [ "$snap" = sha ]; then
+    if get_of "$url" "$W/b.$slug"; then to_text "$W/b.$slug" "$W/bt.$slug"; shaB=$(ns_sha "$W/bt.$slug"); else snap=failed; fi
+  fi
+  case $st in 3*) note="moved: ${loc:-?}${note:+ · $note}" ;; esac
+  printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$slug" "$url" "$ring" "$fetch" "$snap" "$st" "$shaH" "$shaN" "$stamp" "${lm:--}" "${et:--}" "$shaB" "$note"   # 3. the row, last
+}
+
+rows_of() { grep -v '^SLUG	' "$1" | grep -v '^[ \t]*$' | grep -v '^#'; }
+
+check_row() {  # full manifest row -> one report line; sets $verdict
+  IFS='	' read -r slug url ring fetch snap st shaH shaN stamp lm et shaB note <<EOR
+$1
+EOR
+  verdict=SKIP
+  case $fetch in
+    browser) printf 'SKIP        %-32s browser-only (%s)\n' "$slug" "$url"; return ;;
+    inquire) printf 'SKIP        %-32s no proper form known -- see references/INQUIRE.md (%s)\n' "$slug" "$url"; return ;;
+    git)
+      repo=$(repo_of "$url"); p=$(path_of "$url")
+      if ! git_head "$repo" "$W/c.$slug"; then verdict=UNREACHABLE; printf 'UNREACHABLE %-32s ls-remote %s\n' "$slug" "$repo"; return; fi
+      ncommit=$(git_commit_of "$W/c.$slug")
+      if [ "$ncommit" = "$lm" ]; then verdict=UNCHANGED; printf 'UNCHANGED   %-32s repository at the pinned commit %s%s\n' "$slug" "$(printf '%s' "$lm" | cut -c1-12)" "$( [ "$st" = pinned-no-body ] && printf ' (commit-level only: no blob pinned yet)'; [ "$st" = pinned-derived ] && printf ' (blob derived from the snapshot, unconfirmed until the repository moves)')"; return; fi
+      if [ "$st" = pinned-no-body ]; then verdict=DRIFTED; printf 'DRIFTED     %-32s repository moved %s -> %s and no blob is pinned to compare -- sh %s --refresh %s when the server is calm\n' "$slug" "$(printf '%s' "$lm" | cut -c1-12)" "$(printf '%s' "$ncommit" | cut -c1-12)" "$me" "$slug"; return; fi
+      # the repository moved; did the file?  (one small fetch: commit + trees along the path + blob)
+      if git_file "$repo" "$p" "$ncommit" "$W/cb.$slug"; then
+        if [ "$blob" = "$et" ]; then verdict=UNCHANGED; printf 'UNCHANGED   %-32s repository moved to %s, file blob unchanged%s\n' "$slug" "$(printf '%s' "$ncommit" | cut -c1-12)" "$( [ "$st" = pinned-derived ] && printf ' (the derived blob is confirmed: sh %s --refresh %s records it)' "$me" "$slug")"
+        else verdict=CHANGED; printf 'CHANGED     %-32s blob %s -> %s at commit %s -- sh %s --diff %s\n' "$slug" "$(printf '%s' "$et" | cut -c1-12)" "$(printf '%s' "$blob" | cut -c1-12)" "$(printf '%s' "$ncommit" | cut -c1-12)" "$me" "$slug"; fi
+      else verdict=UNREACHABLE; printf 'UNREACHABLE %-32s repository moved but the sparse fetch failed\n' "$slug"; fi
+      return ;;
+  esac
+  if ! head_of "$url" "$W/c.$slug"; then verdict=UNREACHABLE; printf 'UNREACHABLE %-32s %s\n' "$slug" "$url"; return; fi
+  nst=$(status_of "$W/c.$slug")
+  case $nst in 5*|429) verdict=UNREACHABLE; printf 'UNREACHABLE %-32s HEAD answered %s (server trouble, not a change)\n' "$slug" "$nst"; return ;; esac
+  norm_head "$W/c.$slug" > "$W/cn.$slug"; nN=$(ns_sha "$W/cn.$slug")
+  nlm=$(hdr_of "$W/c.$slug" last-modified); net=$(hdr_of "$W/c.$slug" etag)
+  has_validator=0; { [ "$lm" != - ] || [ "$et" != - ] || grep -q '^content-length:' "$W/cn.$slug"; } && has_validator=1
+  if [ "$nN" = "$shaN" ] && [ $has_validator -eq 1 ]; then
+    verdict=UNCHANGED; printf 'UNCHANGED   %-32s head validators agree (pinned %s)\n' "$slug" "$stamp"; return; fi
+  if { [ "$snap" = yes ] || [ "$snap" = sha ]; } && [ "$shaB" != - ]; then
+    if get_of "$url" "$W/cb.$slug"; then
+      to_text "$W/cb.$slug" "$W/ct.$slug"; nB=$(ns_sha "$W/ct.$slug")
+      if [ "$nB" = "$shaB" ]; then verdict=UNCHANGED; printf 'UNCHANGED   %-32s by body text (head: %s)\n' "$slug" "$( [ "$nN" = "$shaN" ] && echo same || echo drifted)"
+      else verdict=CHANGED; printf 'CHANGED     %-32s by body text%s\n' "$slug" "$( [ "$snap" = yes ] && printf -- ' -- sh %s --diff %s' "$me" "$slug")"; fi
+    else verdict=UNREACHABLE; printf 'UNREACHABLE %-32s HEAD answered, GET did not\n' "$slug"; fi
+    return
+  fi
+  if [ "$nN" = "$shaN" ]; then verdict=UNDECIDED; printf 'UNDECIDED   %-32s head agrees but carries no validator and there is no body hash (set SNAP=sha)\n' "$slug"
+  else verdict=DRIFTED; printf 'DRIFTED     %-32s headers moved (status %s -> %s · last-modified %s -> %s · etag %s -> %s) and no body hash to confirm\n' "$slug" "$st" "${nst:-?}" "$lm" "${nlm:--}" "$et" "${net:--}"; fi
+}
+
+do_check() {  # [SLUG ...]
+  [ -f "$MANIFEST" ] || { echo "$me: no manifest at $MANIFEST" >&2; exit 2; }
+  c=0 u=0 r=0 s=0 n=0 d=0 x=0
+  if [ $# -gt 0 ]; then : > "$W/rows"; for a in "$@"; do rows_of "$MANIFEST" | awk -F'\t' -v s="$a" '$1==s' >> "$W/rows"; done
+  else rows_of "$MANIFEST" > "$W/rows"; fi
+  i=0; b=0
+  while IFS= read -r row; do
+    [ -n "$row" ] || continue; i=$((i+1))
+    ( check_row "$row" > "$W/r.$i" 2>&1; printf '%s\n' "$verdict" > "$W/v.$i" ) &
+    b=$((b+1)); if [ $b -ge "$JOBS" ]; then wait; b=0; fi
+  done < "$W/rows"
+  wait; n=$i; i=0
+  while [ $i -lt $n ]; do
+    i=$((i+1)); cat "$W/r.$i" 2>/dev/null; v=$(cat "$W/v.$i" 2>/dev/null)
+    case $v in CHANGED) c=$((c+1)) ;; DRIFTED) d=$((d+1)) ;; UNCHANGED) u=$((u+1)) ;; UNREACHABLE) r=$((r+1)) ;; UNDECIDED) x=$((x+1)) ;; SKIP) s=$((s+1)) ;; esac
+  done
+  echo "$me: $n rows · $u unchanged · $c changed · $d drifted · $x undecided · $r unreachable · $s not fetched (browser/inquire)"
+  [ $((c + d)) -gt 0 ] && { echo "$me: canon moved -- re-read the CHANGED/DRIFTED rows, fold the difference into references/MODEL-steward.md, then: sh $me --refresh SLUG..."; exit 1; }
+  [ $n -gt 0 ] && [ $r -eq $((n - s)) ] && { echo "$me: nothing decided (every fetchable row unreachable -- offline?)"; exit 3; }
+  exit 0
+}
+
+do_refresh() {  # SLUG... (none = all)
+  [ -f "$MANIFEST" ] || { echo "$me: no manifest at $MANIFEST (use --mint ROWS first)" >&2; exit 2; }
+  if [ -f "$MANIFEST.asc" ] && [ $FORCE -eq 0 ]; then echo "$me: $MANIFEST is signed ($MANIFEST.asc); refusing to rewrite without --force" >&2; exit 1; fi
+  mkdir -p "$SNAPDIR/.arc"; cp "$MANIFEST" "$SNAPDIR/.arc/canon-$(ns_stamp | tr -d ':').tsv"
+  printf '%s\n' "$HDR" > "$W/new"
+  rows_of "$MANIFEST" | while IFS='	' read -r slug url ring fetch snap st shaH shaN stamp lm et shaB note; do
+    want=0; if [ $# -eq 0 ]; then want=1; else for a in "$@"; do [ "$a" = "$slug" ] && want=1; done; fi
+    if [ $want -eq 1 ]; then
+      [ "$snap" = failed ] && snap=yes
+      refresh_row "$slug" "$url" "$ring" "$fetch" "$snap" "$note" >> "$W/new"; echo "refreshed $slug" >&2
+    else printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$slug" "$url" "$ring" "$fetch" "$snap" "$st" "$shaH" "$shaN" "$stamp" "$lm" "$et" "$shaB" "$note" >> "$W/new"; fi
+  done
+  cat "$W/new" > "$MANIFEST"; echo "$me: wrote $MANIFEST ($(rows_of "$MANIFEST" | grep -c .) rows)"
+}
+
+do_mint() {
+  [ -f "$ROWS" ] || { echo "$me: no rows file $ROWS" >&2; exit 2; }
+  if [ -f "$MANIFEST.asc" ] && [ $FORCE -eq 0 ]; then echo "$me: $MANIFEST is signed; refusing without --force" >&2; exit 1; fi
+  mkdir -p "$(dirname "$MANIFEST")"
+  printf '%s\n' "$HDR" > "$W/new"
+  grep -v '^#' "$ROWS" | grep -v '^[ \t]*$' | grep -v '^SLUG	' | while IFS='	' read -r slug url ring fetch snap note; do
+    refresh_row "$slug" "$url" "$ring" "$fetch" "$snap" "${note:-}" >> "$W/new"; echo "minted $slug" >&2
+  done
+  cat "$W/new" > "$MANIFEST"; echo "$me: wrote $MANIFEST ($(rows_of "$MANIFEST" | grep -c .) rows)"
+}
+
+do_add() {
+  [ -f "$ROWS" ] || { echo "$me: no rows file $ROWS" >&2; exit 2; }
+  [ -f "$MANIFEST" ] || { printf '%s\n' "$HDR" > "$MANIFEST"; }
+  if [ -f "$MANIFEST.asc" ] && [ $FORCE -eq 0 ]; then echo "$me: $MANIFEST is signed; refusing without --force" >&2; exit 1; fi
+  mkdir -p "$SNAPDIR/.arc"; cp "$MANIFEST" "$SNAPDIR/.arc/canon-$(ns_stamp | tr -d ':').tsv"
+  grep -v '^#' "$ROWS" | grep -v '^[ \t]*$' | grep -v '^SLUG	' | cut -f1 > "$W/slugs"
+  { printf '%s\n' "$HDR"; rows_of "$MANIFEST" | awk -F'\t' 'FNR==NR {drop[$1]=1; next} !($1 in drop)' "$W/slugs" -; } > "$W/new"
+  grep -v '^#' "$ROWS" | grep -v '^[ \t]*$' | grep -v '^SLUG	' | while IFS='	' read -r slug url ring fetch snap note; do
+    refresh_row "$slug" "$url" "$ring" "$fetch" "$snap" "${note:-}" >> "$W/new"; echo "pinned $slug" >&2
+  done
+  cat "$W/new" > "$MANIFEST"; echo "$me: wrote $MANIFEST ($(rows_of "$MANIFEST" | grep -c .) rows)"
+}
+
+do_diff() {
+  row=$(rows_of "$MANIFEST" | awk -F'\t' -v s="$DIFF" '$1==s'); [ -n "$row" ] || { echo "$me: no row $DIFF in $MANIFEST" >&2; exit 2; }
+  url=$(printf '%s\n' "$row" | cut -f2); fetch=$(printf '%s\n' "$row" | cut -f4)
+  [ -f "$SNAPDIR/$DIFF.txt" ] || { echo "$me: no snapshot $SNAPDIR/$DIFF.txt (SNAP=no?)" >&2; exit 2; }
+  if [ "$fetch" = git ]; then
+    repo=$(repo_of "$url"); p=$(path_of "$url"); git_head "$repo" "$W/dh" || { echo "$me: cannot reach $repo" >&2; exit 3; }
+    git_file "$repo" "$p" "$(git_commit_of "$W/dh")" "$W/d" || { echo "$me: cannot fetch $p from $repo" >&2; exit 3; }
+  else get_of "$url" "$W/d" || { echo "$me: cannot fetch $url" >&2; exit 3; }; fi
+  to_text "$W/d" "$W/dt"; diff -u "$SNAPDIR/$DIFF.txt" "$W/dt" && echo "$me: $DIFF unchanged since its snapshot"
+}
+
+do_derive() {  # SLUG... (none = every pinned-no-body git row that has a snapshot)
+  [ -f "$MANIFEST" ] || { echo "$me: no manifest at $MANIFEST" >&2; exit 2; }
+  if [ -f "$MANIFEST.asc" ] && [ $FORCE -eq 0 ]; then echo "$me: $MANIFEST is signed ($MANIFEST.asc); refusing to rewrite without --force" >&2; exit 1; fi
+  mkdir -p "$SNAPDIR/.arc"; cp "$MANIFEST" "$SNAPDIR/.arc/canon-$(ns_stamp | tr -d ':').tsv"
+  printf '%s\n' "$HDR" > "$W/new"; n=0
+  rows_of "$MANIFEST" | while IFS='	' read -r slug url ring fetch snap st shaH shaN stamp lm et shaB note; do
+    want=0; if [ $# -eq 0 ]; then want=1; else for a in "$@"; do [ "$a" = "$slug" ] && want=1; done; fi
+    if [ $want -eq 1 ] && [ "$fetch" = git ] && [ "$st" = pinned-no-body ] && [ -s "$SNAPDIR/$slug.txt" ]; then
+      et=$(git hash-object "$SNAPDIR/$slug.txt") && shaB=$(ns_sha "$SNAPDIR/$slug.txt") && st=pinned-derived \
+        && note="${note:+$note · }blob derived from the snapshot bytes (git hash-object), not read at commit $(printf '%s' "$lm" | cut -c1-12)" \
+        && echo "derived $slug $(printf '%s' "$et" | cut -c1-12)" >&2
+    elif [ $want -eq 1 ] && [ $# -gt 0 ]; then echo "$me: $slug is not a pinned-no-body git row with a snapshot (status $st, snapshot $( [ -s "$SNAPDIR/$slug.txt" ] && echo present || echo absent)); left as is" >&2; fi
+    printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$slug" "$url" "$ring" "$fetch" "$snap" "$st" "$shaH" "$shaN" "$stamp" "$lm" "$et" "$shaB" "$note" >> "$W/new"
+  done
+  cat "$W/new" > "$MANIFEST"; echo "$me: wrote $MANIFEST ($(rows_of "$MANIFEST" | grep -c .) rows)"
+}
+
+do_list() { rows_of "$MANIFEST" | awk -F'\t' '{ printf "%-34s ring %s  %-8s %-12s %-10s %s  %s\n", $1, $3, $4, substr($6,1,12), substr($9,1,10), substr($11,1,12), $2 }'; }
+
+# ---- prove-red: canned responses, no network ------------------------------------------------------
+if [ "$MODE" = prove-red ]; then
+  cat > "$W/headA" <<'H'
+#!/bin/sh
+printf 'HTTP/1.1 200 OK\r\nDate: %s\r\nContent-Type: text/html\r\nContent-Length: 100\r\nLast-Modified: Tue, 28 Feb 2023 10:23:02 GMT\r\n\r\n' "$(date)"
+H
+  cat > "$W/headB" <<'H'
+#!/bin/sh
+printf 'HTTP/1.1 200 OK\r\nDate: x\r\nContent-Type: text/html\r\nContent-Length: 200\r\nLast-Modified: Wed, 01 Jul 2025 18:15:50 GMT\r\n\r\n'
+H
+  cat > "$W/headP" <<'H'
+#!/bin/sh
+printf 'HTTP/2 200 \r\ndate: %s\r\ncontent-type: text/html; charset=utf-8\r\n\r\n' "$(date)"
+H
+  cat > "$W/head5" <<'H'
+#!/bin/sh
+printf 'HTTP/1.1 502 Bad Gateway\r\nDate: x\r\nContent-Type: text/html\r\n\r\n'
+H
+  cat > "$W/getA" <<'H'
+#!/bin/sh
+printf '<html><head><style>x{}</style><script>var a=1;</script></head><body><h1>Hosting &amp; requirements</h1><p>All packages should carry notices.</p></body></html>\n'
+H
+  cat > "$W/getB" <<'H'
+#!/bin/sh
+printf '<html><body><h1>Hosting &amp; requirements</h1><p>All packages MUST carry notices.</p></body></html>\n'
+H
+  # a fake git: ls-remote prints $FAKE_COMMIT; fetch is a no-op; rev-parse prints $FAKE_BLOB; show prints $FAKE_TEXT
+  cat > "$W/gitF" <<'H'
+#!/bin/sh
+d=; if [ "$1" = -C ]; then d=$2; shift 2; fi
+case $1 in
+  ls-remote) printf '%s\tHEAD\n' "$FAKE_COMMIT" ;;
+  init) mkdir -p "$d/.git/info" ;;
+  remote|config|fetch) : ;;
+  rev-parse) printf '%s\n' "$FAKE_BLOB" ;;
+  show) printf '%s\n' "$FAKE_TEXT" ;;
+  *) exit 1 ;;
+esac
+H
+  chmod +x "$W"/head* "$W"/get* "$W/gitF"
+  MANIFEST=$W/m/canon.tsv; SNAPDIR=$W/m/canon; ROWS=$W/rows; GITCACHE=$W/gitcache
+  printf 'one\thttp://x/one\t1\tcurl\tyes\tnote one\ntwo\thttp://x/two\t1\tcurl\tno\thead only\nthree\thttp://x/three\t3\tcurl\tsha\tbig file\nphp\thttp://x/php\t1\traw\tyes\tno validators\ng\thttps://x/r.git#CONTRIBUTE\t3\tgit\tyes\ta file in a repo\nglibc\thttp://x/glibc\t3\tbrowser\tno\tanubis\nwiki\thttp://x/wiki\t1\tinquire\tno\tno source repo known\n' > "$W/rows"
+  red=0
+  export FAKE_COMMIT=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa FAKE_BLOB=bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb FAKE_TEXT='first text'
+  NS2CN_HEAD_CMD="$W/headA" NS2CN_GET_CMD="$W/getA" NS2CN_GIT_CMD="$W/gitF" do_mint > /dev/null 2>&1 && red=$((red+1)) || echo "FAIL: mint"
+  r=$(rows_of "$MANIFEST" | awk -F'\t' '$1=="one"'); printf '%s\n' "$r" | grep -q '	200	[0-9a-f]\{64\}	[0-9a-f]\{64\}	20[0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9:]*Z	Tue, 28 Feb 2023 10:23:02 GMT	-	[0-9a-f]\{64\}	note one$' && red=$((red+1)) || echo "FAIL: row shape: $r"
+  r=$(rows_of "$MANIFEST" | awk -F'\t' '$1=="g"'); printf '%s\n' "$r" | grep -q "	git	yes	ok	[0-9a-f]\{64\}	[0-9a-f]\{64\}	20[0-9][0-9]-[^	]*	$FAKE_COMMIT	$FAKE_BLOB	[0-9a-f]\{64\}	a file in a repo$" && grep -q 'first text' "$SNAPDIR/g.txt" && red=$((red+1)) || echo "FAIL: git row shape (commit in LAST-MODIFIED, blob in ETAG, snapshot): $r"
+  r=$(rows_of "$MANIFEST" | awk -F'\t' '$1=="wiki"'); printf '%s\n' "$r" | grep -q '	inquire	no	inquire-only	-	-	' && red=$((red+1)) || echo "FAIL: inquire row never fetched: $r"
+  printf 'big\thttps://x/big.git#FILE\t3\tgit\tyes\tpinned at commit level only\n' > "$W/rows2"
+  NS2CN_HEAD_CMD="$W/headA" NS2CN_GET_CMD="$W/getA" NS2CN_GIT_CMD="$W/gitF" ROWS=$W/rows2 PINONLY=1 do_add >/dev/null 2>&1
+  r=$(rows_of "$MANIFEST" | awk -F'\t' '$1=="big"'); printf '%s\n' "$r" | grep -q "	git	yes	pinned-no-body	[0-9a-f]\{64\}	[0-9a-f]\{64\}	20[0-9][0-9]-[^	]*	$FAKE_COMMIT	-	-	pinned" && [ ! -f "$SNAPDIR/big.txt" ] && red=$((red+1)) || echo "FAIL: --pin-only row must carry the commit and no blob/snapshot: $r"
+  o=$(env NS2CN_HEAD_CMD="$W/headA" NS2CN_GET_CMD="$W/getA" NS2CN_GIT_CMD="$W/gitF" FAKE_COMMIT=cccccccccccccccccccccccccccccccccccccccc sh "$0" --check --manifest "$MANIFEST" big 2>&1)
+  printf '%s\n' "$o" | grep -q '^DRIFTED     big .*no blob is pinned' && red=$((red+1)) || echo "FAIL: pin-only row with a moved commit is DRIFTED with the refresh hint: $o"
+  printf 'planted snapshot\n' > "$SNAPDIR/big.txt"; do_derive big >/dev/null 2>&1
+  r=$(rows_of "$MANIFEST" | awk -F'\t' '$1=="big"'); printf '%s\n' "$r" | grep -q "	pinned-derived	.*	$FAKE_COMMIT	$(git hash-object "$SNAPDIR/big.txt")	$(ns_sha "$SNAPDIR/big.txt")	.*blob derived from the snapshot" && red=$((red+1)) || echo "FAIL: --derive must pin the snapshot's own blob id and body sha as pinned-derived: $r"
+  grep -q 'Hosting & requirements' "$SNAPDIR/one.txt" && ! grep -q 'var a=1' "$SNAPDIR/one.txt" && [ ! -f "$SNAPDIR/three.txt" ] && red=$((red+1)) || echo "FAIL: snapshot text / sha-only row"
+  E="NS2CN_HEAD_CMD=$W/headA NS2CN_GET_CMD=$W/getA NS2CN_GIT_CMD=$W/gitF"
+  o=$(env $E sh "$0" --check --manifest "$MANIFEST" 2>&1); rc=$?
+  [ $rc -eq 0 ] && printf '%s\n' "$o" | grep -q '^UNCHANGED   one .*head validators' && printf '%s\n' "$o" | grep -q '^UNCHANGED   g .*pinned commit' && printf '%s\n' "$o" | grep -q '^SKIP        glibc' && printf '%s\n' "$o" | grep -q '^SKIP        wiki .*INQUIRE' && red=$((red+1)) || echo "FAIL: same head (new date) / same commit must be UNCHANGED; browser+inquire SKIP: rc=$rc $o"
+  o=$(env $E FAKE_COMMIT=cccccccccccccccccccccccccccccccccccccccc sh "$0" --check --manifest "$MANIFEST" g 2>&1)
+  printf '%s\n' "$o" | grep -q '^UNCHANGED   g .*repository moved.*blob unchanged' && red=$((red+1)) || echo "FAIL: repo moved, blob same -> UNCHANGED: $o"
+  o=$(env $E FAKE_COMMIT=cccccccccccccccccccccccccccccccccccccccc FAKE_BLOB=dddddddddddddddddddddddddddddddddddddddd FAKE_TEXT='second text' sh "$0" --check --manifest "$MANIFEST" g 2>&1); rc=$?
+  [ $rc -eq 1 ] && printf '%s\n' "$o" | grep -q '^CHANGED     g .*blob bbbbbbbbbbbb -> dddddddddddd' && red=$((red+1)) || echo "FAIL: blob changed -> CHANGED rc 1: rc=$rc $o"
+  o=$(env $E FAKE_COMMIT=cccccccccccccccccccccccccccccccccccccccc FAKE_BLOB=dddddddddddddddddddddddddddddddddddddddd FAKE_TEXT='second text' sh "$0" --diff g --manifest "$MANIFEST" 2>&1); rc=$?
+  [ $rc -eq 1 ] && printf '%s\n' "$o" | grep -q '^+second text' && red=$((red+1)) || echo "FAIL: --diff on a git row: rc=$rc $o"
+  o=$(NS2CN_HEAD_CMD="$W/headB" NS2CN_GET_CMD="$W/getA" NS2CN_GIT_CMD="$W/gitF" sh "$0" --check --manifest "$MANIFEST" 2>&1); rc=$?
+  printf '%s\n' "$o" | grep -q '^UNCHANGED   one .*by body text (head: drifted)' && printf '%s\n' "$o" | grep -q '^DRIFTED     two' && printf '%s\n' "$o" | grep -q '^UNCHANGED   three .*by body' && [ $rc -eq 1 ] && red=$((red+1)) || echo "FAIL: drifted head with same body = UNCHANGED; no-snapshot row = DRIFTED, rc 1: rc=$rc $o"
+  o=$(NS2CN_HEAD_CMD="$W/headB" NS2CN_GET_CMD="$W/getB" NS2CN_GIT_CMD="$W/gitF" sh "$0" --check --manifest "$MANIFEST" 2>&1); rc=$?
+  printf '%s\n' "$o" | grep -q '^CHANGED     one .*--diff one' && printf '%s\n' "$o" | grep -q '^CHANGED     three .*by body text$' && red=$((red+1)) || echo "FAIL: changed body must be CHANGED (with --diff hint only for yes rows): $o"
+  NS2CN_HEAD_CMD="$W/headP" NS2CN_GET_CMD="$W/getA" NS2CN_GIT_CMD="$W/gitF" sh "$0" --refresh --manifest "$MANIFEST" php >/dev/null 2>&1
+  o=$(NS2CN_HEAD_CMD="$W/headP" NS2CN_GET_CMD="$W/getB" NS2CN_GIT_CMD="$W/gitF" sh "$0" --check --manifest "$MANIFEST" php 2>&1)
+  printf '%s\n' "$o" | grep -q '^CHANGED     php .*by body text' && red=$((red+1)) || echo "FAIL: body change on a validator-less page: $o"
+  o=$(NS2CN_HEAD_CMD=false NS2CN_GET_CMD=false NS2CN_GIT_CMD=false sh "$0" --check --manifest "$MANIFEST" 2>&1); rc=$?
+  [ $rc -eq 3 ] && red=$((red+1)) || echo "FAIL: all unreachable must exit 3 (nothing decided): rc=$rc"
+  o=$(NS2CN_HEAD_CMD="$W/head5" NS2CN_GET_CMD="$W/getB" NS2CN_GIT_CMD="$W/gitF" sh "$0" --check --manifest "$MANIFEST" one 2>&1)
+  printf '%s\n' "$o" | grep -q '^UNREACHABLE one .*502' && ! printf '%s\n' "$o" | grep -q '^CHANGED' && red=$((red+1)) || echo "FAIL: a 502 must be UNREACHABLE, never CHANGED: $o"
+  : > "$MANIFEST.asc"
+  env $E sh "$0" --refresh --manifest "$MANIFEST" >/dev/null 2>&1 && echo "FAIL: signed manifest rewritten without --force" || red=$((red+1))
+  env $E sh "$0" --refresh --force --manifest "$MANIFEST" one >/dev/null 2>&1 && ls "$SNAPDIR/.arc/" | grep -q '^canon-.*\.tsv$' && red=$((red+1)) || echo "FAIL: --force refused or no archive"
+  [ $red -eq 19 ] && { echo "PASS: ns2cn pins http and git rows (hash, then clock, then row), never fetches browser/inquire rows, answers a git check with one ls-remote when the commit stands and by blob id when it moved, derives a blob from a snapshot without the network, lets a body overrule a drifted HEAD, calls a 502 unreachable, exits 3 when nothing is decided, diffs, and honours a signature"; exit 0; }
+  echo "FAIL: ns2cn prove-red $red/19"; exit 1
+fi
+
+case $MODE in
+  check) do_check "$@" ;; refresh) do_refresh "$@" ;; derive) do_derive "$@" ;; mint) do_mint ;; add) do_add ;; diff) do_diff ;; list) do_list ;;
+esac
