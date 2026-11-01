@@ -33,6 +33,7 @@ Each skill is a folder with a `SKILL.md`. Claude reads one when the task calls f
 | `guarded-visibility` | The tensions in guarded visibility: showing people what a system does without lying to them and without exposing what must stay private. |
 | `hand-test` | Hand the user ONE chat-native test after a completed build/swing — run-card's rigor delivered in the chat (nothing to open), 3–5 DO/SEE-checkbox steps they tick as they flit. |
 | `hooks-to-knowledge` | A design rule for integration & substitution decisions: a hook — an adapter, wrapper, shim, plugin point, or integration seam — is to KNOWLEDGE, not to unique function. |
+| `host-dancer` | DNS provider orchestration for the shop, porkbun and dreamhost first. |
 | `inculcat-boxer` | Disposition discipline — what happens to material AFTER it is read or acted on, so nothing quietly stays put. |
 | `instrument-panel` | Run the gauges — one measured, receipted view of a signed working tree's state (signatures vs pinned key, edit-debt, seal freshness, tree version, git dirt) with a canary-first reader check. |
 | `interesting-lines` | Watch a long run (make check, a build, a test suite, any log) with the interesting lines shown and the dull ones folded into one counted line each, so a failure and its traceback are never buried and known noise is a number, not a screen... |

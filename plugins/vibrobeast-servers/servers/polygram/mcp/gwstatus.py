@@ -649,6 +649,8 @@ def _words(r: dict) -> str:
 def build():
     from .rpc import Server, ToolError
     srv = Server(name="gwstatus", version=VERSION, require_mode=False)
+    from . import dnsdoor                      # DNS orchestration (dns_*): listed only while the dns.on door is open
+    dnsdoor.register(srv)
 
     if not is_on():
         @srv.tool("gw_status", "Whether the ghostwheel status door is on, and what turning it on means. "

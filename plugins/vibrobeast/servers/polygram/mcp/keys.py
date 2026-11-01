@@ -14,6 +14,13 @@ GitHub.  A token is kept once; programs ask for it under their own names (gh: GH
 GITHUB_TOKEN; git over https: a header; git over ssh: GIT_SSH_COMMAND).  Binding the one to the
 many by hand is the pain point.  Three pieces answer it:
 
+ATOMS (2026-11-01).  When a ``keys/`` folder sits beside the register, the register is that folder: one
+small file per key, ``keys/NAME.kv``, lines ``field: value``.  ``keys.tsv`` is then GENERATED from the
+atoms (the same seven columns, sorted by name, byte-stable) so other readers (dn1or) keep working
+unchanged.  Each change also appends to ``keys/NAME.hist``.  No ``keys/`` folder: the TSV is read and
+written as before.  ``python3 -m polygram.mcp.keys --migrate`` moves a TSV to atoms once.  Restore: put the
+``keys/`` folder back from git or a backup, then ``--rollup``.  See advice/ENHANCE-20261101-keys-as-atoms.md.
+
 THE REGISTER -- a managed list, one row per key, ``~/.mentcached/keys.tsv`` (VIBROBEAST_KEYS_FILE
 names another).  Append-only, like prefs.tsv: the last row for a NAME wins; KIND ``-`` removes it.
 
@@ -163,7 +170,147 @@ def problems_of(row: dict) -> list[str]:
     return p
 
 
+SAFE_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$")
+ATOM_FIELDS = COLS            # name first; the file is NAME.kv
+
+
+def keys_dir(path: Path | None = None) -> Path:
+    """The atoms folder: VIBROBEAST_KEYS_DIR, else ``keys/`` beside the register file."""
+    d = _env("VIBROBEAST_KEYS_DIR")
+    return Path(d).expanduser() if d else Path(path or register_file()).parent / "keys"
+
+
+def atom_text(row: dict) -> str:
+    return "".join(f"{c}: {row.get(c) or ''}\n".replace(": \n", ":\n") for c in ATOM_FIELDS)
+
+
+def parse_atom(text: str) -> dict:
+    row = {c: "" for c in COLS}
+    for line in text.splitlines():
+        if ":" in line and not line.startswith("#"):
+            f, _, v = line.partition(":")
+            if f.strip() in row:
+                row[f.strip()] = v.strip()
+    return row
+
+
+def read_atoms(d: Path) -> tuple[dict[str, dict], list[dict]]:
+    rows: dict[str, dict] = {}
+    ignored: list[dict] = []
+    for f in sorted(d.glob("*.kv")):
+        row = parse_atom(f.read_text(encoding="utf-8"))
+        why = problems_of(row) if row["name"] else ["no name"]
+        if row["name"] and f.name != row["name"] + ".kv":
+            why.append(f"file name does not match name {row['name']!r}")
+        if row["kind"] == "-":
+            why.append("an atom is never kind -; remove the key to remove the file")
+        if why:
+            ignored.append({"line": f"keys/{f.name}", "name": row["name"], "reason": "; ".join(why)})
+        else:
+            row["line"] = f"keys/{f.name}"
+            rows[row["name"]] = row
+    return rows, ignored
+
+
+def rollup_text(rows: dict[str, dict]) -> str:
+    """keys.tsv as generated: a header, then one row per key, sorted by name.  Nothing else (no time)."""
+    out = ["# keys register: " + "\t".join(c.upper() for c in COLS)
+           + "  (GENERATED from keys/*.kv by polygram.mcp.keys; change the atoms, not this file)\n"]
+    for n in sorted(rows):
+        out.append("\t".join(rows[n].get(c, "") for c in COLS) + "\n")
+    return "".join(out)
+
+
+def _put(path: Path, text: str) -> bool:
+    """Write only when the bytes differ, through a temp file; True when it wrote."""
+    if path.is_file() and path.read_bytes() == text.encode("utf-8"):
+        return False
+    tmp = path.with_name(path.name + ".tmp")
+    tmp.write_bytes(text.encode("utf-8"))
+    os.replace(tmp, path)
+    return True
+
+
+def write_rollup(path: Path | None = None) -> bool:
+    p = Path(path or register_file())
+    d = keys_dir(p)
+    rows, _ = read_atoms(d)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    return _put(p, rollup_text(rows))
+
+
+def _stamp() -> str:
+    return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+
+
+def set_atom(row: dict, path: Path | None = None, note: str = "set") -> str:
+    """Write (or, kind -, remove) one atom, append its history, regenerate the roll-up.  Returns what happened."""
+    p = Path(path or register_file())
+    d = keys_dir(p)
+    d.mkdir(parents=True, exist_ok=True)
+    f = d / (row["name"] + ".kv")
+    hist = d / (row["name"] + ".hist")
+    if row["kind"] == "-":
+        if f.is_file():
+            f.unlink()
+            with hist.open("a", encoding="utf-8", newline="") as fh:
+                fh.write(f"# {_stamp()} removed\n")
+        write_rollup(p)
+        return "removed"
+    text = atom_text(row)
+    changed = _put(f, text)
+    if changed:
+        with hist.open("a", encoding="utf-8", newline="") as fh:
+            fh.write(f"# {_stamp()} {note}\n{text}")
+    write_rollup(p)
+    return "written" if changed else "unchanged"
+
+
+def migrate(tsv: Path | None = None, dry: bool = False) -> dict:
+    """One-shot: the TSV (last row wins, - removes) becomes atoms.  Two-sided stop: if keys/ already holds
+    atoms that differ from what the TSV gives, nothing is written.  Safe to run twice."""
+    tsv = Path(tsv or register_file())
+    d = keys_dir(tsv)
+    rows, ignored = read_tsv(tsv)
+    bad = sorted(n for n in rows if not SAFE_NAME.match(n))
+    if bad:
+        return {"ok": False, "say": "not migrated: these names cannot be file names: " + ", ".join(bad),
+                "ignored": ignored}
+    want = {n: atom_text(r) for n, r in rows.items()}
+    have = {f.stem: f.read_text(encoding="utf-8") for f in sorted(d.glob("*.kv"))} if d.is_dir() else {}
+    differ = sorted(n for n in set(want) | set(have) if want.get(n) != have.get(n))
+    if have and differ:
+        return {"ok": False, "stopped": True, "differ": differ, "ignored": ignored,
+                "say": "stopped: keys/ already holds atoms that differ from keys.tsv (" + ", ".join(differ)
+                       + "); nothing was written. Look at both sides and decide which is right."}
+    if dry:
+        return {"ok": True, "dry": True, "would_write": sorted(want), "ignored": ignored,
+                "say": f"would write {len(want)} atom(s): " + ", ".join(sorted(want))}
+    d.mkdir(parents=True, exist_ok=True)
+    keep = d / (tsv.name + ".before-atoms")
+    if tsv.is_file() and not keep.exists() and not have:
+        shutil.copyfile(tsv, keep)
+    for n, t in want.items():
+        if have.get(n) != t:
+            (d / (n + ".kv")).write_text(t, encoding="utf-8", newline="")
+            with (d / (n + ".hist")).open("a", encoding="utf-8", newline="") as fh:
+                fh.write(f"# {_stamp()} migrated from {tsv.name} line {rows[n].get('line')}\n{t}")
+    write_rollup(tsv)
+    return {"ok": True, "written": sorted(want), "ignored": ignored, "kept": str(keep) if keep.exists() else "",
+            "say": f"{len(want)} atom(s) in {d}; {tsv.name} is now generated; the old one is kept as {keep.name}."}
+
+
 def read_register(path: Path | None = None) -> tuple[dict[str, dict], list[dict]]:
+    """(rows by NAME; ignored lines with their reason).  Atoms first: when the keys/ folder exists it is the
+    register; otherwise the TSV."""
+    p = Path(path or register_file())
+    d = keys_dir(p)
+    if d.is_dir():
+        return read_atoms(d)
+    return read_tsv(p)
+
+
+def read_tsv(path: Path | None = None) -> tuple[dict[str, dict], list[dict]]:
     """(rows by NAME, last wins; ignored lines with their reason)."""
     p = Path(path or register_file())
     rows: dict[str, dict] = {}
@@ -586,6 +733,38 @@ def found_in_folder(rows: dict[str, dict], folder: Path | None = None) -> tuple[
     return found, warn, ""
 
 
+def same_key_names(rows: dict[str, dict]) -> list[str]:
+    """One key file kept under more than one name, said with each name's usage words.  key_run keeps
+    names apart by name only, and the ghostwheel door uses the settings page's SSH key whatever the
+    register calls it, so a second name with narrower words reads as a second key (2026-11-01: the
+    projects key was 'ssh' on the settings page and 'aboutcorwinhost' in the register; gw33 looked
+    unreachable as gw33 although 'ssh' already reached it).  Paths only; no file is opened."""
+    groups: list[tuple[str, list[dict]]] = []
+    for r in rows.values():
+        src = r.get("source", "")
+        path = src[5:] if src.startswith("file:") else (_env(FIELDS["ssh_key"]) if src == "field:ssh_key" else "")
+        if not path:
+            continue
+        for p, rs in groups:
+            if _same_file(p, path):
+                rs.append(r)
+                break
+        else:
+            groups.append((path, [r]))
+    out = []
+    for path, rs in groups:
+        if len(rs) < 2:
+            continue
+        names = " and ".join(f"'{r['name']}'" for r in rs)
+        uses = "; ".join(f"{r['name']}: {r.get('usage') or 'no usage words'}" for r in rs)
+        door = next((r["name"] for r in rs if r.get("source") == "field:ssh_key"), "")
+        out.append(f"one key, {len(rs)} names: {names} are the same file ({Path(path).name}); their usage words: "
+                   f"{uses}" + (f". The ghostwheel door uses this key as '{door}' (each host logs in under its "
+                                f"own name unless its row says otherwise)" if door else "")
+                   + ". Keep one name (key_set a dash row for the other) or make their words agree.")
+    return out
+
+
 def has_value(row: dict) -> bool:
     """Whether a key's value is there, without reading a file: a file source is there when the file
     exists and is not empty (key_list used to read each token file to say "set")."""
@@ -904,7 +1083,9 @@ def run(row: dict, argv: list[str], cwd: str, confirm: str, lex, timeout: float 
 def _public(r: dict) -> dict:
     return {"name": r["name"], "kind": r["kind"], "source": r["source"], "for": _split(r["for"]),
             "binds": r["binds_list"], "run": r["run_list"], "usage": r.get("usage") or "",
-            "from": "settings page" if r.get("line") == "settings" else f"register line {r.get('line')}",
+            "from": ("settings page" if r.get("line") == "settings" else
+                     f"atom {r.get('line')}" if str(r.get("line")).startswith("keys/") else
+                     f"register line {r.get('line')}"),
             "value": "set" if has_value(r) else "not set"}
 
 
@@ -925,6 +1106,7 @@ def register(srv) -> None:
             say += f"; {len(ignored)} register line(s) ignored: " + ", ".join(
                 f"line {i['line']} ({i['reason']})" for i in ignored[:3])
         found, warn, why = found_in_folder(rows)
+        warn = warn + same_key_names(rows)
         if found:
             say += ("; found in the keyring folder, not registered: " + ", ".join(
                 f"{f['file']} ({f['kind']}, {f['size']} bytes, {f['mode']})" for f in found)
@@ -976,6 +1158,13 @@ def register(srv) -> None:
                     "present": f"About to write one row to {p}: {what}.",
                     "say": "Nothing is written yet. Show the person this row and call key_set again with "
                            "the same fields and confirm set to the code only if they agree."}
+        if keys_dir(p).is_dir():
+            if not SAFE_NAME.match(row["name"]):
+                return {"ok": False, "say": "not written: a key's name is a file name here: letters, digits, "
+                                            "_ . - only, starting with a letter or digit"}
+            did = set_atom(row, p)
+            return {"ok": True, "register": str(p), "atom": str(keys_dir(p) / (row["name"] + ".kv")),
+                    "say": f"{row['name']} {did}; key_list reads it back."}
         p.parent.mkdir(parents=True, exist_ok=True)
         new = not p.is_file()
         with p.open("a", encoding="utf-8") as fh:
@@ -1031,8 +1220,22 @@ def _main(argv: list[str]) -> int:
     ap.add_argument("--register")
     ap.add_argument("--lexicon")
     ap.add_argument("--tsv", action="store_true")
+    ap.add_argument("--migrate", action="store_true", help="move keys.tsv to keys/NAME.kv atoms, once")
+    ap.add_argument("--dry-run", action="store_true", help="with --migrate: say what would be written")
+    ap.add_argument("--rollup", action="store_true", help="regenerate keys.tsv from the atoms (after a restore)")
     ap.add_argument("--found", metavar="FOLDER", help="the keyring folder read by name: FILE KIND MODE per line")
     a = ap.parse_args(argv)
+    if a.migrate or a.rollup:
+        reg = Path(a.register) if a.register else register_file()
+        if a.migrate:
+            r = migrate(reg, dry=a.dry_run)
+            print(r["say"])
+            return 0 if r["ok"] else 1
+        if not keys_dir(reg).is_dir():
+            print(f"no atoms folder at {keys_dir(reg)}")
+            return 1
+        print("keys.tsv rewritten" if write_rollup(reg) else "keys.tsv already matches the atoms")
+        return 0
     lex = lexicon(Path(a.lexicon) if a.lexicon else None)
     rows, _ = keys(Path(a.register) if a.register else None, lex=lex)
     if a.found:

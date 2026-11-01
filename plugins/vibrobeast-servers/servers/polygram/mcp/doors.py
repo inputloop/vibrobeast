@@ -83,6 +83,12 @@ DOORS: dict[str, dict] = {
         "context": "Each name lookup and each new host key is asked first unless you said always.",
         "limit": "We decide which hosts are asked and pin their keys; the hosts' answers are theirs.",
         "docs": ["privacy", "readme"], "words": ["door", "host", "ghostwheel"]},
+    "dns.on": {
+        "env": "DNS_ON", "kind": "out", "reach": "other-machines",
+        "what": "Claude lists, plans and (on your code) applies DNS record changes at porkbun and DreamHost, through C4's dn1or tool.",
+        "context": "Every use of a DNS key is confirmed first, with the key's usage line; a change needs its own code and is recorded under C4's d/dns.",
+        "limit": "We bound the domains to the key's usage line, never touch records a plan does not name, and never NS or SOA unless asked; what a provider does with a change is theirs.",
+        "docs": ["privacy", "readme"], "words": ["door", "dns", "porkbun", "dreamhost"]},
     "c4.on": {
         "env": "C4_ON", "kind": "load", "reach": "this-computer",
         "what": "Claude uses your C4 work surface by running C4's own server (node) from your C4 folder.",

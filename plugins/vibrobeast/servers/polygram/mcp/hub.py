@@ -45,7 +45,7 @@ from .rpc import PROTOCOL_VERSION, utf8_stdio
 
 VERSION = "1.0"
 #: Settings-page variables the hub cleans before a server sees them.
-SWITCH_VARS = ("TAVERN_ON", "C4_ON", "LLAMABRIDGE_ON", "GW_ON", "GW_LOOKUPS", "GW_LOOKUPS_ALWAYS",
+SWITCH_VARS = ("TAVERN_ON", "C4_ON", "LLAMABRIDGE_ON", "GW_ON", "DNS_ON", "GW_LOOKUPS", "GW_LOOKUPS_ALWAYS",
                "GW_KNOWN_HOSTS", "GW_KNOWN_HOSTS_ALWAYS", "MENTCACHED_MODE", "MENTCACHED_MODE_CHAT",
                "MENTCACHED_ORG_MD")
 #: Reported as "set" only, like the paths; GW_PASSWORD and VIBROBEAST_API_TOKEN are secrets.
