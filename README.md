@@ -54,7 +54,7 @@ That plugin carries the servers and the skills together. If your skills come fro
 /plugin install jarvis@jarvis
 ```
 
-While this repository is private, adding it needs a GitHub account with access to it.
+The repository is public, so adding it needs no GitHub sign-in.
 
 It needs Python 3.10 or newer. On Windows the extension finds it by itself (the Python launcher, PATH, MSYS2, python.org installs).
 
