@@ -149,7 +149,7 @@ else note WARN "G3 signature" "no --sig/--allowed-signers given (crypto check sk
 echo
 echo " MANUAL GATES (agent must complete before unblock):"
 note TODO "G4 dual-source" "web_fetch both identity_urls; need 2/2 same key, independent origins"
-note TODO "G5 per-party"   "each affected party out-of-scope OR own signed record; family parked"
+note TODO "G5 per-party"   "each affected party out-of-scope OR own signed record; non-participants parked"
 note TODO "G6 prohibited"  "prohibited_category_decision explicit; agent-held => park-lift on record"
 echo
 if [ "$fail" -ne 0 ]; then echo "RESULT: CLAUD_QA_HOLD (parked) — an auto gate failed."; exit 1; fi

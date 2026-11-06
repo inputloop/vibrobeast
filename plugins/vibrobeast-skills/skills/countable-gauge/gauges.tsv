@@ -19,4 +19,4 @@ name	num	den	meaning
 framework-per-affordance	framework|paradigm|architecture|methodolog(y|ies)|the model|conceptual	Try this|^[[:space:]]*[0-9]+\.|^[[:space:]]*\$ |^```|^[[:space:]]*sh |^[[:space:]]*Run	describing a system to someone who wanted to use one
 claim-per-citation	[a-z]+ (is|are|must|always|never|will) |it follows|clearly|obviously	\(20[0-9][0-9]|https?://|`[^`]+\.(md|sh|tsv|org|py)`|[a-z]+/[a-z-]+\.(md|sh|tsv)	confidence outrunning its sources
 believed-per-observed	BELIEVED|I think|I believe|presumably|should be|probably	OBSERVED|I ran|the output was|receipt:|exit=|verified	judgement entering the record in an observation's clothes
-unwitnessed-claim	†|single-sourced|only source|no second witness|one witness	confirmed by|second source|cross-read|two readers|independently	claims standing on one leg -- mark them or find the witness
+unwitnessed-claim	‡|†|single-sourced|only source|no second witness|one witness	confirmed by|second source|cross-read|two readers|independently	claims standing on one leg -- mark them or find the witness

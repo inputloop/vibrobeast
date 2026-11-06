@@ -58,6 +58,13 @@ Each code is random, runs once, and expires (CONFIRM_TTL); key_set asks the same
 (2026-10-22, the audit's HOLD item 13 and WARN J4).  Programs that would take a key as an argument
 are handed it on input instead: docker login (--password-stdin), curl for DreamHost (a config, -K -).
 
+THE PLAN DOOR (2026-11-04, plans.py) -- one code for a written plan.  key_run with argv ``plan_approve PLANFILE``
+shows the whole plan in words and returns one code; with that code it writes an approval tied to the plan's
+sha256.  Then each step of that plan, run exactly as written with the same key from the plan's folder, runs
+with no code until the approval expires, its runs are used, or it is revoked; anything else asks as above,
+and says why.  The keeper's switch is the preference keys.plans, which ships off: nothing here is on until he
+turns it on.
+
 THE KEYRING FOLDER -- one settings field (VIBROBEAST_KEYRING_DIR).  key_list names the files in it
 that no register row names yet, with a kind guessed from the NAME (NAME beside NAME.pub: ssh-key;
 *.pub skipped; *.pat, *.token: token; else unknown) and a warning when others can read one.  Read
@@ -72,9 +79,11 @@ import hashlib
 import hmac
 import os
 import re
+import json
 import secrets as _secrets
 import shutil
 import subprocess
+import sys
 import time
 from pathlib import Path
 
@@ -859,6 +868,50 @@ def standing_for(row: dict, program: str, argv: list[str],
     return f"standing yes ({m[0]} {m[1]} {m[2]}, keys.standing)" if m else ""
 
 
+STANDING_SKIP_DASH = ("standing yes skipped: an argument starts with '-' (a standing yes never covers an "
+                      "option, since an ssh option such as ProxyCommand runs a program on this computer)")
+
+
+def standing_skip_reason(row: dict, program: str, argv: list[str],
+                         entries: list[tuple[str, str, str]] | None = None) -> str:
+    """Why a standing yes the keeper holds for this key and program did not cover this run, or "".
+    ENHANCE-20261105 R4 (first asked 2026-10-16, Q2c): a code with no reason reads as a bug."""
+    if not any(a.startswith("-") for a in argv[1:]):
+        return ""
+    ents = standing_entries() if entries is None else entries
+    return STANDING_SKIP_DASH if any(k == row["name"] and p == program for k, p, _ in ents) else ""
+
+
+def pinned_known_hosts(program: str, argv: list[str]) -> list[str]:
+    """ssh or scp to a host whose key gw_known_hosts pins: the run checks that pin, strictly, and never the
+    user's own known_hosts.  ENHANCE-20261105 R3: a survey helper failed "Host key verification failed"
+    on gw34 with the pin in hand, because plain ssh looked elsewhere.  An argv that names its own
+    UserKnownHostsFile is left as written; a host with no pin is left as before."""
+    if program not in ("ssh", "scp") or any("UserKnownHostsFile" in a for a in argv):
+        return argv
+    try:
+        from . import gwstatus
+        if not gwstatus.KNOWN.is_file():
+            return argv
+        hit = False
+        for a in argv[1:]:
+            if a.startswith("-"):
+                continue
+            host = a.split("@", 1)[-1]
+            if program == "scp":
+                if not _remote(a):
+                    continue
+                host = host.split(":", 1)[0]
+            if host and gwstatus.known(host.lower(), 22):
+                hit = True
+                break
+        if not hit:
+            return argv
+        return [argv[0], "-o", f"UserKnownHostsFile={gwstatus.KNOWN}", "-o", "StrictHostKeyChecking=yes", *argv[1:]]
+    except Exception:                                  # noqa: BLE001 -- no register: plain ssh as before
+        return argv
+
+
 def standing_match(row: dict, program: str, argv: list[str],
                    entries: list[tuple[str, str, str]] | None = None, cwd: str | None = None):
     """(key, program, target) of the standing yes that covers this run, or None (standing_for's rule)."""
@@ -918,6 +971,74 @@ ENV_FLOOR = ("PATH", "HOME", "USERPROFILE", "HOMEDRIVE", "HOMEPATH", "USER", "US
              "PAGER", "EDITOR", "GIT_EDITOR", "PYTHONIOENCODING")
 
 
+# ---- ssh -J: the hop gets the same key (found 2026-11-04 reaching an inner host through a hop) ----
+#: How long the hop's own connection may take, in seconds (an invented number, from the house set).
+JUMP_CONNECT_TIMEOUT = 17
+_JUMP_HOST = re.compile(r"^(?P<h>(?:[A-Za-z0-9_.-]+@)?(?:\[[0-9A-Fa-f:.]+\]|[A-Za-z0-9_.-]+))(?::(?P<p>[0-9]{1,5}))?$")
+
+
+def _proxy_word(s: str, nt: bool) -> str:
+    """One word of a ProxyCommand.  POSIX ssh hands the command to the shell (exec ...): single quotes.
+    Windows OpenSSH splits it as a Windows command line: double quotes, and a double quote inside is refused."""
+    if nt:
+        if '"' in s:
+            raise ValueError(f"{s!r} holds a double quote, which a Windows ProxyCommand cannot carry")
+        return f'"{s}"'
+    return _shq(s)
+
+
+def jump_rewrite(args: list[str], exe: str, key_path: str, nt: bool | None = None) -> tuple[list[str], str]:
+    """ssh -J HOST (or -o ProxyJump=HOST) starts a second ssh for the hop, and that one never sees the -i
+    this door adds: the hop has no key, and the run dies in the banner exchange (2026-11-04, ssh -J
+    hop@hop.example.org inner@192.0.2.27: "Connection timed out during banner exchange").  So the hop is
+    rewritten as a ProxyCommand that runs the same ssh (by absolute path) with the same key FILE (its path,
+    never its text), IdentitiesOnly, BatchMode and a connect timeout; it inherits ssh's own environment,
+    which is already the floor.  A caller's own ProxyCommand is refused while a key is bound, and so is a
+    chain (-J a,b): one hop per run.  -> (args without -J, problem); args unchanged when there is no -J."""
+    nt = (os.name == "nt") if nt is None else nt
+    out: list[str] = []
+    hop = None
+    i = 0
+    while i < len(args):
+        a = args[i]
+        low = a.lower()
+        nxt = args[i + 1] if i + 1 < len(args) else ""
+        if a == "-J":
+            if not nxt:
+                return args, "-J needs a host"
+            val, i = nxt, i + 2
+        elif a.startswith("-J"):
+            val, i = a[2:], i + 1
+        elif a == "-o" and nxt.lower().replace(" ", "").startswith("proxyjump="):
+            val, i = nxt.split("=", 1)[1].strip(), i + 2
+        elif low.replace(" ", "").startswith("-oproxyjump="):
+            val, i = a.split("=", 1)[1].strip(), i + 1
+        elif (a == "-o" and nxt.lower().lstrip().startswith("proxycommand")) or low.startswith("-oproxycommand"):
+            return args, ("a ProxyCommand of the caller's own is not run with a key bound "
+                          "(it would run any program with the key's path at hand); name the hop with -J HOST")
+        else:
+            out.append(a)
+            i += 1
+            continue
+        if hop is not None:
+            return args, "one -J per run"
+        hop = val
+    if hop is None:
+        return args, ""
+    if "," in hop:
+        return args, "one jump host per run: -J a,b is a chain; run its hops one at a time"
+    m = _JUMP_HOST.match(hop)
+    if not m or hop.startswith("-"):
+        return args, f"-J {hop!r} is not a plain [user@]host[:port]"
+    try:
+        words = [_proxy_word(exe, nt), "-i", _proxy_word(key_path, nt), "-o", "IdentitiesOnly=yes",
+                 "-o", "BatchMode=yes", "-o", f"ConnectTimeout={JUMP_CONNECT_TIMEOUT}",
+                 *(["-p", m.group("p")] if m.group("p") else []), "-W", "%h:%p", _proxy_word(m.group("h"), nt)]
+    except ValueError as e:
+        return args, str(e)
+    return ["-o", "ProxyCommand=" + " ".join(words), *out], ""
+
+
 def child_env(add: dict, environ: dict | None = None, nt: bool | None = None) -> dict:
     """The environment one run gets: the floor from this process, then the bound names.  Found 2026-10-19
     (the audit, BLOCK item 1): the child used to get the whole of os.environ plus the bound names, so a run with one key
@@ -953,9 +1074,305 @@ def resolve_program(argv0: str) -> tuple[str, str, str]:
     path = shutil.which(a) or (shutil.which(name) if name != a else "") or a
     return name, path, ""
 
+# ---------------------------------------------------------------- background runs
+# His words: key_run should not have "its own ideas about how long everyone's work will take".  The 45 s
+# above is the desktop bridge's wait, not the work's; a run asked with background=true is started
+# detached (its own session / process group), writes to a log under the seat folder, and returns a
+# run_id at once.  key_result reads it, masked by the same scrubber and floor as a foreground run's output.
+BG_DEFAULT_MAX = 3600.0
+_RUN_ID = re.compile(r"^\d{8}-\d{6}-[0-9a-f]{6}$")
+#: What the detached process runs: the program, then its exit code written to a file, so the exit
+#: survives the server restarting.  Its input and output are the ones it was started with.
+_BG_WRAPPER = ("import os, subprocess, sys\n"
+               "ef = sys.argv[1]\n"
+               "try:\n"
+               "    rc = subprocess.call(sys.argv[2:])\n"
+               "except OSError as e:\n"
+               "    sys.stderr.write('could not start %s: %s\\n' % (sys.argv[2], e)); rc = 127\n"
+               "open(ef + '.tmp', 'w').write(str(rc)); os.replace(ef + '.tmp', ef)\n")
+_BG: dict[str, dict] = {}          # run_id -> {"p": Popen, "secrets": [...]}: this server's own memory of its starts
+
+#: mask_log (2026-11-05, his words: "The log masking is a good option to have: I do NOT want to enable it but I would
+#: like to support it").  OFF unless a call says mask_log=true or the settings page's "Keys: mask background logs as
+#: they are written" is on.  Then the detached process is a RELAY: it reads a one-line header on its input (the
+#: values to mask, the mask word, the program's input; they travel over the pipe, never on disk or in an
+#: argument), runs the program with its output on a pipe, and writes that output to the log only after masking it
+#: (the same _mask_pair when this module can be imported there, and the floor of every spelling always).  The
+#: last HOLD characters are kept back until more output arrives, so a value split between two reads is still
+#: found; they are written when the program ends.  The log is then text (bytes that are not UTF-8 become U+FFFD)
+#: and a running log can lag the program by up to HOLD characters.
+MASK_LOG_ENV = "VIBROBEAST_KEYS_MASK_LOG"
+_BG_RELAY = ("import codecs, importlib, json, os, subprocess, sys, threading\n"
+             "ef = sys.argv[1]\n"
+             "hdr = json.loads(sys.stdin.buffer.readline().decode('utf-8'))\n"
+             "mask, floor, secrets, feed = hdr['mask'], hdr['floor'], hdr['secrets'], hdr['feed']\n"
+             "hold = max([512] + [len(x) for x in floor])\n"
+             "fn = None\n"
+             "try:\n"
+             "    sys.path.insert(0, hdr['root'])\n"
+             "    fn = importlib.import_module(hdr['mod'])._mask_pair\n"
+             "except Exception:\n"
+             "    fn = None\n"
+             "def scrub(t):\n"
+             "    if fn is not None:\n"
+             "        try:\n"
+             "            t = fn(t, '', secrets, mask)[0]\n"
+             "        except Exception:\n"
+             "            pass\n"
+             "    for x in floor:\n"
+             "        t = t.replace(x, mask)\n"
+             "    return t\n"
+             "def emit(t):\n"
+             "    if t:\n"
+             "        sys.stdout.buffer.write(t.encode('utf-8', 'replace')); sys.stdout.buffer.flush()\n"
+             "carry = ''\n"
+             "rc = 127\n"
+             "try:\n"
+             "    p = subprocess.Popen(sys.argv[2:], stdin=subprocess.PIPE if feed else subprocess.DEVNULL,\n"
+             "                         stdout=subprocess.PIPE, stderr=subprocess.STDOUT)\n"
+             "except OSError as e:\n"
+             "    emit(scrub('could not start %s: %s\\n' % (sys.argv[2], e)))\n"
+             "else:\n"
+             "    def feeder():\n"
+             "        try:\n"
+             "            p.stdin.write(feed.encode('utf-8')); p.stdin.close()\n"
+             "        except OSError:\n"
+             "            pass\n"
+             "    if feed:\n"
+             "        threading.Thread(target=feeder, daemon=True).start()\n"
+             "    dec = codecs.getincrementaldecoder('utf-8')('replace')\n"
+             "    fd = p.stdout.fileno()\n"
+             "    while True:\n"
+             "        b = os.read(fd, 65536)\n"
+             "        if not b:\n"
+             "            break\n"
+             "        m = scrub(carry + dec.decode(b))\n"
+             "        if len(m) > hold:\n"
+             "            emit(m[:-hold]); carry = m[-hold:]\n"
+             "        else:\n"
+             "            carry = m\n"
+             "    emit(scrub(carry + dec.decode(b'', True))); carry = ''\n"
+             "    rc = p.wait()\n"
+             "open(ef + '.tmp', 'w').write(str(rc)); os.replace(ef + '.tmp', ef)\n")
+
+
+def mask_log_wanted(asked=None, environ: dict | None = None) -> bool:
+    """mask_log: the call's own word when it gave one (true or false), else the settings page's field; off when neither
+    is plainly on.  A field left as the template text, or empty, is off."""
+    if asked is not None:
+        return bool(asked)
+    raw = (os.environ if environ is None else environ).get(MASK_LOG_ENV) or ""
+    return raw.strip().lower() in ("true", "1", "on", "yes")
+
+
+def runs_dir() -> Path:
+    e = os.environ.get("VIBROBEAST_RUNS_DIR")
+    return Path(e).expanduser() if e else STATE / "runs"
+
+
+def _mask_pair(out: str, err: str, secrets_seen: list, mask: str) -> tuple[str, str, str]:
+    """The one place output is masked: the minted scrubber, then the floor (always).  run() and key_result both call it."""
+    fn, scrubbed_by = scrubber()
+    if fn is not None:
+        out, err = fn(out, secrets_seen, mask), fn(err, secrets_seen, mask)
+    for s in secrets_seen:                           # the floor: after any scrubber, always
+        for sp in spellings(s or ""):
+            out, err = out.replace(sp, mask), err.replace(sp, mask)
+    return out, err, scrubbed_by
+
+
+def _write_meta(path: Path, meta: dict) -> None:
+    with open(path, "w", encoding="utf-8", newline="\n") as fh:
+        fh.write(json.dumps(meta, default=str))
+
+
+def _pid_alive(pid: int) -> bool:
+    if os.name == "nt":
+        q = subprocess.run(["tasklist", "/FI", f"PID eq {pid}", "/NH"], capture_output=True, text=True, encoding="utf-8", errors="replace",
+                           stdin=subprocess.DEVNULL, timeout=15)
+        return f" {pid} " in q.stdout.replace("\r", " ")
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    return True
+
+
+def _kill_tree(pid: int) -> None:
+    if os.name == "nt":
+        subprocess.run(["taskkill", "/F", "/T", "/PID", str(pid)], capture_output=True, stdin=subprocess.DEVNULL, timeout=30)
+        return
+    import signal
+    try:
+        os.killpg(pid, signal.SIGKILL)               # start_new_session made pid its own group's leader
+    except (ProcessLookupError, PermissionError):
+        pass
+
+
+def _bg_start(row: dict, stdin_row: dict | None, program: str, exe: str, extra: list, argv: list, shown: list,
+              cwd: str, env: dict, feed: str, secrets_seen: list, max_seconds: float, plan_ref,
+              mask_log: bool = False, mask: str = "") -> dict:
+    d = runs_dir()
+    d.mkdir(parents=True, exist_ok=True)
+    rid = time.strftime("%Y%m%d-%H%M%S") + "-" + os.urandom(3).hex()
+    log, exitf, meta_f = d / f"{rid}.log", d / f"{rid}.exit", d / f"{rid}.json"
+    fd = os.open(str(log), os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)   # the log holds unmasked bytes: owner only
+    kw: dict = {}
+    if os.name == "nt":
+        kw["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.DETACHED_PROCESS
+    else:
+        kw["start_new_session"] = True
+    try:
+        with os.fdopen(fd, "wb") as lf:
+            p = subprocess.Popen([sys.executable, "-I", "-c", _BG_RELAY if mask_log else _BG_WRAPPER, str(exitf), exe, *extra, *argv[1:]],
+                                 cwd=cwd, env=env, stdin=subprocess.PIPE if (feed or mask_log) else subprocess.DEVNULL,
+                                 stdout=lf, stderr=subprocess.STDOUT, **kw)
+    except OSError as e:
+        return {"ok": False, "say": f"{program} could not be started in the background ({e.__class__.__name__})."}
+    if mask_log:
+        seen = [x for x in secrets_seen if x]
+        floor = sorted({sp for x in seen for sp in spellings(x)}, key=len, reverse=True)
+        head = {"mask": mask, "floor": floor, "secrets": seen, "feed": feed or "",
+                "root": str(Path(__file__).resolve().parents[__name__.count(".")]), "mod": __name__}
+        try:
+            p.stdin.write((json.dumps(head) + "\n").encode("utf-8"))   # json.dumps escapes newlines: one line
+            p.stdin.close()
+        except OSError:
+            pass
+    elif feed:
+        try:
+            p.stdin.write(feed.encode("utf-8"))
+            p.stdin.close()
+        except OSError:
+            pass
+    _BG[rid] = {"p": p, "secrets": [x for x in secrets_seen if x]}
+    meta = {"run_id": rid, "pid": p.pid, "started": time.time(), "max_seconds": max_seconds, "key": row["name"],
+            "stdin_key": stdin_row["name"] if stdin_row else "", "program": program, "argv": shown, "cwd": cwd,
+            "plan_ref": plan_ref, "noted": False}
+    if mask_log:
+        meta["mask_log"] = True
+    _write_meta(meta_f, meta)
+    if plan_ref:
+        from . import plans
+        plans.ran(plan_ref, "started")
+    return {"ok": True, "run_id": rid, "pid": p.pid, "max_seconds": max_seconds, "mask_log": bool(mask_log),
+            "say": f"{program} started in the background as run {rid} (stopped after {max_seconds:.0f} s if still running "
+                   f"when key_result checks); key_result {rid} reads it."
+                   + (" Its log is masked as it is written." if mask_log else "")}
+
+
+def _masks_again(row: dict, stdin_row: dict | None, program: str, argv: list, lex) -> list:
+    """The secrets run() would have masked, found again from the register, so key_result can mask after a restart."""
+    value = value_of(row)
+    feed = stdin_value(stdin_row) if stdin_row is not None else ""
+    argv2, own_feed, masks = marshal(row, program, list(argv), value)
+    if own_feed:
+        feed = own_feed
+    add, _ = bound_env(row, value, program, lex)
+    login_secret = ""
+    if row["kind"] == "login":
+        drop, ask = LOGINS[row["source"][6:]]
+        env = child_env(add)
+        for n in drop:
+            env.pop(n, None)
+        try:
+            q = subprocess.run(list(ask), env=env, capture_output=True, input="", text=True, encoding="utf-8",
+                               errors="replace", timeout=15)
+            login_secret = q.stdout.strip() if q.returncode == 0 else ""  # sb:allow (a name; its value is read at run time, only to mask it)
+        except (OSError, subprocess.TimeoutExpired):
+            login_secret = ""
+    return [value, feed, login_secret, *masks] + [v for k, v in add.items() if k.startswith("GIT_CONFIG_VALUE_")]
+
+
+def result(run_id: str, tail: int = 60, lex=None) -> dict:
+    """What a background key_run is doing: running, exited (with its exit code) or stopped, its seconds, and the
+    last TAIL lines of its output, masked exactly as a foreground run's output is.  The cap (max_seconds) is
+    checked HERE, when this is called, not by a timer: a run nobody asks about keeps running."""
+    run_id = (run_id or "").strip()
+    if not _RUN_ID.match(run_id):
+        return {"ok": False, "say": "run_id is the id key_run gave when it started the run in the background."}
+    d = runs_dir()
+    try:
+        meta = json.loads((d / f"{run_id}.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {"ok": False, "say": f"no background run {run_id} here."}
+    tail = max(1, min(int(tail or 60), 2000))
+    exitf, log = d / f"{run_id}.exit", d / f"{run_id}.log"
+    now = time.time()
+    elapsed = now - meta["started"]
+    rc = None
+    state = "running"
+    if exitf.exists():
+        state = "exited"
+        try:
+            rc = int(exitf.read_text(encoding="utf-8").strip())
+        except (OSError, ValueError):
+            rc = None
+    else:
+        mem = _BG.get(run_id)
+        alive = (mem["p"].poll() is None) if mem else _pid_alive(int(meta["pid"]))
+        if meta.get("stopped"):
+            state = "stopped"
+        elif alive and elapsed > float(meta["max_seconds"]):
+            _kill_tree(int(meta["pid"]))
+            meta["stopped"] = True
+            state = "stopped"
+        elif not alive:
+            state = "ended"                          # gone without writing its exit code (killed from outside?)
+    if state in ("exited", "ended", "stopped") and not meta.get("noted"):
+        meta["noted"] = True
+        if meta.get("plan_ref"):
+            from . import plans
+            plans.journal([plans._stamp(), "ENDED", *(str(meta["plan_ref"].get(k, "")) for k in ("plan", "sha12", "approval", "step")),
+                           rc if rc is not None else state, *(str(meta["plan_ref"].get(k, "")) for k in ("key", "target", "folder")), ""])
+    if state == "stopped" or meta.get("noted"):
+        try:
+            _write_meta(d / f"{run_id}.json", meta)
+        except OSError:
+            pass
+    # the secrets: this server's own memory of the start, and again from the register (survives a restart)
+    secrets_seen = list((_BG.get(run_id) or {}).get("secrets") or [])
+    try:
+        rows, _ = keys(lex=lex or lexicon())
+        row = rows.get(meta["key"])
+        if row is not None:
+            srow = rows.get(meta["stdin_key"]) if meta.get("stdin_key") else None
+            secrets_seen += _masks_again(row, srow, meta["program"], meta["argv"], lex or lexicon())
+    except Exception:                                # noqa: BLE001 -- fall back on what the start remembered
+        pass
+    if not [x for x in secrets_seen if x]:
+        return {"ok": False, "run_id": run_id, "state": state,
+                "say": "the key this run used cannot be found again, so its output cannot be masked and is not shown."}
+    try:
+        raw = log.read_bytes()
+    except OSError:
+        raw = b""
+    cut = len(raw) > 2_000_000
+    text = raw[-2_000_000:].decode("utf-8", errors="replace")
+    if cut:
+        text = text.split("\n", 1)[-1]
+    text, _e, scrubbed_by = _mask_pair(text, "", secrets_seen, f"[key {meta['key']}]")
+    lines = text.splitlines()[-tail:]
+    say = {"running": f"still running after {elapsed:.0f} s",
+           "exited": f"exited {rc} after {elapsed:.0f} s",
+           "ended": f"ended after {elapsed:.0f} s, exit code unknown (the process went away without writing one)",
+           "stopped": f"over max_seconds ({meta['max_seconds']:.0f}), stopped"}[state]
+    return {"ok": (rc == 0) if state == "exited" else None, "run_id": run_id, "state": state, "exit": rc,
+            "seconds": round(elapsed, 1), "output": "\n".join(lines)[-20000:], "lines": len(lines),
+            "scrubber": scrubbed_by, "say": f"{meta['program']} {say}."}
+
 
 def run(row: dict, argv: list[str], cwd: str, confirm: str, lex, timeout: float = RUN_TIMEOUT,
-        stdin_row: dict | None = None) -> dict:
+        stdin_row: dict | None = None, background: bool = False,
+        max_seconds: float = BG_DEFAULT_MAX, mask_log: bool | None = None) -> dict:
+    """Run one program with one key bound.  background=True starts it detached and returns a run_id at once
+    (key_result reads it); max_seconds then bounds it, checked when key_result is called, not by a timer."""
+    if argv and argv[0] in ("plan_approve", "plan_revoke", "plan_list"):
+        # The plan door (2026-11-04, plans.py): one code for a written plan, then its steps run with none.
+        from . import plans
+        return plans.door(row, argv, cwd, confirm, lex)
     program, exe, problem = resolve_program(argv[0] if argv else "")
     if problem:
         return {"ok": False, "say": problem}
@@ -966,6 +1383,10 @@ def run(row: dict, argv: list[str], cwd: str, confirm: str, lex, timeout: float 
     pre = marshal_problem(row, program, argv, stdin_row)
     if pre:
         return {"ok": False, "say": pre}
+    if program == "ssh" and row["kind"] == "ssh-key":
+        _, jp = jump_rewrite(argv[1:], exe, "KEY")   # refuse before a confirmation is asked or spent
+        if jp:
+            return {"ok": False, "say": jp}
     value = value_of(row)
     if not value:
         return {"ok": False, "say": f"the key {row['name']!r} has no value where it says ({row['source']})."}
@@ -985,6 +1406,10 @@ def run(row: dict, argv: list[str], cwd: str, confirm: str, lex, timeout: float 
                + (f" It also hands the key {stdin_row['name']!r} to the program's input (its usage constraints: "
                   f"{stdin_row.get('usage') or 'none written'})." if stdin_row else ""))
     stand, org_note = standing_decision(row, program, argv, cwd=cwd) if stdin_row is None else ("", "")
+    if not stand and stdin_row is None:
+        why = standing_skip_reason(row, program, argv)
+        if why:
+            present += f" ({why}.)"
     push_yes = None
     if program == "git" and argv[1:2] != ["push"]:
         sub = argv[1] if len(argv) > 1 else ""
@@ -1011,13 +1436,43 @@ def run(row: dict, argv: list[str], cwd: str, confirm: str, lex, timeout: float 
             return {"ok": False, "push_yes": push_yes,
                     "say": f"push {d['verdict']}: " + "; ".join(d["reasons"][-1:]) + " (decided by the push door; no code can open it)"}
         stand = f"push yes ({d['place']}, {d['range']}, fr1me egress GO)"
-    if stand and program == "git" and argv[1:] == ["pull"]:
+    plan_ref = None
+    if not stand and stdin_row is None:
+        # An approved plan may cover this exact run (plans.match); if not, the confirmation says why.
+        from . import plans
+        plan_ref, plan_why = plans.match(row, program, argv, cwd)
+        if plan_ref:
+            stand = plan_ref["stand"]
+        elif plan_why:
+            present += " " + plan_why
+    habit_off = False
+    if not stand:
+        # The Habit row off (habit.py, 2026-11-04): no code of ours; the app's own approval of this key_run call
+        # was the yes.  A group's ORG.md limit on standing yeses for this program, at any host, keeps the code
+        # (it can only narrow; the stricter reading, since no standing row names a target here).
+        from . import habit
+        if not habit.on():
+            # (nothing standing or planned: the person's own command runs as written, with no --ff-only added)
+            from . import orglimits
+            lim = orglimits._strongest([x for x in orglimits.limits(cwd) if x["setting"] == "keys.standing"
+                                        and (not x["program"] or x["program"] == program)])
+            if lim is not None and lim["strength"] == "must not":
+                note = (orglimits.say(lim) + " So this run asks for a confirmation, though the Habit row is off.")
+                org_note = (org_note + " " + note) if org_note else note
+            else:
+                stand, habit_off = habit.ran_without_code(), True
+                if lim is not None:
+                    note = orglimits.say(lim)
+                    org_note = (org_note + " " + note) if org_note else note
+    if stand and not habit_off and program == "git" and argv[1:] == ["pull"]:
         argv = [*argv, "--ff-only"]                  # a standing pull never makes a merge commit
     if not stand:
         took = CODES.take(confirm, fp)
         if took in REFUSED:
             return {"ok": False, "refused": took, "say": REFUSED[took]}
         if took != "ok":
+            if not org_note:
+                present += " (Asked because the Habit row, Extra Checks for potentially unsafe things, is on.)"
             return {"ok": None, "confirm": CODES.issue(fp), "present": present,
                     **({"org": org_note} if org_note else {}),
                     "say": (org_note + " " if org_note else "") +
@@ -1028,6 +1483,12 @@ def run(row: dict, argv: list[str], cwd: str, confirm: str, lex, timeout: float 
     if own_feed:
         feed = own_feed
     add, extra = bound_env(row, value, program, lex)
+    if program == "ssh" and row["kind"] == "ssh-key":
+        rest, jp = jump_rewrite(argv[1:], exe, value)  # the hop of a -J gets the same key file
+        if jp:
+            return {"ok": False, "say": jp}
+        argv = [argv[0], *rest]
+    argv = pinned_known_hosts(program, argv)       # after the code: the yes was given to the argv as shown
     env = child_env(add)                             # the floor plus the bound names; never the server's own
     login_secret = ""
     if row["kind"] == "login":
@@ -1044,6 +1505,20 @@ def run(row: dict, argv: list[str], cwd: str, confirm: str, lex, timeout: float 
         # environment is the host's to choose, so put back the one variable networking needs.
         env["SystemRoot"] = r"C:\Windows"
     t0 = time.time()
+    if background:
+        mask_seen = [value, feed, login_secret, *masks] + [v for k, v in add.items() if k.startswith("GIT_CONFIG_VALUE_")]
+        out = _bg_start(row, stdin_row, program, exe, extra, argv, shown, cwd, env, feed, mask_seen, max_seconds, plan_ref,
+                        mask_log=mask_log_wanted(mask_log), mask=f"[key {row['name']}]")
+        if out.get("ok"):
+            out["bound"] = sorted(add)
+            if stand:
+                out["standing"] = stand
+                out["say"] += f" Ran on a {stand}, no confirmation asked."
+            if org_note:
+                out["org"] = org_note
+            if push_yes:
+                out["push_yes"] = push_yes
+        return out
     try:
         p = subprocess.run([exe, *extra, *argv[1:]], cwd=cwd, env=env, capture_output=True,
                            # always an input of our own: inherited, it would be the server's own
@@ -1056,18 +1531,21 @@ def run(row: dict, argv: list[str], cwd: str, confirm: str, lex, timeout: float 
         out = p.stdout.decode("utf-8", errors="replace")
         err = p.stderr.decode("utf-8", errors="replace")
         rc = p.returncode
+        if plan_ref:
+            plans.ran(plan_ref, rc)                  # one journal line per covered run: it counts the budget
     except FileNotFoundError:
+        if plan_ref:
+            plans.ran(plan_ref, "not-found")
         return {"ok": False, "say": f"{argv[0]} is not on this computer's PATH."}
     except subprocess.TimeoutExpired:
-        return {"ok": False, "say": f"{argv[0]} ran past {timeout:.0f} s and was stopped."}
+        if plan_ref:
+            plans.ran(plan_ref, "timeout")
+        return {"ok": False, "say": f"{argv[0]} ran past {timeout:.0f} s; the local client was stopped, and "
+                                    "the remote command may still be running. background: true runs it detached "
+                                    "(key_result reads it later)."}
     mask = f"[key {row['name']}]"
     secrets_seen = [value, feed, login_secret, *masks] + [v for k, v in add.items() if k.startswith("GIT_CONFIG_VALUE_")]
-    fn, scrubbed_by = scrubber()
-    if fn is not None:
-        out, err = fn(out, secrets_seen, mask), fn(err, secrets_seen, mask)
-    for s in secrets_seen:                           # the floor: after any scrubber, always
-        for sp in spellings(s or ""):
-            out, err = out.replace(sp, mask), err.replace(sp, mask)
+    out, err, scrubbed_by = _mask_pair(out, err, secrets_seen, mask)
     return {"ok": rc == 0, "exit": rc, "stdout": out[-20000:], "stderr": err[-8000:],
             "seconds": round(time.time() - t0, 2), "bound": sorted(add), "scrubber": scrubbed_by, "ran": exe,
             "say": f"{program} exited {rc} after {time.time() - t0:.1f} s with {row['name']!r} bound "
@@ -1179,15 +1657,26 @@ def register(srv) -> None:
               "Run one program (gh, git, glab, ssh, scp, npm, twine: whatever the key's RUN allows) with "
               "one key bound under the names it answers to. The first call returns a confirmation to "
               "show the person, with the key's usage constraints, and a code; call again with confirm "
-              "set to that code to run. A code runs once, within 15 minutes. docker login gets a token "
+              "set to that code to run. A code runs once, within 15 minutes. A written plan needs one code for all "
+              "its steps: argv [\"plan_approve\", PLANFILE] shows it in words and asks once; then each step, run "
+              "exactly as written from the plan's folder, needs none until the approval ends (plan_revoke ID ends "
+              "it early; plan_list shows them; the plan file's shape is plans.py's docstring). docker login gets a token "
               "on its input; curl gets a DreamHost key in a config on its input (give the URL without "
-              "key=). The key's value is never returned, never an argument; output has it masked.",
+              "key=). The key's value is never returned, never an argument; output has it masked. "
+              "A run that may take long (over about 45 s, which is the desktop bridge's wait) is asked with "
+              "background=true: after the same confirmation it starts detached, writing to a log in the seat folder, "
+              "and returns a run_id at once; key_result with that run_id reads it (running or exited, the exit code, "
+              "the last lines, masked the same). max_seconds (default 3600) bounds a background run; it is checked "
+              "when key_result is called, not by a timer. A plan step may run in the background too.",
               {"type": "object",
                "properties": {"key": {"type": "string", "description": "a key's name, or a name it answers to (GH_TOKEN)"},
                               "argv": {"type": "array", "items": {"type": "string"}},
                               "cwd": {"type": "string"},
                               "stdin_key": {"type": "string", "description": "a key whose value is handed to the program's input, never its arguments (gh secret set NAME reads it there)"},
-                              "confirm": {"type": "string"}},
+                              "confirm": {"type": "string"},
+                              "background": {"type": "boolean", "description": "start it detached and return a run_id at once; read it with key_result"},
+                              "max_seconds": {"type": "number", "description": "background only: stop the run if still going when key_result is called past this many seconds (default 3600)"},
+                              "mask_log": {"type": "boolean", "description": "background only: mask the key's value as the log is written, so it never reaches the disk (default: the settings page's choice, which ships off; key_result masks what it shows either way)"}},
                "required": ["key", "argv"]})
     def _run(args):
         lex = lexicon()
@@ -1208,8 +1697,26 @@ def register(srv) -> None:
                 if b2["verdict"] != "BOUND":
                     return {"ok": False, "say": "stdin_key: " + b2["say"], "bind": b2}
                 feed_row = rows[b2["key"]]
+        try:
+            cap = float(args.get("max_seconds") or BG_DEFAULT_MAX)
+        except (TypeError, ValueError):
+            return {"ok": False, "say": "max_seconds is a number of seconds."}
+        if cap <= 0:
+            return {"ok": False, "say": "max_seconds must be more than 0."}
         return run(row, list(args.get("argv") or []), args.get("cwd") or "", args.get("confirm") or "", lex,
-                   stdin_row=feed_row)
+                   stdin_row=feed_row, background=bool(args.get("background")), max_seconds=cap,
+                   mask_log=args.get("mask_log") if isinstance(args.get("mask_log"), bool) else None)
+
+    @srv.tool("key_result",
+              "Read a key_run that was started with background=true: give its run_id. Says running, exited (with the "
+              "exit code) or stopped, the seconds it has taken, and the last `tail` lines (default 60) of its output "
+              "with any key value masked exactly as key_run masks. A run past its max_seconds is stopped when this is "
+              "called (checked at the call, not by a timer).",
+              {"type": "object",
+               "properties": {"run_id": {"type": "string"}, "tail": {"type": "integer", "description": "lines from the end (default 60)"}},
+               "required": ["run_id"]})
+    def _result(args):
+        return result(args.get("run_id") or "", args.get("tail") or 60)
 
 
 def _main(argv: list[str]) -> int:

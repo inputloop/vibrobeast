@@ -26,5 +26,5 @@ do not give up on people, opportunities, or problems
 # --- other pinned echoes ---
 universalism/egalitarianism
 four freedoms ordering
-family/non-participant line
+# family/non-participant line   <- withdrawn 2026-11-05: a session derived it from his poem corwin.txt; poems govern nothing (his word 2026-11-01); never Corwin's rule.
 mechanical consent

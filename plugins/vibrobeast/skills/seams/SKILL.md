@@ -58,7 +58,7 @@ axiom applied to state.
 ## The dagger — one source, one mark
 
 Rule 1 needs a notation, or it only lives in the head of whoever checked. A
-claim resting on a SINGLE source carries the mark **†** in the line where it is
+claim resting on a SINGLE source carries the mark **‡** (the double dagger, his first pick, 2026-11-05; older records carry †, and both count) in the line where it is
 made — the mark, not a word, not a footnote a reader can skim past. A claim
 with two independent sources carries nothing; an unmarked claim is a promise
 that two readers agreed.
@@ -82,9 +82,9 @@ that two readers agreed.
 "well-sourced" — the count is a number anyone can re-derive with one command:
 
 ```sh
-grep -c '†' FILE            # lines carrying the mark
-grep -o '†' FILE | wc -l    # claims carrying it — one line can hold two
-grep -rn '†' .              # where they are, so each one can be worked
+grep -c '[‡†]' FILE           # lines carrying the mark
+grep -o '[‡†]' FILE | wc -l   # claims carrying it — one line can hold two
+grep -rn '[‡†]' .             # where they are, so each one can be worked
 ```
 
 The count is the gauge; the listing is the work queue. Counting a document that
@@ -113,7 +113,7 @@ S01–S05 live in **sandboxer**; consult it before touching a mounted file.
 | S13 | signed directive ↔ binding authority | recorded two-party confirmation (consent-gate) |
 | S14 | live pair ↔ non-atomic mirror | the canonical pair; mirror is courtesy, never authority |
 | S15 | policy ↔ physics | a tripwire/canary + the keeper's rule; a guard is not a wall |
-| S16 † | advertised interface ↔ executed behavior | observed behavior on a disposable target |
+| S16 ‡ | advertised interface ↔ executed behavior | observed behavior on a disposable target |
 
 New seam found? Add it with all four parts — the two representations, the
 divergence signature, the named tiebreaker, the recovery — or it's an
@@ -159,7 +159,7 @@ keeper what the seam was.
   touch the file, rotate the key, change the row — and read both again; if both
   moved together they share a cache, a mount, or a process, their agreement
   proved nothing, and the STOP you took on their disagreement was theatre.
-- **Stale daggers.** Run `grep -rn '†' .` over a document whose second sources
+- **Stale daggers.** Run `grep -rn '[‡†]' .` over a document whose second sources
   are already on disk and named nearby: every hit is a mark that should have
   come off in the commit that landed the source. More than one or two in a pass
   and the mark is decoration here, not a gauge.
@@ -189,7 +189,7 @@ no behavioral delta; recovery: treat the option as absent until behavior is
 proven, then audit the tool's other advertised options).
 
 <!-- footer: minted by bin/ft1mt from conventions/house.env and conventions/FOOTERS.org; edit those, not this -->
-*Version 1.1.0: edition revised from 1.0.1 on 2026-10-10; spine: 2026-07-05.*
+*Version 1.3: edition revised from 1.1.0 on 2026-11-05; spine: 2026-07-05.*
 
 Copyright 2026 INPUTLOOP; CC-BY-SA-4.0: https://creativecommons.org/licenses/by-sa/4.0/ (scripts: GNU General Public License, version 3 or any later version; SPDX GPL-3.0-or-later); Mentat (for Corwin, claude-opus-5-5)
 From the collection Corwin Brust and Bryant Frankford keep together, with K Smith as editor of the works she edited; thanks in ACKNOWLEDGEMENTS; home: https://github.com/inputloop

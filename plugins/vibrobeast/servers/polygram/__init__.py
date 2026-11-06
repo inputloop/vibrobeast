@@ -22,5 +22,5 @@ by tags in MEMORY. Standard library only.
   "It is by will alone I set my mind in motion."
 """
 
-__version__ = "1.2.88"
+__version__ = "1.2.93"
 __all__ = ["__version__"]

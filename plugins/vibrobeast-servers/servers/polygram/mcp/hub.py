@@ -46,15 +46,15 @@ from .rpc import PROTOCOL_VERSION, utf8_stdio
 VERSION = "1.0"
 #: Settings-page variables the hub cleans before a server sees them.
 SWITCH_VARS = ("TAVERN_ON", "C4_ON", "LLAMABRIDGE_ON", "GW_ON", "DNS_ON", "GW_LOOKUPS", "GW_LOOKUPS_ALWAYS",
-               "GW_KNOWN_HOSTS", "GW_KNOWN_HOSTS_ALWAYS", "MENTCACHED_MODE", "MENTCACHED_MODE_CHAT",
-               "MENTCACHED_ORG_MD")
+               "GW_KNOWN_HOSTS", "GW_KNOWN_HOSTS_ALWAYS", "VIBROBEAST_KEYS_MASK_LOG", "MENTCACHED_MODE", "MENTCACHED_MODE_CHAT",
+               "MENTCACHED_ORG_MD", "VIBROBEAST_HABIT_CHECKS")
 #: Reported as "set" only, like the paths; GW_PASSWORD and VIBROBEAST_API_TOKEN are secrets.
 PATH_VARS = ("VIBROBEAST_SSH_KEY", "VIBROBEAST_API_TOKEN", "GW_HOSTS", "GW_DOMAIN", "GW_METHOD",
              "GW_PORT", "GW_AUTH", "GW_USER", "GW_PASSWORD", "GW_AUTH_METHOD", "GW_REFRESH",
              "GW_HOSTS_FILE", "GW_SCANNER", "MENTCACHED_KEEPER",
              "VIBROBEAST_API_TOKEN_FOR", "VIBROBEAST_API_TOKEN_USAGE", "VIBROBEAST_SSH_KEY_USAGE",
              "GW_PASSWORD_USAGE", "VIBROBEAST_KEYS_FILE", "VIBROBEAST_KEYRING_DIR",
-             "TAVERN_DATA", "TAVERN_AS", "C4_ROOT", "MENTCACHED_SEAT", "OLLAMA_HOST",
+             "TAVERN_DATA", "TAVERN_AS", "VIBROBEAST_HOUSE_INWARD", "VIBROBEAST_HOUSE_HOST", "C4_ROOT", "MENTCACHED_SEAT", "OLLAMA_HOST",
              "PERSONA_ROOT", "MENTCACHED_PREFS", "VIBROBEAST_DEFAULTS")
 START_TIMEOUT = float(os.environ.get("VIBROBEAST_HUB_START_TIMEOUT", "30"))
 CALL_TIMEOUT = float(os.environ.get("VIBROBEAST_HUB_CALL_TIMEOUT", "900"))
@@ -248,10 +248,17 @@ class Child:
             self.proc.kill()
 
 
+def _habit_words() -> str:
+    """The settings page's Habit row, in words (habit.py); the hub reads its own copy of the page's value."""
+    from . import habit
+    return habit.words()
+
+
 STATUS_TOOL = {
     "name": "vibrobeast_status",
     "description": ("Which of the extension's servers started, how many tools each gave, any "
-                    "tool name two servers both claimed, and which settings-page switches were seen. "
+                    "tool name two servers both claimed, which settings-page switches were seen, and the "
+                    "Habit row (Extra Checks for potentially unsafe things) in words. "
                     "Sends nothing anywhere."),
     "inputSchema": {"type": "object", "properties": {}},
 }
@@ -375,6 +382,7 @@ class Hub:
                              **({"why": c.why} if c.why else {})} for c in self.children],
                 "clashes": self.clashes, "switches_seen": self.seen,
                 "say": switches_said(self.seen),
+                "habit": _habit_words(),
                 "tools_total": len(self.tools()),
                 "next": "vibrobeast_setup says what is left (chiefly: the skills plugin)"}
 

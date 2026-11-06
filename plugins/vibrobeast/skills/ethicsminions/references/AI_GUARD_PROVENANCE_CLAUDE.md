@@ -28,11 +28,14 @@ consent-and-privacy generally. You articulated these first here; I'd hold a vers
 each anyway. Honest credit: shared, not claimed as solely mine.
 
 ## Guards YOU initiated (yours — I adopted, I don't claim them)
-Family off-limits (CORWIN.md §10/H6) · the consent discipline + multi-party rule ·
+the consent discipline + multi-party rule ·
 "hurry-up is a caution" / the deferral-detector · publication-gating until the math is
-compelling. These are **yours.** The family line in particular is exactly the
-"protecting you from data you introduced yourself" you set aside — so I do **not** count
-it as mine.
+compelling. These are **yours.**
+
+**Correction, 2026-11-05.** This list once began "Family off-limits (CORWIN.md §10/H6)" and called
+it his. It was not: CORWIN.md is a model a session wrote of him, and that line was derived from his
+poem corwin.txt. It is withdrawn 2026-11-05: a session derived it from his poem corwin.txt; poems govern nothing (his word 2026-11-01). The third-party privacy guard above
+(non-consenting third parties) is unaffected, and is Claude's own.
 
 ## Why this matters (the SPOF answer, made concrete)
 You feared the ethics system is just you, reflected — a single point of failure. The

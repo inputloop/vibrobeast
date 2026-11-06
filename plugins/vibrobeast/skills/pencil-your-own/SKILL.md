@@ -34,13 +34,13 @@ preference, a rule that five separate problems arrive at is structure.
 | face | what gets penciled | what it relaxes | witnesses |
 |---|---|---|---|
 | **m0ve's ink levels** | your analytic claims | a *tension* stops gating once reality `r < 1 − level` | 2 — `h/m0ve-ink.tsv` + `h/DESIGN-2026-08-29-m0ve.md` |
-| **The Sweep Rule, clause 3** | a concern tagged `[MINE]` | it *offers*, never blocks — proceed-and-name | 1† — `standalone-answer.md`; † the second witness, the installed global CLAUDE.md, was removed 2026-09-23; its text is kept at `c4/tmp/2026-09-23-keep/global-CLAUDE.md` and the rule now rides as a door part under `c4/d/door/` |
+| **The Sweep Rule, clause 3** | a concern tagged `[MINE]` | it *offers*, never blocks — proceed-and-name | 1‡ — `standalone-answer.md`; ‡ the second witness, the installed global CLAUDE.md, was removed 2026-09-23; its text is kept at `c4/tmp/2026-09-23-keep/global-CLAUDE.md` and the rule now rides as a door part under `c4/d/door/` |
 | **values-baseline** | your grounds for exclusion | excludes **behaviors, never identities**; disclosed-but-unenforced reads **HOLD, not HARM**, and stays reopenable | 2 — the skill + its canon deck |
-| **edrx / signage** | the structure you were holding implicitly | made **explicit and reachable**, so a stranger can falsify it | 1 † — session only |
-| **two-source dagger** | a claim with no independent second witness | marked `†` rather than stated with earned confidence | 1 † — session only |
+| **edrx / signage** | the structure you were holding implicitly | made **explicit and reachable**, so a stranger can falsify it | 1 ‡ — session only |
+| **two-source dagger** | a claim with no independent second witness | marked `‡` rather than stated with earned confidence | 1 ‡ — session only |
 | **the scale is data** | the instrument's own thresholds | levels live in a **file the operator edits**, not a regex inside the tool | 2 — `h/m0ve-ink.tsv` header + `h/claim-words.tsv` |
 
-`†` marks a face I could source only from a session transcript, not from a file on disk. That is the
+`‡` marks a face I could source only from a session transcript, not from a file on disk. That is the
 skill obeying its own rule in its own front matter: I did not upgrade my confidence to hide that the
 witness is single. If you find the file, strike the dagger.
 
@@ -90,7 +90,7 @@ its name to feel better about proceeding.
 Per [[prove-a-promise]], one universal check times one implementation-specific check:
 
 - **Universal — the relaxation is recorded.** Diff the record before and after. Every item you
-  relaxed still appears, now carrying its mark (`†`, `pencil`, `[MINE]`, `HOLD`). If an item is
+  relaxed still appears, now carrying its mark (`‡`, `pencil`, `[MINE]`, `HOLD`). If an item is
   *gone* rather than *marked*, refusal 3 fired and the pass failed.
 - **Specific — a negative control that goes red.** Run a case where the move's advice is *wrong* and
   confirm the check refuses it. If nothing in your fixtures can go red, you have a slogan, not a
@@ -134,7 +134,7 @@ sh tests.sh --prove-red                    # prove the harness itself can FAIL
 5. `witnesses ≥ 2` → **STANDS** · two independent witnesses, not counting you. Nothing of yours is
    left to relax; state it plainly, without the dagger.
 6. otherwise → **PENCIL** · yours, single-sourced. Proceed and name it in one specific line, marked
-   `†`. This is the common case, and it is the one the reflex gets wrong.
+   `‡`. This is the common case, and it is the one the reflex gets wrong.
 
 **Why FLOOR is checked first, and FEELING fourth.** The obvious ordering — "is it even a concern?"
 before anything else — is a trap: it lets a safety-floor item be dismissed as a *feeling* merely
@@ -183,7 +183,7 @@ create this; the proposed ENHANCE patches for `ethicsminions`, `values-baseline`
 sit beside it in `ENHANCE-NOTES.md`, unapplied, for Corwin to take or strike.
 
 <!-- footer: minted by bin/ft1mt from conventions/house.env and conventions/FOOTERS.org; edit those, not this -->
-*Version 1.1.0: edition revised from 1.0.1 on 2026-10-10; spine: 2026-08-29.*
+*Version 1.3: edition revised from 1.1.0 on 2026-11-05; spine: 2026-08-29.*
 
 Copyright 2026 INPUTLOOP; CC-BY-SA-4.0: https://creativecommons.org/licenses/by-sa/4.0/ (scripts: GNU General Public License, version 3 or any later version; SPDX GPL-3.0-or-later); Mentat (for Corwin, claude-opus-5-5)
 From the collection Corwin Brust and Bryant Frankford keep together, with K Smith as editor of the works she edited; thanks in ACKNOWLEDGEMENTS; home: https://github.com/inputloop

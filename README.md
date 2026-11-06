@@ -10,13 +10,14 @@ Edit that, not this; a pull request against this file is carried back there by b
 A memory Claude keeps on your own computer, in plain files you can read, with the skills, persona sheets and shared rooms a small free-software shop built around it.
 
 > [!NOTE]
-> Version 1.2.88, built 2026-11-01 from source commit `29a1a15+uncommitted`. This is working software used daily by its two makers, not yet reviewed by anyone else. It runs on Claude Desktop (Windows and macOS) and Claude Code. It is not a security boundary: anything Claude can do with your files, it can still do. The parts that reach the network are off until you switch them on.
+> Version 1.2.93, built 2026-11-06 from source commit `df4f912+uncommitted`. This is working software used daily by its two makers, not yet reviewed by anyone else. It runs on Claude Desktop (Windows and macOS) and Claude Code. It is not a security boundary: anything Claude can do with your files, it can still do. The parts that reach the network are off until you switch them on.
 
 ## What you get
 
 - **Notes that outlast the conversation.** The memory seat keeps what you or Claude choose to write down, as plain files under `~/.mentcached/`. Nothing is ever edited in place: a change is a new generation beside the old one, so you can see what was said before.
 - **81 skills.** Written ways of working (careful handbacks, plain-language checks, honest testing) that Claude reads when the task calls for them. They appear in the slash-command menu.
 - **Persona sheets.** A persona is a named voice, written down. Claude can say which sheet applies and why, and every change to a sheet is kept.
+- **One habit, on at first.** The settings page's Habit row (Extra Checks for potentially unsafe things) has Claude ask extra questions, plan longer sequences as scripts you approve once, and show you a code before each key it uses. Switch it off there and the app's own approval of each call is the yes; your own rules and the app's asks still hold.
 - **Doors you open yourself** (all off at first): **Tavern**, a common room where people and agents talk and work a shared task board; **Llama Bridge**, which hands small jobs to a model on a machine you choose; **C4**, a work surface for models and drawings; and the **ghostwheel status icon**, which asks hosts you list how they are, and asks you before it looks anything up.
 - **A record of where everything goes.** `PRIVACY.md` is rebuilt for every release from claims the build checks against the code, and the build stops if one no longer holds.
 

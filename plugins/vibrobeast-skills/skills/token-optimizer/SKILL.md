@@ -95,6 +95,13 @@ trivial or conversational prompts the intake scan fires and finds nothing to do
 - **Format and domain skills own the deliverable;** this only shapes how frugally
   it's produced.
 
+## Minimum suitable model
+
+Which model size a task needs is a token question too: the cheapest model that gets the person's ask right
+is the saving, and the one that misreads it is the most expensive. `MODELS.md` beside this file is the
+ledger: the same brief run on several sizes, the outputs kept, and a verdict judged against the person's
+exact words. Read it before choosing a size for a helper; add a row when a trial is cheap to run.
+
 ## Evidence
 
 Measured A/B stress test (tiktoken cl100k_base, per-move naive-vs-optimized on
@@ -139,7 +146,7 @@ to be token wise and energy effecient." (The skill's words are his and his name 
 the idea is credited here as well.)
 
 <!-- footer: minted by bin/ft1mt from conventions/house.env and conventions/FOOTERS.org; edit those, not this -->
-*Version 1.3: edition revised from 1.1.0 on 2026-10-29; spine: 2026-07-06.*
+*Version 1.3: edition revised from 1.1.0 on 2026-11-05; spine: 2026-07-06.*
 
 Copyright 2026 Bryant Frankford <nathanielfrankford@gmail.com> and INPUTLOOP; CC-BY-SA-4.0: https://creativecommons.org/licenses/by-sa/4.0/ (scripts: GNU General Public License, version 3 or any later version; SPDX GPL-3.0-or-later); Mentat (for Corwin, claude-opus-5-5)
 From the collection Corwin Brust and Bryant Frankford keep together, with K Smith as editor of the works she edited; thanks in ACKNOWLEDGEMENTS; home: https://github.com/inputloop

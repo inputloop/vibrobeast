@@ -72,10 +72,12 @@ BLOCKERS = [
      "owner": "Corwin + the receiving party",
      "clears_when": "two pinned keys and one recorded two-party confirmation exist"},
     {"id": "B3", "blocker": "[KEEPER: publication needs supervision]",
-     "detail": "Root CLAUDE.md guard 1: no publication or sharing without "
-               "supervision, peer review and the compelling-math proof; "
-               "ethicsminions can halt it cold. Party-to-party exchange is "
-               "publication.",
+     "detail": "No publication or sharing without supervision, peer review "
+               "and the compelling-math proof; ethicsminions can halt it cold. "
+               "Party-to-party exchange is publication. (This was root "
+               "CLAUDE.md's guard 1; since 2026-10-28 that file only points to "
+               "MODEL.md, and where the rule lives now is his to say. The "
+               "block stands until he does.)",
      "owner": "Corwin",
      "clears_when": "a supervision channel exists that this server can call "
                     "and be refused by"},

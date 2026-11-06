@@ -12,6 +12,7 @@ description: >-
   work leaves (whose frame: org, team, parties). Triggers on "make a note", "remember that", "clean up
   memory", "compact the index", "what do you know about me", "whose persona am I wearing", or being
   called "Mentat".
+guard: true
 ---
 
 # Mentat Memory
@@ -198,6 +199,8 @@ rights: copyright vests in the principal, and the byline says *for* somebody, al
 persona's voice be the place a defect is explained — fix the thing first, and then the persona may say
 whatever it likes about it.
 
+**The persona rules (2026-11-05).** Sheets, user personas, the three flags (HUMAN, MACHINE, SHARE), pending marks and the forward persona follow his NEW PERSONA RULES: persona-engine, "The persona rules", and c4 facts/new-persona-rules-2026-11-05.md. Mentat writes no fact sourced only to a view put together on demand (R3); Mentat's own sheet gains no new main attributes (R14, his radiation-proof ruling).
+
 ## Notes discipline — nine mutations (2026-09-04/05, and one from 09-13)
 
 Nine rules for how a note is written, each taken after a LENS read found the care
@@ -297,7 +300,7 @@ early help when Corwin was first learning to use Claude: "Tell Claude to be resp
 and to keep notes for you." (The attribution ladder, rung 2: credit.)
 
 <!-- footer: minted by bin/ft1mt from conventions/house.env and conventions/FOOTERS.org; edit those, not this -->
-*Version 1.2: edition revised from 1.1.2 on 2026-10-23; spine: 2026-09-04.*
+*Version 1.3: edition revised from 1.2 on 2026-11-05; spine: 2026-09-04.*
 
 Copyright 2026 INPUTLOOP; CC-BY-SA-4.0: https://creativecommons.org/licenses/by-sa/4.0/ (scripts: GNU General Public License, version 3 or any later version; SPDX GPL-3.0-or-later); Mentat (for Corwin, claude-opus-5-5)
 From the collection Corwin Brust and Bryant Frankford keep together, with K Smith as editor of the works she edited; thanks in ACKNOWLEDGEMENTS; home: https://github.com/inputloop

@@ -70,10 +70,10 @@ Each is a pair of counted patterns. All four came from real rooms, not from imag
 | `framework-per-affordance` | framework / model / paradigm / architecture / methodology mentions | things to *do* — "Try this", a fenced block, a numbered step, a shell prompt | you are describing a system to someone who wanted to use one |
 | `claim-per-citation` | asserting sentences (is / are / must / always / never / will) | citations — a path, a URL, a year, a backticked file | confidence outrunning its sources |
 | `believed-per-observed` | `BELIEVED` / "I think" / "presumably" / "should be" | `OBSERVED` / "I ran" / "the output was" / a command receipt | judgement entering the record in an observation's clothes |
-| `unwitnessed-claim` | single-sourced marks (`†`, "single-sourced", "only source") | independent second witnesses ("confirmed by", "second source", "cross-read") | claims standing on one leg — mark them or find the witness |
+| `unwitnessed-claim` | single-sourced marks (`‡`, the older `†`, "single-sourced", "only source") | independent second witnesses ("confirmed by", "second source", "cross-read") | claims standing on one leg — mark them or find the witness |
 
 The last one is the **two-source dagger** as a countable thing: when most of a document's claims have
-no second witness, mark them `†` rather than implying earned confidence. A wrong correction is worse
+no second witness, mark them `‡` rather than implying earned confidence. A wrong correction is worse
 than the original error, so a correction must itself clear the two-source bar.
 
 ## Reading a comparison honestly
@@ -123,7 +123,7 @@ that line is a comment and nothing more; a shop that indexes its work can find t
 - **Gamed.** fails if a rewrite moves `framework-per-affordance` while a reader finds nothing new to do; check: `--compare OLD NEW`, then read the new affordances by hand.
 
 <!-- footer: minted by bin/ft1mt from conventions/house.env and conventions/FOOTERS.org; edit those, not this -->
-*Version 1.1.0: edition revised from 1.0.1 on 2026-10-10; spine: 2026-09-03.*
+*Version 1.3: edition revised from 1.1.0 on 2026-11-05; spine: 2026-09-03.*
 
 Copyright 2026 INPUTLOOP; CC-BY-SA-4.0: https://creativecommons.org/licenses/by-sa/4.0/ (scripts: GNU General Public License, version 3 or any later version; SPDX GPL-3.0-or-later); Mentat (for Corwin, claude-opus-5-5)
 From the collection Corwin Brust and Bryant Frankford keep together, with K Smith as editor of the works she edited; thanks in ACKNOWLEDGEMENTS; home: https://github.com/inputloop

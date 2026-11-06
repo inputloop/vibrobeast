@@ -1,6 +1,6 @@
-# Privacy Policy -- vibrobeast 1.2.88
+# Privacy Policy -- vibrobeast 1.2.93
 
-*Minted 2026-11-01 by `bin/tp2mt` for this build and no other. Every sentence about what the servers
+*Minted 2026-11-06 by `bin/tp2mt` for this build and no other. Every sentence about what the servers
 do was checked against their source when this was minted:*
 
 - no server but llamabridge, tavernface and gwstatus opens a network connection: none imports a network library (urllib.parse, which only reads a URL's text, is not one)
@@ -25,19 +25,25 @@ do was checked against their source when this was minted:*
 - c4face writes no file; the guard above refuses to start a C4 server that asks for the file module
 - gwstatus (the ghostwheel status icon) is off until you set gw.on, or GW_ON=1 (the extension's Ghostwheel status door); while off it answers one tool and sends nothing
 - when on, gwstatus connects only to the hosts you list (the hosts setting and its hosts register), by ssh, munin-node or http(s), to ask how they are (reachable, load, disk)
-- before gwstatus looks up a host's name, it asks you, unless you switched lookups off (then it never does) or to always
-- before gwstatus trusts a host key it has not seen, it shows you the fingerprint and asks, unless you switched that off or to always; a fingerprint pinned in the host's row that does not match is always refused
+- before gwstatus looks up a host's name, it asks you, unless you switched lookups off (then it never does), or switched the Habit row off on the settings page (then it looks names up without asking)
+- before gwstatus trusts a host key it has not seen, it shows you the fingerprint and asks, unless you switched that off, or switched the Habit row off (then a listed host's first key is taken and written into its row); a fingerprint pinned in the host's row that does not match is always refused
+- with the Habit row off, gwstatus does not ask before a lookup or a new host key; with it on (as it ships), it asks
 - host keys gwstatus accepts are kept in ~/.mentcached/gw_known_hosts, never in your ~/.ssh/known_hosts
 - gwstatus writes its picture and last answers beside the seat (~/.mentcached/gw-status.svg, gw-status.html, gw-last.json) and its hosts register and your answers there too (gw-hosts.tsv, gw-approvals.tsv)
 - gwstatus never prints the default password or the API token; its tools say only whether each is set
 - the key register is kept in ~/.mentcached/keys.tsv (VIBROBEAST_KEYS_FILE moves it); it names where each key lives, never a key
 - a register row that holds a key itself, rather than naming where it lives, is refused
 - the key tools say a key is set or not set, never its value
-- key_run starts nothing on its first call: it returns a confirmation naming the key, the program and the folder, with your usage constraints, and runs only when called again with that confirmation's code, good for one run within 15 minutes -- or under a standing yes you wrote yourself (keys.standing)
+- key_run starts nothing on its first call: it returns a confirmation naming the key, the program and the folder, with your usage constraints, and runs only when called again with that confirmation's code, good for one run within 15 minutes -- or under a standing yes you wrote yourself (keys.standing), or as a step of a plan you approved with a code (the plan door), or when you have switched the Habit row off on the settings page
+- with the Habit row off, key_run asks no code of its own: the app's own approval of each key_run call is the yes, every such run says so in its result with your usage constraints, a push still goes through the push door, and a group's ORG.md that says must not for standing yeses brings the code back
+- the Habit row (Extra Checks for potentially unsafe things) is read only from the settings page: no preference, defaults file or chat turn changes it
+- the Habit row ships on: left as it ships, or given a value that is not plainly on or off, it reads as on
+- a plan you approve is kept as it was when you approved it, in ~/.mentcached/plan-yes (PLAN_YES_DIR moves it); its steps run from that kept copy, exactly as written, for at most 9 hours and 17 runs
+- every plan approval, every run a plan covered and every revocation is a line in ~/.mentcached/plan-yes.log (PLAN_YES_LOG moves it), naming the key by its name, never its value
 - a git push through key_run is decided by the push door, never by a code: it goes only when two readings of your frame (fr1me egress) both say GO, and is refused otherwise
 - to learn whether a place is public, the push door runs git ls-remote with no sign-in, as a stranger would; every decision it makes is a line in ~/.mentcached/push-yes.log, with no key in it
 - a standing yes (keys.standing) covers one key, one program and one host, changes only on your own turn, never covers a run with an option, and lets scp only push to that host; every run under it says so in its result
-- keys.standing is read only from a row written on the keeper's own turn
+- keys.standing and keys.plans are read only from a row written on the keeper's own turn
 - the keeper is named by your Keeper field, else this computer's account name, else the default -- never by the turn that wrote a row, so no row can make its own writer the keeper
 - key_run starts only the programs a key allows (by default gh, git, glab, ssh, scp, npm or twine, as the key's service needs)
 - key_run's output has the key's value replaced by [key NAME] before Claude sees it, in each way a program may spell it (slashes turned, backslashes doubled)
@@ -82,14 +88,17 @@ key calls api.anthropic.com. The plugin starts neither and cannot change them; t
 your C4 folder only when that program and the files it loads pass its check (a tripwire, not a fence)
 for network, process and file modules, and it reads and writes nothing itself. With gwstatus on,
 it connects only to the hosts you list, by ssh, munin-node or http(s), to ask how they are; it asks you
-before it looks up a name or trusts a new host key, unless you said always, and with basic
+before it looks up a name or trusts a new host key, unless you switched the Habit row off, and with basic
 authorization it sends your user name and password to that host and nowhere else. The memory
 server's key_run is a door of another kind: it opens no connection itself, but on your yes to a
 confirmation that names the key, the program and the folder and reads your usage constraints back,
 it starts that one program (gh, git, ssh and the like) with the key bound, and the program goes
 where you sent it. A standing yes you write yourself (keys.standing: one key, one program, one host)
 lets such a run go without asking each time; it never covers a run with an option, scp under it
-only pushes, and each run under it says so in its result. The other servers make no network connections. What Claude itself sends
+only pushes, and each run under it says so in its result. A plan you approve once, with a code (the plan
+door), lets its own steps run exactly as written, for a few hours and a few runs. With the Habit row
+(Extra Checks for potentially unsafe things) switched off on the settings page, key_run asks no code
+of its own: the app's own approval of each call is your yes, and each such run says so. The other servers make no network connections. What Claude itself sends
 to Anthropic when it calls a tool -- the tool's answer, as part of the conversation -- is governed by
 Anthropic's own terms and privacy policy, not by this one.
 
@@ -104,6 +113,7 @@ Anthropic's own terms and privacy policy, not by this one.
 | persona journal | `~/.mentcached/seat/persona` | `PERSONA_ROOT` | changes made through the persona server |
 | words | `<words root>/g/<word>/<leaf>` -- the C4 tree when one is found | `words.root` preference, `C4_ROOT` | one file per word you registered (`word_register`): its neighbour, meaning, date and who |
 | usage record (the frame) | `~/.mentcached/stats/fr`, column names in `~/.mentcached/stats/d/fr` | `MENTCACHED_FRAME` | only while `usage.capture` is on (off by default). Two counts only, each with a date: the token count when a span starts, and the count after each prompt. While it is on, the record also mirrors each preference you set (key and value) and each question logged with `question_log` (the question's words). FRAME.md, in the plugin, says each column in words |
+| plan approvals | `~/.mentcached/plan-yes`, and `~/.mentcached/plan-yes.log` | `PLAN_YES_DIR`, `PLAN_YES_LOG` | each plan you approved, kept as it was when you approved it, and one line per approval, covered run and revocation (the key by its name, never its value) |
 | key register | `~/.mentcached/keys.tsv` | `VIBROBEAST_KEYS_FILE` | the keys you keep, by name: kind, where each lives (never the key), what it is for, the programs it may start, and your usage constraints |
 | llamabridge log | `~/.mentcached/llama-bridge.db` | (none) | when llamabridge is on: each delegation's time, model and sizes; the words of prompts and answers only while `llamabridge.keep_prompts` is on (off by default); each async job's answer, which delegate_result reads from there (not cleared by the plugin) |
 

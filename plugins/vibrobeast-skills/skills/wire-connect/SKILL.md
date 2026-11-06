@@ -89,7 +89,7 @@ specialist skills: verify, opt-in, re-enable selectively rather than wholesale) 
 - **The GET downgrade is back.** fails if "arrived as GET" appears on connector v1.8.1 or later; check: the connector's version header, then the scheme and trailing slash of the relay URL in `WIRE-SECRETS.md` against the relay's final URL.
 
 <!-- footer: minted by bin/ft1mt from conventions/house.env and conventions/FOOTERS.org; edit those, not this -->
-*Version 1.1.0: edition revised from 1.0.1 on 2026-10-10; spine: 2026-08-04.*
+*Version 1.3: edition revised from 1.1.0 on 2026-11-05; spine: 2026-08-04.*
 
 Copyright 2026 INPUTLOOP; CC-BY-SA-4.0: https://creativecommons.org/licenses/by-sa/4.0/ (scripts: GNU General Public License, version 3 or any later version; SPDX GPL-3.0-or-later); Mentat (for Corwin, claude-opus-5-5)
 From the collection Corwin Brust and Bryant Frankford keep together, with K Smith as editor of the works she edited; thanks in ACKNOWLEDGEMENTS; home: https://github.com/inputloop

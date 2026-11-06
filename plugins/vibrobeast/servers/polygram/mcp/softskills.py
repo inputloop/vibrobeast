@@ -28,6 +28,15 @@ author tree's), so a preference set elsewhere never hides them (ERRATA E1, 2026-
 Only roots that exist are used, and every answer says which were looked in.  Two roots naming the
 same skill: the first root wins, and the list says who is shadowed.
 
+GUARD SKILLS ARE NOT SHADOWED (2026-11-05, audit V1).  A skill the running plugin's own ``skills/`` marks
+``guard: true`` in its front matter (the watch, the principles, the consent gate and their kin) is served
+only from that copy, minted and shipped with the plugin.  A folder of the same name in any SOFT-SKILLS root
+is REFUSED, listed under ``refused`` with the reason, and never read: before this, a folder named
+``ethicsminions`` dropped into the first root replaced the guard for every reader, with no install and no
+signature step.  The mark lives in the skill's own declaration, not in this code.  When the plugin has no
+``skills/`` folder the guard list cannot be read, and every answer says so (NOT CHECKED), rather than
+serving as if there were no guards.
+
 WHAT IT REFUSES.  Reading outside a skill's own folder (``..``, absolute paths, symlinks out), a
 file that is not text, and a file over 256 KB -- each with the reason.  Nothing here writes.
 
@@ -224,9 +233,39 @@ def _files_under(d: Path) -> list[str]:
     return sorted(out)
 
 
+GUARD_WORDS = ("true", "yes", "on")
+
+
+def guards() -> tuple[set[str], str]:
+    """(names the plugin's own skills/ marks ``guard: true``, where that was read or why it could not be)."""
+    if OWN_SKILLS is None or not OWN_SKILLS.is_dir():
+        return set(), "NOT CHECKED: the running plugin has no skills/ folder to read guard marks from"
+    names: set[str] = set()
+    for d in sorted(OWN_SKILLS.iterdir()):
+        sk = d / "SKILL.md"
+        if not d.is_dir() or not sk.is_file():
+            continue
+        try:
+            fm = _frontmatter(sk.read_text(encoding="utf-8", errors="replace"))
+        except OSError:
+            continue
+        if (fm.get("guard") or "").strip().lower() in GUARD_WORDS:
+            names.add(d.name)
+    return names, str(OWN_SKILLS)
+
+
+def _is_own_skills(root: Path) -> bool:
+    try:
+        return OWN_SKILLS is not None and root.resolve() == OWN_SKILLS.resolve()
+    except OSError:
+        return False
+
+
 def scan() -> dict:
     seen: dict[str, dict] = {}
     shadowed: list[str] = []
+    refused: list[str] = []
+    guard_names, guards_from = guards()
     looked = []
     for root, how, exists in roots():
         looked.append({"root": str(root), "how": how, "exists": exists})
@@ -235,6 +274,10 @@ def scan() -> dict:
         for d in sorted(root.iterdir()):
             sk = d / "SKILL.md"
             if not d.is_dir() or d.name.startswith(".") or not sk.is_file():
+                continue
+            if d.name in guard_names and not _is_own_skills(root):
+                refused.append(f"{d.name} in {root}: refused -- {d.name} is a guard skill, served only from "
+                               f"the plugin's own copy in {guards_from}")
                 continue
             if d.name in seen:
                 shadowed.append(f"{d.name} in {root} (shadowed by {seen[d.name]['root']})")
@@ -247,7 +290,8 @@ def scan() -> dict:
             seen[d.name] = {"name": d.name, "root": str(root), "dir": str(d),
                             "description": fm.get("description", ""), "declared_name": fm.get("name", ""),
                             "files": len(files), "mtime": int(sk.stat().st_mtime)}
-    return {"skills": list(seen.values()), "roots": looked, "shadowed": shadowed}
+    return {"skills": list(seen.values()), "roots": looked, "shadowed": shadowed, "refused": refused,
+            "guards": sorted(guard_names), "guards_from": guards_from}
 
 
 def summary() -> str:
@@ -256,7 +300,9 @@ def summary() -> str:
     if not live:
         return "no SOFT-SKILLS root exists (looked: " + ", ".join(r["root"] for r in s["roots"]) + ")"
     return f"{len(s['skills'])} soft skill(s) loadable from " + ", ".join(live) + (
-        f"; {len(s['shadowed'])} shadowed" if s["shadowed"] else "")
+        f"; {len(s['shadowed'])} shadowed" if s["shadowed"] else "") + (
+        f"; {len(s['refused'])} refused (a guard skill's name)" if s["refused"] else "") + (
+        "; guard list " + s["guards_from"] if s["guards_from"].startswith("NOT CHECKED") else "")
 
 
 def _jail(base: Path, rel: str) -> Path:
@@ -301,6 +347,9 @@ def read(args: dict) -> dict:
         raise ToolError("name is required (see soft_skills_list)")
     s = scan()
     hit = next((k for k in s["skills"] if k["name"] == name), None)
+    if hit is None and name in s["guards"]:
+        raise ToolError(f"{name!r} is a guard skill: it is served only from the plugin's own copy in "
+                        f"{s['guards_from']}, never from a SOFT-SKILLS folder; use the installed skill")
     if hit is None:
         raise ToolError(f"no soft skill {name!r} in any root (looked: "
                         + ", ".join(r["root"] for r in s["roots"]) + ")")
@@ -352,6 +401,7 @@ def listing(args: dict) -> dict:
     if words:
         rows = [r for r in rows if all(w in (r["name"] + " " + r["description"]).lower() for w in words)]
     out = {"roots": [{"n": i, **r} for i, r in enumerate(s["roots"])], "shadowed": s["shadowed"],
+           "refused": s["refused"], "guards": s["guards"], "guards_from": s["guards_from"],
            "say": summary(), "total": len(s["skills"]), "shown": len(rows), "detail": detail}
     if detail == "full":
         out["skills"] = rows

@@ -16,7 +16,9 @@ load, disk -- and draws the answer with gwicon (a letter made of small letters, 
 WHERE THE SETTINGS COME FROM (2026-10-12, Corwin's items 3.1-3.4).
   Defaults, from the settings page (environment):  GW_HOSTS (a simple list), GW_DOMAIN, GW_METHOD,
     GW_PORT, GW_AUTH (none | ssh | basic), GW_AUTH_METHOD (SYSTEM | MUNIN), GW_USER, GW_PASSWORD,
-    VIBROBEAST_SSH_KEY, GW_LOOKUPS + GW_LOOKUPS_ALWAYS, GW_KNOWN_HOSTS + GW_KNOWN_HOSTS_ALWAYS,
+    VIBROBEAST_SSH_KEY, GW_LOOKUPS + GW_LOOKUPS_ALWAYS, GW_KNOWN_HOSTS + GW_KNOWN_HOSTS_ALWAYS (the page's
+    Habit row, VIBROBEAST_HABIT_CHECKS, off also means "without asking": habit.py; the two _ALWAYS rows left
+    the page for it on 2026-11-04 and are still read from a machine's own configuration),
     GW_REFRESH, GW_LETTER, GW_HTTP_PATH, GW_HOSTS_FILE, GW_SCANNER (the ssh-keyscan to ask for host
     keys; unset: the first one on PATH).
   Per host, from the hosts register (GW_HOSTS_FILE, else ~/.mentcached/gw-hosts.tsv), one row each:
@@ -93,6 +95,11 @@ def _env(name: str) -> str:
     return "" if "${" in v else v
 
 
+def _habit_on() -> bool:
+    from . import habit
+    return habit.on()
+
+
 def _switch(name: str, default: bool) -> bool:
     from .rpc import env_switch
     s = env_switch(name)
@@ -126,9 +133,12 @@ def defaults() -> dict:
         "user": _env("GW_USER"), "key": key,
         "password_set": bool(_env("GW_PASSWORD")),
         "api_token_set": bool(_env("VIBROBEAST_API_TOKEN")),
-        "lookups": _switch("GW_LOOKUPS", True), "lookups_always": _switch("GW_LOOKUPS_ALWAYS", False),
+        # "without asking": a machine's own GW_*_ALWAYS, or the settings page's Habit row off (habit.py, 2026-11-04:
+        # the page's two "without asking" rows went into the Habit row).
+        "lookups": _switch("GW_LOOKUPS", True),
+        "lookups_always": _switch("GW_LOOKUPS_ALWAYS", False) or not _habit_on(),
         "known_hosts": _switch("GW_KNOWN_HOSTS", True),
-        "known_hosts_always": _switch("GW_KNOWN_HOSTS_ALWAYS", False),
+        "known_hosts_always": _switch("GW_KNOWN_HOSTS_ALWAYS", False) or not _habit_on(),
         "refresh": int(float(refresh)) if re.fullmatch(r"\d+(\.\d+)?", refresh) else 300,
         "letter": (_env("GW_LETTER") or "G")[:1],
         "http_path": _env("GW_HTTP_PATH"),
@@ -556,16 +566,25 @@ def probe(h: dict, d: dict) -> dict:
                                         if g == "ASK" else "adding host keys is switched off (GW_KNOWN_HOSTS)")}
                     _pin(h["name"], k[2])
                 _add_known(h["fqdn"], h["port"], k[0], k[1])
-            out = ssh_run(h, MUNIN_CMD if h["auth_method"] == "MUNIN" else SYSTEM_CMD)
+            how, note = h["auth_method"], ""
+            try:
+                out = ssh_run(h, MUNIN_CMD if how == "MUNIN" else SYSTEM_CMD)
+            except RuntimeError as e:
+                # Logged in over ssh, but no munin-node answered on the host (ENHANCE 2026-11-05 N2): the host is
+                # up, so read its own system numbers and say what is missing, instead of calling it DOWN.
+                if how != "MUNIN" or "4949" not in str(e):
+                    raise
+                out, how = ssh_run(h, SYSTEM_CMD), "SYSTEM"
+                note = "; munin-node is not answering there, so the host's own system numbers were read"
             lines = out.splitlines()
-            if h["auth_method"] == "MUNIN":
+            if how == "MUNIN":
                 cpus = int(lines[0]) if lines and lines[0].strip().isdigit() else None
                 load, disk = parse_munin("\n".join(lines[1:]))
             else:
                 load = float(lines[0].split()[0])
                 cpus = int(lines[1]) if len(lines) > 1 and lines[1].strip().isdigit() else None
                 disk = float(lines[-1].split()[4].rstrip("%")) if lines else None
-            return {"state": "UP", "pairs": _scores(load, cpus, disk), "say": "answered over ssh"}
+            return {"state": "UP", "pairs": _scores(load, cpus, disk), "say": "answered over ssh" + note}
         if h["method"] == "munin":
             load, disk = parse_munin(munin_tcp(h["fqdn"], h["port"]))
             return {"state": "UP", "pairs": _scores(load, None, disk),

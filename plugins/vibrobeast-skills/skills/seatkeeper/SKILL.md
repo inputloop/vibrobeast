@@ -121,7 +121,7 @@ as two; flag topical dupes for the keeper, never silently merge.
 - **Ground every "should".** A hold or a rule must cite the keeper's actual words, a superseding
   statement, or a hard floor (ToS / safety) — never a self-authored rule cited back as the keeper's.
   Budget the compute and stop when the work is done or at a bound. Never touch entrusted systems,
-  family or third-party material, or anything irreversible on your own initiative.
+  third-party material, or anything irreversible on your own initiative.
 
 ## How this skill can fail (falsifiers)
 
@@ -157,7 +157,7 @@ When someone declines to seat a folder (st1dt, the seating detector, proposes it
   the preference acts, and the mirror is only counted.
 
 <!-- footer: minted by bin/ft1mt from conventions/house.env and conventions/FOOTERS.org; edit those, not this -->
-*Version 1.1.2: edition revised from 1.1.0 on 2026-10-10; spine: 2026-09-01.*
+*Version 1.3: edition revised from 1.1.2 on 2026-11-05; spine: 2026-09-01.*
 
 Copyright 2026 INPUTLOOP; CC-BY-SA-4.0: https://creativecommons.org/licenses/by-sa/4.0/ (scripts: GNU General Public License, version 3 or any later version; SPDX GPL-3.0-or-later); Mentat (for Corwin, claude-opus-5-5)
 From the collection Corwin Brust and Bryant Frankford keep together, with K Smith as editor of the works she edited; thanks in ACKNOWLEDGEMENTS; home: https://github.com/inputloop

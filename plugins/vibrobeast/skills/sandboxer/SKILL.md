@@ -578,7 +578,7 @@ Same discipline as the fingerprints above, pointed at the one tree everyone assu
 **C** a withdrawn enclave, **D** the account memory behind the web Settings panel
 (`memory/memory-stores-map.md`). No reader sees them all — the shell sees B, the file tool sees A
 and B, the keeper on the host sees everything, and nothing in a local session reaches D at all
-(`memory/account-memory-store-D.md`; it also holds family and third-party details, so it is
+(`memory/account-memory-store-D.md`; it also holds third-party details, so it is
 steered around, not copied). So every claim about "the memory" is one reader's claim until a
 second reader agrees. Dated and receipted like the fingerprints above; never delete one — a stale
 line gets re-measured and re-dated, not removed.
@@ -686,7 +686,7 @@ need is *occasional*; never merge what is only *sometimes* shared.
 - **A check stopped checking.** fails if `sh tests-validators.sh --prove-red` or `python3 tests-sig-fresh.py --prove-red` (skill root) does not end `PROVE-RED OK`; each plants broken files in a temp dir and breaks its script in a temp copy.
 
 <!-- footer: minted by bin/ft1mt from conventions/house.env and conventions/FOOTERS.org; edit those, not this -->
-*Version 1.3: edition revised from 1.2 on 2026-10-29; spine: 2026-07-07.*
+*Version 1.3: edition revised from 1.2 on 2026-11-05; spine: 2026-07-07.*
 
 Copyright 2026 INPUTLOOP; CC-BY-SA-4.0: https://creativecommons.org/licenses/by-sa/4.0/ (scripts: GNU General Public License, version 3 or any later version; SPDX GPL-3.0-or-later); Mentat (for Corwin, claude-opus-5-5)
 From the collection Corwin Brust and Bryant Frankford keep together, with K Smith as editor of the works she edited; thanks in ACKNOWLEDGEMENTS; home: https://github.com/inputloop

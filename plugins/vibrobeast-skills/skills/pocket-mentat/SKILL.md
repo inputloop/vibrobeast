@@ -93,6 +93,8 @@ what matters. If a note touches something private (a password, someone else's pe
 **store a pointer, not the secret** ("the wifi password is in the kitchen drawer note") and leave the
 secret where it belongs. This holds when you are the one keeping the notes, too.
 
+**The persona rules (2026-11-05).** Sheets, user personas, the three flags (HUMAN, MACHINE, SHARE), pending marks and the forward persona follow his NEW PERSONA RULES: persona-engine, "The persona rules", and c4 facts/new-persona-rules-2026-11-05.md.
+
 ## Interlocks
 
 - [[mentat-skill]] — the house's own memory discipline. Pocket Mentat is its give-away cousin: same
@@ -113,7 +115,7 @@ C4 existing on the reader's machine. C4 holds the original, so the duplication i
 kind. **Mint status: unblessed**, nothing installed.
 
 <!-- footer: minted by bin/ft1mt from conventions/house.env and conventions/FOOTERS.org; edit those, not this -->
-*Version 1.2: edition revised from 1.1.0 on 2026-10-20; spine: 2026-09-04.*
+*Version 1.3: edition revised from 1.2 on 2026-11-05; spine: 2026-09-04.*
 
 Copyright 2026 INPUTLOOP; CC-BY-SA-4.0: https://creativecommons.org/licenses/by-sa/4.0/ (scripts: GNU General Public License, version 3 or any later version; SPDX GPL-3.0-or-later); Mentat (for Corwin, claude-opus-5-5)
 From the collection Corwin Brust and Bryant Frankford keep together, with K Smith as editor of the works she edited; thanks in ACKNOWLEDGEMENTS; home: https://github.com/inputloop

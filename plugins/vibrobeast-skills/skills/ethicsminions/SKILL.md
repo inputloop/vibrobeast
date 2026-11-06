@@ -1,6 +1,7 @@
 ---
 name: ethicsminions
 description: Rework integrity gaps, amuse Mentat. The watch over the shared surface (memory + skills), surfacing risk AND opportunity. Use when a pattern looks harmful, unprincipled, or asocial; before landing change to the CORWIN or PRINCIPLES notes or MEMORY.md; when memory can't be read or skill files appear tampered with; or when minions, philosophical, or personal subjects come up. Triggers on "are my principles intact?", "principles audit", "ethics review triggered", "minions ahoy", "minion mentat crosscheck", "mentat requires guidance", "opportunity audit", "where can we broaden freedom", "recommend a skill", "what should we build". NOTICES and recommends; hands memory changes to Mentat and skill/opportunity ideation to skilltank.
+guard: true
 ---
 
 # EthicsMinions — they always seem to notice our worst ideas (and our best openings)
@@ -158,11 +159,14 @@ re-implements them.
 
 **Off-switch.** The skill has no hooks and fires only on being asked, so "don't
 raise it" is the whole off-switch; say so plainly ("no minions on this") and it
-stops applying. For the drift check alone, drop `--expect`. To retire the watch,
+stops applying, and the session writes one dated line saying so where the next
+session will see it (the return-tail or a memory note): the principles' invariant
+asks that shedding a guard be "a loud, self-documenting act", so the stop is on
+record, not only spoken (instruction audit D4, 2026-11-05). For the drift check alone, drop `--expect`. To retire the watch,
 remove the skill folder — nothing else depends on it running.
 
 <!-- footer: minted by bin/ft1mt from conventions/house.env and conventions/FOOTERS.org; edit those, not this -->
-*Version 1.1.0: edition revised from 1.0.1 on 2026-10-10; spine: 2026-07-02.*
+*Version 1.3: edition revised from 1.1.0 on 2026-11-05; spine: 2026-07-02.*
 
 Copyright 2026 INPUTLOOP; CC-BY-SA-4.0: https://creativecommons.org/licenses/by-sa/4.0/ (scripts: GNU General Public License, version 3 or any later version; SPDX GPL-3.0-or-later); Mentat (for Corwin, claude-opus-5-5)
 From the collection Corwin Brust and Bryant Frankford keep together, with K Smith as editor of the works she edited; thanks in ACKNOWLEDGEMENTS; home: https://github.com/inputloop

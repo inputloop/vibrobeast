@@ -202,7 +202,7 @@ def register(srv) -> None:
         want, out = base / "desired" / f"{h}.want", base / "plans" / f"{h}.plan"
         want.parent.mkdir(parents=True, exist_ok=True)
         if not want.is_file() or want.read_text(encoding="utf-8") != text:
-            want.write_text(text if text.endswith("\n") else text + "\n", encoding="utf-8")
+            want.write_text(text if text.endswith("\n") else text + "\n", encoding="utf-8", newline="\n")
         args = ["plan", dom, str(want), "--out", str(out)] + (["--allow-ns"] if a.get("allow_ns") else [])
         r = _run(prov_of(a), args, a.get("confirm") or "", a.get("key") or "")
         r["plan_file"] = str(out)

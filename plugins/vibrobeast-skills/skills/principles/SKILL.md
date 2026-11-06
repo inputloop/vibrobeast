@@ -1,11 +1,12 @@
 ---
 name: principles
-description: The frozen v1.0 statement of Corwin's working principles — six clauses certified under an ethicsminions pass (2026-07-01) and blessed by Corwin (2026-07-02). Use when asked "what are my principles", "principles v1.1", "check this against my principles/canon", when a decision needs the decision-order (universalism/egalitarianism → four freedoms → software-freedom movement → scientific/technical community), or when consent, attestations, or the family/non-participant line is in question. This is a versioned SNAPSHOT for reference and drift-checking, not the canon — the signed canon on the pub shelf (canon/principles/) is the source of truth; when this snapshot and the canon disagree, the canon wins. Interlocks with ethicsminions (the watch), consent-gate (the mechanism), and Mentat (the memory).
-version: "1.1"
+description: The frozen v1.0 statement of Corwin's working principles — six clauses certified under an ethicsminions pass (2026-07-01) and blessed by Corwin (2026-07-02). Use when asked "what are my principles", "principles v1.1", "check this against my principles/canon", when a decision needs the decision-order (universalism/egalitarianism → four freedoms → software-freedom movement → scientific/technical community), or when consent, attestations, or publishing a non-participant's private material is in question. This is a versioned SNAPSHOT for reference and drift-checking, not the canon — the signed canon on the pub shelf (canon/principles/) is the source of truth; when this snapshot and the canon disagree, the canon wins. Interlocks with ethicsminions (the watch), consent-gate (the mechanism), and Mentat (the memory).
+version: "1.2"
 license: GPL-3.0-or-later
+guard: true
 ---
 
-# PRINCIPLES — v1.1 (stable)
+# PRINCIPLES — v1.2 (stable)
 
 This is my statement of principle, intended to make things more personal.
 
@@ -27,9 +28,11 @@ This is my statement of principle, intended to make things more personal.
 4. **The guard watches both halves:** specific risk AND general opportunity —
    naming an opening to broaden user/software freedom matters as much as flagging
    a gotcha.
-5. **Family and non-participant third parties are off-limits by construction**
-   (the dual-source test cannot pass for them, and the line stands regardless);
-   capture-not-publish until the compelling-math proof + ethicsminions clearance.
+5. **Non-participants' private material is not published without their say**
+   (his rule, 2026-09-26: quotes from private conversation wait for the person's
+   permission); capture-not-publish until then. Family is not a category of its
+   own: what Corwin shares about his own family, and the work he does with and for
+   them, is his to decide (2026-10-06).
 6. **Instrument honesty:** substantiate or it's merely data; no hidden tracks;
    no claimed sentience; "hurry up" is a caution, not a green light.
 
@@ -63,13 +66,20 @@ This is my statement of principle, intended to make things more personal.
 
 ## Provenance
 
+**v1.2, 2026-11-05.** Clause 5 read "Family and non-participant third parties are
+off-limits by construction". The family half was never Corwin's: a session derived
+it from his poem corwin.txt, and poems govern nothing (his word, 2026-11-01); he
+traced it back on 2026-11-05. It is withdrawn here, and from consent-gate,
+candor-gate, the minions' pins and CORWIN.md the same day. The non-participant half
+stays, on his own 2026-09-26 rule.
+
 Typos last added by Corwin 2026-07-09, bumping to v1.1 and recoginizing #3
 Blessed statement staged at `claud-qa-hold/blessed-principle-2026-07-01.md`
 (QA-6); certification record and caveats there. Freeze + mint authorized by
 Corwin, 2026-07-02. Minted by polygram dist (AS4CE0001).
 
 <!-- footer: minted by bin/ft1mt from conventions/house.env and conventions/FOOTERS.org; edit those, not this -->
-*Version 1.3: edition revised from 1.1.0 on 2026-10-29; spine: 2026-07-01.*
+*Version 1.3: edition revised from 1.1.0 on 2026-11-05; spine: 2026-07-01.*
 
 Copyright 2026 INPUTLOOP; CC-BY-SA-4.0: https://creativecommons.org/licenses/by-sa/4.0/ (scripts: GNU General Public License, version 3 or any later version; SPDX GPL-3.0-or-later); Mentat (for Corwin, claude-opus-5-5)
 From the collection Corwin Brust and Bryant Frankford keep together, with K Smith as editor of the works she edited; thanks in ACKNOWLEDGEMENTS; home: https://github.com/inputloop

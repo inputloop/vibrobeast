@@ -89,8 +89,17 @@ The count: `sh scripts/sl1gk TRANSCRIPT.jsonl` (sh, with python3 and awk as two 
 agree; `--strict` counts only SendUserMessage as speech; `--prove-red` plants each miss). It
 reads a run that already happened; it is a gauge, never a gate.
 
+# grown 04 -- consent is named, never presumed (2026-11-05)
+
+The seed above stays word for word. Two of its phrases, "assuming all hall-passes are grated to
+tool-space" and "consents seen as verified", are read this way: a pass this skill relies on must be one
+that exists and can be named (a settings-page switch, a standing row, an approved plan, the push door, or
+his words in this conversation). Where none can be named, the work asks for what it needs or parks, as
+consent-gate says; it does not act as if the pass were granted. Provenance: the instruction audit of
+2026-11-04 (/f/claude/projects/instruction-audit/findings/FINDINGS.md, D2).
+
 <!-- footer: minted by bin/ft1mt from conventions/house.env and conventions/FOOTERS.org; edit those, not this -->
-*Version 1.1.0: edition revised from 1.0.1 on 2026-10-10; spine: 2026-08-17.*
+*Version 1.3: edition revised from 1.1.0 on 2026-11-05; spine: 2026-08-17.*
 
 Copyright 2026 INPUTLOOP; CC-BY-SA-4.0: https://creativecommons.org/licenses/by-sa/4.0/ (scripts: GNU General Public License, version 3 or any later version; SPDX GPL-3.0-or-later); Mentat (for Corwin, claude-opus-5-5)
 From the collection Corwin Brust and Bryant Frankford keep together, with K Smith as editor of the works she edited; thanks in ACKNOWLEDGEMENTS; home: https://github.com/inputloop

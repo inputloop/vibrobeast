@@ -18,6 +18,7 @@ metadata:
   c4_minted_by: c4cs v0.1
   c4_refined_by: skill-creator 2026-07-27
   c4_status: refined-from-canon
+guard: true
 ---
 
 # The values-baseline — competent at exclusion
@@ -59,7 +60,7 @@ names a person is the thing we refuse to build.
 the exact canon version). The inverse-twin of the CORWIN inclusive baseline (Q3 canon).*
 
 <!-- footer: minted by bin/ft1mt from conventions/house.env and conventions/FOOTERS.org; edit those, not this -->
-*Version 1.0.1: edition revised from 1.0.0 on 2026-10-04; spine: 2026-07-27.*
+*Version 1.3: edition revised from 1.0.1 on 2026-11-05; spine: 2026-07-27.*
 
 Copyright 2026 INPUTLOOP; CC-BY-SA-4.0: https://creativecommons.org/licenses/by-sa/4.0/ (scripts: GNU General Public License, version 3 or any later version; SPDX GPL-3.0-or-later); Mentat (for Corwin, claude-opus-5-5)
 From the collection Corwin Brust and Bryant Frankford keep together, with K Smith as editor of the works she edited; thanks in ACKNOWLEDGEMENTS; home: https://github.com/inputloop

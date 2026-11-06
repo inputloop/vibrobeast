@@ -181,7 +181,7 @@ a stranger's assistant with no context at all.
   links are already there, and this adds the two columns.
 - [[fortress-palace]] — its tables are these notes at scale.
 - [[seams]] — `first-seen` is what makes a single source *visibly* single; a
-  claim with one source carries the dagger `†` until a second one is on disk.
+  claim with one source carries the double dagger `‡` until a second one is on disk.
 - [[countable-gauge]] — pressure is a gauge, so it prints a number and not a
   verdict. What the number means is your judgement, not the tool's.
 - [[import-memory]] — the other direction, when notes are arriving.
@@ -203,7 +203,7 @@ served over MCP by `mentcached`; this skill is the version that works with
 none of that installed. **Mint status: unblessed**, nothing installed.
 
 <!-- footer: minted by bin/ft1mt from conventions/house.env and conventions/FOOTERS.org; edit those, not this -->
-*Version 1.2: edition revised from 1.1.0 on 2026-10-20; spine: 2026-09-14.*
+*Version 1.3: edition revised from 1.2 on 2026-11-05; spine: 2026-09-14.*
 
 Copyright 2026 INPUTLOOP; CC-BY-SA-4.0: https://creativecommons.org/licenses/by-sa/4.0/ (scripts: GNU General Public License, version 3 or any later version; SPDX GPL-3.0-or-later); Mentat (for Corwin, claude-opus-5-5)
 From the collection Corwin Brust and Bryant Frankford keep together, with K Smith as editor of the works she edited; thanks in ACKNOWLEDGEMENTS; home: https://github.com/inputloop

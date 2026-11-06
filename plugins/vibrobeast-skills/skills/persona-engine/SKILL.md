@@ -103,6 +103,36 @@ through LENS, or a similar method.  If LENS is unavailable or budgeted out, say 
 Treat the persona as a personified actor unless the material shows that a human holds rights in it
 (a copyright or licence line).
 
+## The persona rules (2026-11-05)
+
+His NEW PERSONA RULES, in force from 2026-11-05 (his words: c4 q/2026-11-05-persona-rules/; the rules
+numbered R1-R15: c4 facts/new-persona-rules-2026-11-05.md). In short:
+
+- **A persona is a file** (a persona file, or character sheet; the rolled RPG-style sheet is the default form),
+  and every sheet meets the garden's baseline (cs1gk, no FAULT). (R1)
+- **The user persona has three spellings.** USER is minted and shipped; user is local, in a form the person
+  accepted and that is then pinned; User is the view put together on demand ("show me my character sheet").
+  (R2)
+- **A view put together on demand teaches nothing.** Never write a fact whose only source is such a view; it
+  shows only facts written in earlier turns. What is not yet written appears inline with a tag in capitals
+  (joined by `_` for people, `-` for machines) and the pending mark: ‡, or PENDING WRITE, or both; ‡ may be
+  left off where two writers agreed, unless that agreement is what pins the form. A page that goes outward
+  with ‡ on it says once what the mark means. (R3, R4)
+- **Three flags, fixed when the sheet is written and never cleared by a reader:** HUMAN (off: systemic; on:
+  doubly linked PROMPT and LOG journals), MACHINE (off: an analyst), SHARE (off: nothing goes outward). A flag
+  is set only on two facts of intent; a correction is a new write that supersedes, and the old value stays.
+  HUMAN and MACHINE together only at a virtual run-level (6 or more), in a named collection, under a real name.
+  New personas are commentators by default: clerics, not healers. (R6-R11, R13)
+- **The forward persona.** A HUMAN and MACHINE persona at a virtual level may be the forward one, shadowed
+  down to a spoke-joined designation of registered words ending in USER when we act for the subject, such as
+  HUMAN-GAMER-MACHINE-LOCAL-USER. (R12)
+- **Every change to a sheet is an observable mutation:** a ledger entry, a diff that keeps its ‡ marks. (R15)
+
+Tools: c4 `bin/pr1fl` writes and reads the flags (`set`, `show`, `check`; never clears); `cs1gk` checks a sheet's
+flags (G11), pending marks (G12) and forward line (G13). What these rules do not change (R14): skills already
+minted keep their behaviour until minted again; Mentat's own sheet gets no new main attributes; existing sheets
+gain flags only when next written; Bryant's personas are his.
+
 ## Careful, not wasteful
 
 - **Second use.**  A system feature does not get a persona on its first local use; wait for the
@@ -144,6 +174,6 @@ shaped).  When present: consent-gate (use 1), eclipse-pass (stress a persona's c
 fantasy-operational-boundary (a fiction persona near a real system), the persona MCP server,
 `bin/mt1pl`, `bin/cs1gk`, `bin/rf1bm`, `bin/pg1rl`.
 
-*Version 0.3: edition revised from 0.2 on 2026-10-05; spine: 2026-10-04.*
+*Version 0.4: edition revised from 0.3 on 2026-11-05; spine: 2026-10-04.*
 
-Copyright 2026 INPUTLOOP; CC-BY-SA-4.0: https://creativecommons.org/licenses/by-sa/4.0/; https://github.com/inputloop (scripts GPL-3.0-or-later); Mentat (for Corwin, claude-opus-5-5)
+Copyright 2026 Corwin Brust <corwin@bru.st> and Contributors; CC-BY-SA4: https://creativecommons.org/licenses/by-sa/4.0/ (scripts GPL-3.0-or-later); Mentat (for Corwin; claude-opus-5-5)

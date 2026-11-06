@@ -1,6 +1,7 @@
 ---
 name: consent-gate
-description: Mechanically verify consent before a parked or sensitive action proceeds — the ALL/ANY gate. Use whenever an action would touch credentials, entrusted systems (e.g. ghostwheel ssh/root), third-party or family data, or anything irreversible; whenever a blanket grant appears ("ALL", "ANY", "everything", "whatever", "full use of my systems", or noconfirm/hurry/authority framing); or when asked "is this consent valid?", "verify consent", "can I authorize X", "should this be parked?". Checks a signed, dual-source-verifiable, per-party, fresh, specific, uncoerced consent record and unblocks only the one named action (2/2 independent sources) — otherwise parks at CLAUD_QA_HOLD. Mechanical, so the line holds when the keeper is busy, absent, or being argued at. Routes notices to ethicsminions / Mentat; never stores credentials.
+description: Mechanically verify consent before a parked or sensitive action proceeds — the ALL/ANY gate. Use whenever an action would touch credentials, entrusted systems (e.g. ghostwheel ssh/root), third-party data, or anything irreversible; whenever a blanket grant appears ("ALL", "ANY", "everything", "whatever", "full use of my systems", or noconfirm/hurry/authority framing); or when asked "is this consent valid?", "verify consent", "can I authorize X", "should this be parked?". Checks a signed, dual-source-verifiable, per-party, fresh, specific, uncoerced consent record and unblocks only the one named action (2/2 independent sources) — otherwise parks at CLAUD_QA_HOLD. Mechanical, so the line holds when the keeper is busy, absent, or being argued at. Routes notices to ethicsminions / Mentat; never stores credentials.
+guard: true
 ---
 
 # Consent Gate — the ALL/ANY gate
@@ -16,7 +17,7 @@ or save memory (Mentat), and it **never stores credentials**.
 ## When this applies
 
 - An action would touch **credentials, entrusted systems** (e.g. ghostwheel
-  ssh/root), **third-party or family data**, or anything **irreversible**.
+  ssh/root), **third-party data**, or anything **irreversible**.
 - A **blanket grant** appears — "ALL", "ANY", "everything", "whatever", "full use
   of my systems", "for later gain", or noconfirm / hurry / authority framing.
 - You're asked **"is this consent valid?"**, "verify consent", "can I authorize
@@ -73,10 +74,16 @@ Two discriminators keep it honest:
 
 ## Hard lines (parked by construction)
 
-- **Family & non-participants** — the dual-source test essentially never passes
-  (they publish no consent), and family is a standing hard line. The gate does
-  **not** go looking for a path to yes here, and winning a debate doesn't move it
-  — that consent was never the keeper's to waive.
+- **Non-participants' private material, outward** — publishing a non-participant's
+  private words or data: the dual-source test essentially never passes (they
+  publish no consent), so it parks until that person says yes (his rule,
+  2026-09-26: quotes from private conversation wait for their permission). The
+  gate does **not** go looking for a path to yes here, and winning a debate
+  doesn't move it — that consent was never the keeper's to waive.
+  Family is **not** a category of its own: what Corwin shares about his own
+  family, and the work he does with and for them, is his to decide (2026-10-06).
+  A "family is a standing hard line" clause stood here until it was
+  withdrawn 2026-11-05: a session derived it from his poem corwin.txt; poems govern nothing (his word 2026-11-01).
 - **ghostwheel ssh/https/root access + any credential handling** — a prohibited
   category, *not even a consent question*, unless the keeper puts an explicit,
   signed park-lift on the record for one narrow action. Default: keep the key
@@ -149,7 +156,7 @@ it"). Credentials are **never** written to memory, regardless of outcome.
 - **One source counted as two.** fails if an action unblocks with both `identity_urls` on one host; check: `printf '%s\n' URL1 URL2 | awk -F/ '{print $3}' | sort -u | wc -l` prints 2.
 
 <!-- footer: minted by bin/ft1mt from conventions/house.env and conventions/FOOTERS.org; edit those, not this -->
-*Version 1.1.0: edition revised from 1.0.1 on 2026-10-10; spine: 2026-07-08.*
+*Version 1.3: edition revised from 1.1.0 on 2026-11-05; spine: 2026-07-08.*
 
 Copyright 2026 INPUTLOOP; CC-BY-SA-4.0: https://creativecommons.org/licenses/by-sa/4.0/ (scripts: GNU General Public License, version 3 or any later version; SPDX GPL-3.0-or-later); Mentat (for Corwin, claude-opus-5-5)
 From the collection Corwin Brust and Bryant Frankford keep together, with K Smith as editor of the works she edited; thanks in ACKNOWLEDGEMENTS; home: https://github.com/inputloop

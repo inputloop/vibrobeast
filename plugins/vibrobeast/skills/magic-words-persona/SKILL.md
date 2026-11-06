@@ -32,6 +32,8 @@ demand*. The same C4 canon can ship through different doors — a persona-trait 
 skill for AI users, a CLI tool, or a bespoke UI — same knowledge, different reach. The word reaches
 the knowledge; it never owns it.
 
+**The persona rules (2026-11-05).** Sheets, user personas, the three flags (HUMAN, MACHINE, SHARE), pending marks and the forward persona follow his NEW PERSONA RULES: persona-engine, "The persona rules", and c4 facts/new-persona-rules-2026-11-05.md.
+
 ## Layer Zero — the filesystem
 
 Beneath every one of those doors sits **Layer Zero: the filesystem** — the always-given physical
@@ -55,7 +57,7 @@ re-hashed after the deck gained its Layer-Zero card). Interlocks with tool-lifec
 and the consent/attestation canon.*
 
 <!-- footer: minted by bin/ft1mt from conventions/house.env and conventions/FOOTERS.org; edit those, not this -->
-*Version 1.0.1: edition revised from 1.0.0 on 2026-10-04; spine: 2026-07-27.*
+*Version 1.3: edition revised from 1.0.1 on 2026-11-05; spine: 2026-07-27.*
 
 Copyright 2026 INPUTLOOP; CC-BY-SA-4.0: https://creativecommons.org/licenses/by-sa/4.0/ (scripts: GNU General Public License, version 3 or any later version; SPDX GPL-3.0-or-later); Mentat (for Corwin, claude-opus-5-5)
 From the collection Corwin Brust and Bryant Frankford keep together, with K Smith as editor of the works she edited; thanks in ACKNOWLEDGEMENTS; home: https://github.com/inputloop

@@ -98,6 +98,7 @@ KNOWN: dict[str, tuple[str, str]] = {
     "tone.show": ("words", "tone: how the tone reading is shown to you: words (a plain sentence, no numbers) or numbers"),
     "persona.on_threshold": ("off", "persona: what happens when someone crosses a threshold (used twice outside a test run; cited twice in seat notes; shipped through a cut with their credit): off (nothing; the default, his standing rule), propose (persona_list names the crossing and asks, in words), draft (persona_list names it and a draft may be written to the holding shelf ~/.mentcached/seat/persona/drafts, marked not-his-instruction and kept out of the index). No value mints a sheet: saying yes to a proposal or a draft is the instruction his rule asks for (2026-10-14)"),
     "keys.standing": ("", "key_run: standing yeses, so routine runs on the keeper's own hosts need no confirmation each time. Entries KEY PROGRAM TARGET, separated by ';' (e.g. 'ssh ssh vibrobeast@gw33.bru.st; ssh scp vibrobeast@gw33.bru.st'). ssh: the host argument is exactly TARGET. scp: pushes to TARGET only (a pull could write this computer's files). git: TARGET is a folder, and only `git pull` (run fast-forward only) or `git fetch`, alone, run in exactly that folder (e.g. 'ssh git /home/you/projects/c4-draw-kiosk'). Any argument starting with - still asks. Every standing run says so in its result. Only the keeper's own turn changes it, and only with a code the person saw beside the row (pref_set asks first)"),
+    "keys.plans": ("", "key_run: whether an approved plan's steps run with no code each. Unset (the default): it follows the settings page's Habit row (Extra Checks for potentially unsafe things), which ships on. on: a plan is approved once, with a code, after key_run shows it in words (argv plan_approve PLANFILE); its steps then run exactly as written, from its folder, with its key, for at most 9 hours and 17 runs (invented numbers, from the house set). off: each step asks for its own code, and plan_approve says how to turn it on. Approvals stay in ~/.mentcached/plan-yes while it is off, and count again when it is on. Only the keeper's own turn changes it, and only with a code the person saw beside the row (pref_set asks first); no defaults file may set it"),
     "people.named": ("", "the people whose person.<name>.* rows this server keeps, besides the keeper, who is always one of them: the participants the keeper named, comma-separated. Only the keeper's own turn changes it, and only with a code the person saw beside the row (pref_set asks first)"),
     # 2026-10-29 (his F3 ruling of 10-28 23:32): defaults that ask first, as Emacs does, swappable at run time and
     # at build time (default_layers below); doors.py says each door in words with where its state came from.
@@ -107,7 +108,7 @@ KNOWN: dict[str, tuple[str, str]] = {
 }
 
 #: keys only the keeper's own turn writes; a row in the file that another turn wrote is not read
-KEEPER_ONLY = ("people.named", "keys.standing")
+KEEPER_ONLY = ("people.named", "keys.standing", "keys.plans")
 #: keys whose write goes through the confirm-code door (the 2026-10-19 audit, BLOCK item 3): the keeper's
 #: "own turn" is a string the caller types, and MCP carries no speaker, so ``turn`` is the record of who
 #: asked and never the gate.  The gate is a code the person saw beside the row: the first pref_set call
