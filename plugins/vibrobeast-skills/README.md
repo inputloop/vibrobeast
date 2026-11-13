@@ -26,7 +26,17 @@ The servers (the memory seat, persona sheets, Tavern, Llama Bridge, C4, the ghos
 a separate install: the Claude Desktop extension or the full plugin, at inputloop/vibrobeast. Do not
 install this plugin beside the full vibrobeast plugin, which already carries these skills.
 
+## Credits
+
+Drawn by [INPUTLOOP](https://github.com/inputloop), Bryant, and Corwin: the shared collection of
+Bryant Frankford and Corwin Brust, with K Smith as editor of the works she edited. Several skills are
+Bryant's or grew from his work (foaf, for his MeshFeed; llama-bridge, his operating manual carried
+whole; garden-pony, over his Tavern; token-optimizer; topoforge-story, about the app he made); each
+skill's own footer says whose it is. Ideas or complaints: Bryant and Corwin,
+BryantAndCorwin@inputloop.com.
+
 ## Licence
 
-Code: GPL-3.0-or-later OR LGPL-3.0-or-later (COPYING). Prose and the skills' text: CC-BY-SA-4.0.
-https://vibrobeast.bru.st
+Code: GPL-3.0-or-later (COPYING). A file whose own header also offers LGPL-3.0-or-later may be used
+under either, at your choice; that offer is made part by part, never as a softer GPL on the whole.
+Prose and the skills' text: CC-BY-SA-4.0. https://vibrobeast.bru.st

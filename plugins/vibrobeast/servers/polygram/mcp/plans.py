@@ -55,7 +55,9 @@ written, the step asks for a code instead.
 
 Narrow on purpose, like keys.standing: ssh and scp take only the options in SAFE_OPTS (they cannot start a
 program on this computer), ssh -J only when keys.py has the -J hop (jump_rewrite), scp only sends, git only
-fetch or pull alone (a push stays the push door's).  scp sends into a folder (its path ends in /), so a file
+fetch or pull alone, a push (the push door's still), an add of plain paths (git add [-A] -- PATH...), or a
+commit whose message is a file with a sends line (git commit [-a] -F FILE), so the one hash covers the message too
+(his ask, 2026-11-10: "let's try letting the plan door take commit and push").  scp sends into a folder (its path ends in /), so a file
 keeps its name there.  A plan's ssh step whose remote command names a file an earlier step sent to that same
 login@host must also carry that file's sha256 in the command (the seam between "sent"
 and "used": the far copy is outside our sight, so the command checks it there).  "Names" is plain text: the
@@ -294,8 +296,25 @@ def read_bytes(data: bytes, folder: Path, jump: bool = False, hash_files: bool =
         if prog not in PROGRAMS:
             probs.append((k, "a plan runs ssh, scp or git", prog))
         elif prog == "git":
-            if not (argv[1:] in ([g] for g in GIT_ALONE) or argv[1:2] == ["push"]):
-                probs.append((k, "git in a plan is fetch or pull alone, or a push", "-"))
+            sub = argv[1] if len(argv) > 1 else ""
+            if sub == "add":
+                rest = argv[2:]
+                if rest[:1] == ["-A"]:
+                    rest = rest[1:]
+                if rest[:1] != ["--"] or len(rest) < 2 or not all(local_path_ok(x) for x in rest[1:]):
+                    probs.append((k, "git add in a plan is git add [-A] -- and plain paths in the plan's folder", "-"))
+            elif sub == "commit":
+                rest = argv[2:]
+                if rest[:1] == ["-a"]:
+                    rest = rest[1:]
+                if len(rest) != 2 or rest[0] != "-F" or not local_path_ok(rest[1]):
+                    probs.append((k, "git commit in a plan is git commit [-a] -F and a message file", "-"))
+                else:
+                    sources = [rest[1]]
+                    if rest[1] not in [s[1] for s in st["sends"]]:
+                        probs.append((k, "a commit's message file needs a sends line", rest[1]))
+            elif not (argv[1:] in ([g] for g in GIT_ALONE) or argv[1:2] == ["push"]):
+                probs.append((k, "git in a plan is fetch or pull alone, a push, an add or a commit", "-"))
             st["target"] = "."
         else:
             opts, rest, bad, hop = _opts(argv, prog, jump)
@@ -409,6 +428,15 @@ def _reading(st: dict, r: dict) -> str:
     if argv[1:2] == ["push"]:
         return ("a push: decided by the push door when it runs, as every push is (fr1me egress); this plan "
                 "neither opens nor shuts it")
+    if argv[1:2] == ["add"]:
+        return "stages " + ", ".join(argv[argv.index("--") + 1:]) + " in the plan's folder" + (
+            " (and every change and removal under them)" if "-A" in argv[2:3] else "")
+    if argv[1:2] == ["commit"]:
+        f = argv[-1]
+        sh = next((s[0][:12] for s in st["sends"] if _u(s[1]) == f), "?")
+        return (f"commits, with the message in {f} (sha256 {sh}), "
+                + ("every tracked change" if "-a" in argv[2:3] else "what is staged")
+                + "; the repository's own hooks still run")
     return f"git {argv[1]} in the plan's folder" + (" (fast-forward only)" if argv[1] == "pull" else "")
 
 

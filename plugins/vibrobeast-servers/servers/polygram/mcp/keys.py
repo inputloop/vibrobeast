@@ -912,6 +912,23 @@ def pinned_known_hosts(program: str, argv: list[str]) -> list[str]:
         return argv
 
 
+def no_window() -> dict:
+    """Windows: start the child with no console window of its own.  The server has no console, so a
+    console program (ssh.exe, git, python) started from it gets a fresh black window, which stays open
+    while the child waits; a host-key question sat in one for hours on 2026-11-13 (gw11, a root login
+    with no pin).  Elsewhere: nothing."""
+    return {"creationflags": getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)} if os.name == "nt" else {}
+
+
+def batch_mode(program: str, argv: list[str]) -> list[str]:
+    """ssh or scp always runs with BatchMode=yes unless the argv already says BatchMode: a question ssh
+    would ask (trust this host? a password?) fails at once, in words, instead of waiting where nobody
+    can answer.  The same rule git_ssh_command already keeps for git (2026-10-14); found missing for
+    plain ssh 2026-11-13."""
+    if program not in ("ssh", "scp") or any("batchmode" in a.lower() for a in argv[1:]):
+        return argv
+    return [argv[0], "-o", "BatchMode=yes", *argv[1:]]
+
 def standing_match(row: dict, program: str, argv: list[str],
                    entries: list[tuple[str, str, str]] | None = None, cwd: str | None = None):
     """(key, program, target) of the standing yes that covers this run, or None (standing_for's rule)."""
@@ -1086,7 +1103,7 @@ _RUN_ID = re.compile(r"^\d{8}-\d{6}-[0-9a-f]{6}$")
 _BG_WRAPPER = ("import os, subprocess, sys\n"
                "ef = sys.argv[1]\n"
                "try:\n"
-               "    rc = subprocess.call(sys.argv[2:])\n"
+               "    rc = subprocess.call(sys.argv[2:], creationflags=0x08000000 if os.name == 'nt' else 0)\n"
                "except OSError as e:\n"
                "    sys.stderr.write('could not start %s: %s\\n' % (sys.argv[2], e)); rc = 127\n"
                "open(ef + '.tmp', 'w').write(str(rc)); os.replace(ef + '.tmp', ef)\n")
@@ -1129,7 +1146,8 @@ _BG_RELAY = ("import codecs, importlib, json, os, subprocess, sys, threading\n"
              "rc = 127\n"
              "try:\n"
              "    p = subprocess.Popen(sys.argv[2:], stdin=subprocess.PIPE if feed else subprocess.DEVNULL,\n"
-             "                         stdout=subprocess.PIPE, stderr=subprocess.STDOUT)\n"
+             "                         stdout=subprocess.PIPE, stderr=subprocess.STDOUT,\n"
+             "                         creationflags=0x08000000 if os.name == 'nt' else 0)\n"
              "except OSError as e:\n"
              "    emit(scrub('could not start %s: %s\\n' % (sys.argv[2], e)))\n"
              "else:\n"
@@ -1278,7 +1296,7 @@ def _masks_again(row: dict, stdin_row: dict | None, program: str, argv: list, le
         for n in drop:
             env.pop(n, None)
         try:
-            q = subprocess.run(list(ask), env=env, capture_output=True, input="", text=True, encoding="utf-8",
+            q = subprocess.run(list(ask), env=env, capture_output=True, **no_window(), input="", text=True, encoding="utf-8",
                                errors="replace", timeout=15)
             login_secret = q.stdout.strip() if q.returncode == 0 else ""  # sb:allow (a name; its value is read at run time, only to mask it)
         except (OSError, subprocess.TimeoutExpired):
@@ -1489,6 +1507,7 @@ def run(row: dict, argv: list[str], cwd: str, confirm: str, lex, timeout: float 
             return {"ok": False, "say": jp}
         argv = [argv[0], *rest]
     argv = pinned_known_hosts(program, argv)       # after the code: the yes was given to the argv as shown
+    argv = batch_mode(program, argv)               # a prompt fails in words, never waits
     env = child_env(add)                             # the floor plus the bound names; never the server's own
     login_secret = ""
     if row["kind"] == "login":
@@ -1496,7 +1515,7 @@ def run(row: dict, argv: list[str], cwd: str, confirm: str, lex, timeout: float 
         for n in drop:
             env.pop(n, None)
         try:  # learn the login's own token only to mask it, should the program print it
-            q = subprocess.run(list(ask), env=env, capture_output=True, input="", text=True, encoding="utf-8", errors="replace", timeout=15)
+            q = subprocess.run(list(ask), env=env, capture_output=True, **no_window(), input="", text=True, encoding="utf-8", errors="replace", timeout=15)
             login_secret = q.stdout.strip() if q.returncode == 0 else ""  # sb:allow (a name; its value is read at run time, only to mask it)
         except (OSError, subprocess.TimeoutExpired):
             login_secret = ""
@@ -1520,7 +1539,7 @@ def run(row: dict, argv: list[str], cwd: str, confirm: str, lex, timeout: float 
                 out["push_yes"] = push_yes
         return out
     try:
-        p = subprocess.run([exe, *extra, *argv[1:]], cwd=cwd, env=env, capture_output=True,
+        p = subprocess.run([exe, *extra, *argv[1:]], cwd=cwd, env=env, capture_output=True, **no_window(),
                            # always an input of our own: inherited, it would be the server's own
                            # protocol pipe, and a prompt could sit on it until the bridge gave up.
                            # Bytes, not text: in text mode Windows writes every \n as \r\n, and a

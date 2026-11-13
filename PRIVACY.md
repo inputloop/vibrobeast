@@ -1,6 +1,6 @@
-# Privacy Policy -- vibrobeast 1.2.93
+# Privacy Policy -- vibrobeast 1.2.95
 
-*Minted 2026-11-06 by `bin/tp2mt` for this build and no other. Every sentence about what the servers
+*Minted 2026-11-13 by `bin/tp2mt` for this build and no other. Every sentence about what the servers
 do was checked against their source when this was minted:*
 
 - no server but llamabridge, tavernface and gwstatus opens a network connection: none imports a network library (urllib.parse, which only reads a URL's text, is not one)

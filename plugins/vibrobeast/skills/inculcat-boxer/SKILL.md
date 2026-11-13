@@ -193,5 +193,5 @@ checks fire on those cases in the glove's tests (P20, and eh1dx's own `--prove-r
 *Version 1.2: edition revised from 1.1.2 on 2026-10-16; spine: 2026-07-01.*
 
 Copyright 2026 INPUTLOOP; CC-BY-SA-4.0: https://creativecommons.org/licenses/by-sa/4.0/ (scripts: GNU General Public License, version 3 or any later version; SPDX GPL-3.0-or-later); Mentat (for Corwin, claude-opus-5-5)
-From the collection Corwin Brust and Bryant Frankford keep together, with K Smith as editor of the works she edited; thanks in ACKNOWLEDGEMENTS; home: https://github.com/inputloop
+From the collection Bryant Frankford and Corwin Brust keep together, with K Smith as editor of the works she edited; thanks in ACKNOWLEDGEMENTS; home: https://github.com/inputloop
 <!-- /footer -->
