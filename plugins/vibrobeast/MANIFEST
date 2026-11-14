@@ -1,4 +1,4 @@
-3cfeae1885c33bc4af00b4799e412ef33e2ab61eb4e87d7657232261e6f646b1  ./.claude-plugin/plugin.json
+3f1825d2ddaa6e885c5a341eeef10469e1a2994beead7dc3f25d090fcde2cf92  ./.claude-plugin/plugin.json
 4a7e171d804b0b1484f54a646c51137efeb05ae1c3fa2dbf5c6387a96d49558e  ./.mcp.json
 f274c92648b23e8508d8c90e8a87d705e0407dac2f1c25be10b79180c4c7e13f  ./COPYING
 4072b1c2e4d1d57e34ceecd3229719e8bfefdb00a31235a4d34864e1d23720f3  ./FRAME.md
@@ -18,7 +18,7 @@ aeae9464534cce9bae271c3ac13266e9698a4beba8fec082be120a83ebdd502e  ./servers/bin/
 39f99f08c324dec293df567038f04cc2809e8c05ae5a3214c7971108ef932fe4  ./servers/bin/witness-signature.sh
 522d48d24ff916db5261eaf2b885175efb5b22a8d1df03ec2b30e99ab8124e0f  ./servers/launch.cmd
 a85ea22467553fd26b190dee58d28febb8a01f69e7fecd6c81bdaa8448d8fe0b  ./servers/launch.py
-be9dc40640c3db1ff333c56b924f73a21073478beea8e765ca936f6cd48fe95b  ./servers/polygram/__init__.py
+6b82d1dc312234c2aa436aecb8115c6150c7a4c4a674cceb4b265fe1c4e93292  ./servers/polygram/__init__.py
 2c4e4b38dd68b4b4677c8761dcd3a0984942cf24767f62108800e11b4ece6ccb  ./servers/polygram/mcp/NOTICE-llama_bridge
 15dc90d22b531572ea22ff83d5b6bb269cd7a1dda4b2c41a3e3c024cf12ad09f  ./servers/polygram/mcp/NOTICE-tavern
 2265762a8918d4885d5858af882371bfe03504260df48c9d1d00afdf7983e13e  ./servers/polygram/mcp/__init__.py
@@ -410,9 +410,9 @@ a7ef6ada5f7531c1de40da7af5df3fda92c42c36fc31de2a464bb4162bb92875  ./skills/run-c
 1f059ddcbc51570f85b18854fc51a4e5d66a9cea99cacc2dc915fc0319ec234f  ./skills/run-card/scripts/ja1md
 fae05fddcd8248ee64741e5ad6ac0b5cd3efad4a2ffa64f66b12c13cc204733a  ./skills/run-card/scripts/rc1rn
 14fdcdd70ac69c3416abf487ce07f105eb154441cdb84a203b8ea1a23e01c060  ./skills/run-card/tests.sh
-4dc1fd5f6b22233eee705d9869642b5187c7bcf1cb00c2a0240f6b288602b03d  ./skills/sandboxer/.signature.asc
-fe0ba14222c2b0b9dabb3337d18a95411a6f0867875c21a0cbe4a7a8fde0698d  ./skills/sandboxer/.skill-manifest
-5b3a3d1ac46955b616c6408dd884f54bf1e1d9d5bba9296a6a58bbb66d6bfa07  ./skills/sandboxer/SKILL.md
+4526c1be8c168f25344fc07692313fddf632c86a8d317df56327563232ff8bdb  ./skills/sandboxer/.signature.asc
+12d8b12bb4782c1480d93bd1bb7a26fe48b2cf28658183abc75a854636f24747  ./skills/sandboxer/.skill-manifest
+69436bfe814af766dbebf073e9f8c2a3a58cc069c40e78118f2f6b04ca5273f5  ./skills/sandboxer/SKILL.md
 06832bfd6d72eb2fcd4b088f43bc6192aa044233a563231c028da1665e117e77  ./skills/sandboxer/scripts/landing.sh
 b58f26cdab2bdfc6cd0565526b6f421768dd4757645aeaa939f54c2307619032  ./skills/sandboxer/scripts/safe_write.py
 1367532bce54bcc0aa42405785c67da108c00403d70a3d4de5c77a7552617602  ./skills/sandboxer/scripts/sig-fresh.sh

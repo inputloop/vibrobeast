@@ -65,6 +65,14 @@ never be the proof.
    byte/structure checks still guard truncation. Exit 2 = staged file
    failed validation, target left untouched.
 
+   **A script someone may be running is replaced, never rewritten in place.** bash reads a script as it
+   runs it, a block at a time, from a byte offset. Truncating and rewriting the same file (an Edit, a
+   Write, Python's `open(p, 'w')`, `sed -i` on some systems, `cat > p`) moves the text under that offset,
+   and the running shell reads the middle of a line as code: a syntax error the file does not have.
+   Write the new text beside it and rename it over (`safe_write.py`, or `os.replace`): the running shell
+   keeps the old file, the next run reads the new one. On Windows the rename can be refused while the
+   file is open; that refusal is the right outcome, so say it and try again after the run (2026-11-13).
+
 3. The file-tool cache is now **stale**. Before you touch this file with
    Edit/Write again, `Read` it to resync — or just keep editing through
    bash, which never lies about the disk *when it writes* (F6). Note the
@@ -571,6 +579,13 @@ Facts about this sandbox that were learned by running into them. Date each; neve
   session's `.wt-limits` in `F:\claude\projects\tavern` lost its `.git/worktrees` entry to the Opus
   session's prunes (its TAVERN-ERATA, section 2a); `.wt-k8` was listed `prunable` from the Opus side
   while it was live. Rule above.
+- **2026-11-13 · a script rewritten in place under a running make broke the run.** At 00:59:53Z Python's
+  `open('w')` rewrote `AS4CE0001/bin/gh1pb` (adding its ways to push) while his `make publish` was in
+  `gh1pb stage`, begun 6 s earlier. bash failed at line 370 with a syntax error inside an `echo` string;
+  `bash -n` and `sh -n` passed on the same file a minute later. Cost: one `make publish`, rerun by him.
+  Receipt: his paste of 2026-11-13 19:09 CST; `stat` of bin/gh1pb (00:59:53.59Z); commit 2859273.
+  Rule above (the crossing, step 2); `advice/ENHANCE-20261113-rewrite-while-running.md`.
+
 ## Memory stores — what a session can and cannot reach
 
 Same discipline as the fingerprints above, pointed at the one tree everyone assumes is simple.
